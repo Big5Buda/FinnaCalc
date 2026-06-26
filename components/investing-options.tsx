@@ -11,6 +11,7 @@ import {
     RefreshCw, ArrowUpRight, ArrowDownRight,
 } from "lucide-react"
 import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
+import PortfolioCard from "@/components/portfolio-card"
 
 // ─── Sector config (icon + metadata) ──────────────────────────────────────────
 
@@ -341,9 +342,10 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
             )}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                  BROWSE BY INDUSTRY
+                  BROWSE BY INDUSTRY  +  PORTFOLIO
             ════════════════════════════════════════════════════════════════════ */}
-            <Card className="overflow-hidden">
+            <div className="grid grid-cols-3 gap-6 items-start">
+            <Card className="overflow-hidden col-span-2">
                 <CardHeader className="pb-4 border-b border-border">
                     <div className="flex items-center justify-between">
                         <div>
@@ -399,13 +401,13 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
 
                 <CardContent className="pt-5">
                     {isLoading && !data ? (
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
                             ))}
                         </div>
                     ) : sectorStocks.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             {sectorStocks.map(stock => (
                                 <StockCard
                                     key={stock.symbol}
@@ -419,6 +421,12 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
                     )}
                 </CardContent>
             </Card>
+
+            {/* Portfolio (Plaid) sits beside Browse by Industry */}
+            <div className="col-span-1">
+                <PortfolioCard />
+            </div>
+            </div>
 
             {/* ═══════════════════════════════════════════════════════════════════
                   MARKET MOVERS
