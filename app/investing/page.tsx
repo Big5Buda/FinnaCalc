@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -50,7 +50,7 @@ export default function InvestingPage() {
               Professional investment tools to help individuals and businesses make better financial decisions.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-3 gap-6 mb-8">
             <Card
                 className="bg-background hover:shadow-lg transition-shadow cursor-pointer border border-border"
                 onClick={() => handleSectionClick("investing-options")}

@@ -198,7 +198,7 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
                     {isLoading && <p>Loading market data...</p>}
                     {error && <p className="text-red-500">{error}</p>}
                     {!isLoading && !error && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-3">
                                 <h3 className="font-semibold flex items-center gap-2">
                                     <TrendingUp className="h-5 w-5 text-green-500" />
@@ -259,7 +259,7 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
                             </Button>
                         ))}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-4 gap-4">
                         {selectedIndustry.stocks.map(stock => (
                             <div key={stock.symbol} onClick={() => onSelect('stocks', stock.symbol)} className="p-3 rounded-lg hover:bg-muted cursor-pointer text-center flex flex-col items-center gap-2">
                                 <img src={stock.logo} alt={`${stock.name} logo`} className="h-10 w-10 rounded-full bg-background border" />

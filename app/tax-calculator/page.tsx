@@ -159,7 +159,7 @@ export default function TaxCalculator() {
 
   return (
       <div className="min-h-screen bg-muted/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="mb-8">
             <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -207,7 +207,7 @@ export default function TaxCalculator() {
                         </Select>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="income">Annual Income ($)</Label>
                           <Input
@@ -232,7 +232,7 @@ export default function TaxCalculator() {
 
                       <div className="space-y-4">
                         <h4 className="font-semibold">Deductions</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="mortgageInterest">Mortgage Interest ($)</Label>
                             <Input
@@ -306,7 +306,7 @@ export default function TaxCalculator() {
                     </TabsContent>
 
                     <TabsContent value="business" className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="businessIncome">Annual Business Income ($)</Label>
                           <Input
@@ -374,7 +374,7 @@ export default function TaxCalculator() {
 
                         {result.type === "individual" && taxType === "individual" ? (
                             <>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-3 gap-4">
                                 <div>
                                   <p className="text-sm text-muted-foreground">Federal Tax Owed</p>
                                   <p className="text-3xl font-bold text-red-600">${result.finalTax.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
@@ -440,7 +440,7 @@ export default function TaxCalculator() {
                             </>
                         ) : result.type === "business" && taxType === "business" ? (
                             <>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-3 gap-4">
                                 <div>
                                   <p className="text-sm text-muted-foreground">Estimated Tax Savings</p>
                                   <p className="text-3xl font-bold text-green-600">${result.taxSavings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>

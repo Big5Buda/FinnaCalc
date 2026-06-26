@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,7 @@ export default function TaxesPage() {
                     </p>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-3 gap-6 mb-8">
                     <Card
                         className="bg-background hover:shadow-lg transition-shadow cursor-pointer border border-border flex flex-col"
                         onClick={() => handleSectionClick("tax-filing")}

@@ -1,4 +1,4 @@
-
+﻿
 
 "use client"
 
@@ -370,7 +370,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
 
 
 
-            <div className="grid lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-4 gap-6">
                 <div className="lg:col-span-1 space-y-6">
                     <Card>
                         <CardHeader>
@@ -420,7 +420,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Estimate your federal income tax liability</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         {/* State Selection (left in place for context only). If you prefer removal everywhere, I can remove it. */}
                                         <div className="space-y-2">
@@ -512,7 +512,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Estimate your potential federal tax refund</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         {/* Removed state selector here because refund calculations do not use state in the current logic */}
                                         <div className="space-y-2">
@@ -619,7 +619,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                 <div className="w-2 h-2 bg-primary rounded-full"></div>
                                                 {category.category}
                                             </h3>
-                                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-3 gap-3">
                                                 {category.items.map((item, itemIndex) => {
                                                     const key = `${category.category}-${item.name}`
                                                     return (
@@ -713,7 +713,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Estimate federal tax payments for self-employed individuals</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         {/* Removed the state selector here (purely contextual in previous code) */}
                                         <div className="space-y-2">
@@ -824,7 +824,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-6">
-                                    <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-2 gap-6">
                                         <div className="space-y-4">
                                             {/* Removed the state selector here (contextual only previously) */}
                                             <div className="space-y-2">

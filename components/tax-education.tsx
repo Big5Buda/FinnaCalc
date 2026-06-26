@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -159,7 +159,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                 </CardContent>
             </Card>
 
-            <div className="grid lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-4 gap-6">
                 {/* Calculator Navigation */}
                 <div className="lg:col-span-1">
                     <Card>
@@ -200,7 +200,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Estimate your federal income tax liability for 2024</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="income">Annual Income</Label>
@@ -306,7 +306,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Estimate your potential tax refund</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="totalIncome">Total Income</Label>
@@ -352,7 +352,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                 <div className="w-2 h-2 bg-primary rounded-full"></div>
                                                 {category.category}
                                             </h3>
-                                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-3 gap-3">
                                                 {category.items.map((item, itemIndex) => (
                                                     <Card key={itemIndex} className="hover:shadow-md transition-shadow">
                                                         <CardContent className="p-4">
@@ -391,7 +391,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                 <CardDescription>Calculate estimated tax payments for self-employed individuals</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="expectedIncome">Expected Annual Income</Label>
