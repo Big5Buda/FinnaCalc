@@ -1,11 +1,8 @@
 import { type Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import dynamic from 'next/dynamic'
 import Header from "@/components/header";
-
-// Disable SSR to prevent useChat hydration mismatch (useChat generates IDs that differ server/client)
-const ChatBot = dynamic(() => import('@/components/Chatbot'), { ssr: false })
+import ChatBotWrapper from "@/components/chatbot-wrapper";
 import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
@@ -29,7 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <div className="flex flex-col min-h-screen">
                     <Header />
                     <main className="flex-grow">{children}</main>
-                    <ChatBot />
+                    <ChatBotWrapper />
                     <Toaster />
                 </div>
             </AuthProvider>
