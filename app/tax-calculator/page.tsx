@@ -10,6 +10,19 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  bracketTax,
+  computeSelfEmploymentTax,
+  marginalRate as marginalRateOf,
+  STANDARD_DEDUCTION_2024,
+  SALT_CAP_2024,
+  MEDICAL_AGI_FLOOR_2024,
+  STUDENT_LOAN_INTEREST_2024,
+} from "@/components/tax-engine/engine"
+import type { FilingStatus } from "@/components/tax-engine/types"
+
+/** Map this tool's status strings to the engine's FilingStatus. */
+const STATUS_MAP: Record<string, FilingStatus> = { single: "single", married: "mfj", head: "hoh" }
 
 export default function TaxCalculator() {
   const router = useRouter()
@@ -54,46 +67,22 @@ export default function TaxCalculator() {
     const grossIncome = Number.parseFloat(income) || 0
     const mortgage = Number.parseFloat(mortgageInterest) || 0
     const charitable = Number.parseFloat(charitableDonations) || 0
-    const saltDeduction = Math.min(Number.parseFloat(stateLocalTax) || 0, 10000)
-    const medical = Math.max(0, (Number.parseFloat(medicalExpenses) || 0) - grossIncome * 0.075)
-    const studentLoan = Math.min(Number.parseFloat(studentLoanInterest) || 0, 2500)
+    const fs = STATUS_MAP[filingStatus] ?? "single"
+    const saltDeduction = Math.min(Number.parseFloat(stateLocalTax) || 0, SALT_CAP_2024.standard)
+    const medical = Math.max(0, (Number.parseFloat(medicalExpenses) || 0) - grossIncome * MEDICAL_AGI_FLOOR_2024)
+    const studentLoan = Math.min(Number.parseFloat(studentLoanInterest) || 0, STUDENT_LOAN_INTEREST_2024.maxDeduction)
     const numDependents = Number.parseFloat(dependents) || 0
 
-    const standardDeduction = filingStatus === "married" ? 29200 : filingStatus === "head" ? 21900 : 14600
+    const standardDeduction = STANDARD_DEDUCTION_2024[fs]
     const itemizedDeductions = mortgage + charitable + saltDeduction + medical
     const totalDeductions = Math.max(standardDeduction, itemizedDeductions)
 
     const adjustedGrossIncome = grossIncome - studentLoan
     const taxableIncome = Math.max(0, adjustedGrossIncome - totalDeductions)
 
-    let federalTax = 0
-    let marginalRate = 0 // Define marginalRate here
-
-    if (filingStatus === "single") {
-      if (taxableIncome <= 11600) { federalTax = taxableIncome * 0.10; marginalRate = 10; }
-      else if (taxableIncome <= 47150) { federalTax = 1160 + (taxableIncome - 11600) * 0.12; marginalRate = 12; }
-      else if (taxableIncome <= 100525) { federalTax = 5426 + (taxableIncome - 47150) * 0.22; marginalRate = 22; }
-      else if (taxableIncome <= 191950) { federalTax = 17168.50 + (taxableIncome - 100525) * 0.24; marginalRate = 24; }
-      else if (taxableIncome <= 243725) { federalTax = 39110.50 + (taxableIncome - 191950) * 0.32; marginalRate = 32; }
-      else if (taxableIncome <= 609350) { federalTax = 55678.50 + (taxableIncome - 243725) * 0.35; marginalRate = 35; }
-      else { federalTax = 183647.25 + (taxableIncome - 609350) * 0.37; marginalRate = 37; }
-    } else if (filingStatus === "married") {
-      if (taxableIncome <= 23200) { federalTax = taxableIncome * 0.10; marginalRate = 10; }
-      else if (taxableIncome <= 94300) { federalTax = 2320 + (taxableIncome - 23200) * 0.12; marginalRate = 12; }
-      else if (taxableIncome <= 201050) { federalTax = 10852 + (taxableIncome - 94300) * 0.22; marginalRate = 22; }
-      else if (taxableIncome <= 383900) { federalTax = 34337 + (taxableIncome - 201050) * 0.24; marginalRate = 24; }
-      else if (taxableIncome <= 487450) { federalTax = 78221 + (taxableIncome - 383900) * 0.32; marginalRate = 32; }
-      else if (taxableIncome <= 731200) { federalTax = 111357 + (taxableIncome - 487450) * 0.35; marginalRate = 35; }
-      else { federalTax = 196669.50 + (taxableIncome - 731200) * 0.37; marginalRate = 37; }
-    } else { // Head of Household
-      if (taxableIncome <= 16550) { federalTax = taxableIncome * 0.10; marginalRate = 10; }
-      else if (taxableIncome <= 63100) { federalTax = 1655 + (taxableIncome - 16550) * 0.12; marginalRate = 12; }
-      else if (taxableIncome <= 100500) { federalTax = 7241 + (taxableIncome - 63100) * 0.22; marginalRate = 22; }
-      else if (taxableIncome <= 191950) { federalTax = 15469 + (taxableIncome - 100500) * 0.24; marginalRate = 24; }
-      else if (taxableIncome <= 243700) { federalTax = 37417 + (taxableIncome - 191950) * 0.32; marginalRate = 32; }
-      else if (taxableIncome <= 609350) { federalTax = 53977 + (taxableIncome - 243700) * 0.35; marginalRate = 35; }
-      else { federalTax = 181954.50 + (taxableIncome - 609350) * 0.37; marginalRate = 37; }
-    }
+    // Shared engine: exact 2024 rate-schedule tax + marginal rate.
+    const federalTax = bracketTax(taxableIncome, fs)
+    const marginalRate = marginalRateOf(taxableIncome, fs) * 100
 
     let taxCredits = 0
     if (childTaxCredit) taxCredits += numDependents * 2000
@@ -128,36 +117,27 @@ export default function TaxCalculator() {
     const totalDeductions = expensesNum + homeOfficeDeductionNum + vehicleExpensesNum + equipmentNum;
     const netBusinessIncome = Math.max(0, incomeNum - totalDeductions);
 
-    const seTaxableIncome = netBusinessIncome * 0.9235;
-    const selfEmploymentTax = seTaxableIncome * 0.153;
-    const deductibleSETax = selfEmploymentTax * 0.5;
+    // Shared engine: self-employment tax (Schedule SE) with the 50% deduction.
+    const se = computeSelfEmploymentTax(
+      { taxpayer: netBusinessIncome, spouse: 0 },
+      { taxpayer: 0, spouse: 0 },
+    )
+    const selfEmploymentTax = se.seTax
+    const deductibleSETax = se.deduction
 
     const adjustedGrossIncome = netBusinessIncome - deductibleSETax;
-    const standardDeduction = 14600; // Assuming single filer for estimation
+    const standardDeduction = STANDARD_DEDUCTION_2024.single; // single-filer estimate
     const taxableIncome = Math.max(0, adjustedGrossIncome - standardDeduction);
 
-    let federalTax = 0;
-    let marginalRate = 0;
-
-    if (taxableIncome <= 11600) { federalTax = taxableIncome * 0.10; marginalRate = 10; }
-    else if (taxableIncome <= 47150) { federalTax = 1160 + (taxableIncome - 11600) * 0.12; marginalRate = 12; }
-    else if (taxableIncome <= 100525) { federalTax = 5426 + (taxableIncome - 47150) * 0.22; marginalRate = 22; }
-    else if (taxableIncome <= 191950) { federalTax = 17168.50 + (taxableIncome - 100525) * 0.24; marginalRate = 24; }
-    else if (taxableIncome <= 243725) { federalTax = 39110.50 + (taxableIncome - 191950) * 0.32; marginalRate = 32; }
-    else if (taxableIncome <= 609350) { federalTax = 55678.50 + (taxableIncome - 243725) * 0.35; marginalRate = 35; }
-    else { federalTax = 183647.25 + (taxableIncome - 609350) * 0.37; marginalRate = 37; }
+    const federalTax = bracketTax(taxableIncome, "single")
+    const marginalRate = marginalRateOf(taxableIncome, "single") * 100
 
     const totalTax = federalTax + selfEmploymentTax;
     const effectiveTaxRate = incomeNum > 0 ? (totalTax / incomeNum) * 100 : 0;
 
-    // Estimate tax savings from deductions
-    let taxWithoutDeductions = 0;
-    const taxableIncomeWithoutDeductions = Math.max(0, (incomeNum * 0.9235 * (1-0.153/2)) - standardDeduction);
-
-    if (taxableIncomeWithoutDeductions <= 11600) { taxWithoutDeductions = taxableIncomeWithoutDeductions * 0.10; }
-    else if (taxableIncomeWithoutDeductions <= 47150) { taxWithoutDeductions = 1160 + (taxableIncomeWithoutDeductions - 11600) * 0.12; }
-    else { taxWithoutDeductions = 5426 + (taxableIncomeWithoutDeductions - 47150) * 0.22; } // Simplified for brevity
-
+    // Estimate tax savings from deductions (compare against no business deductions).
+    const taxableIncomeWithoutDeductions = Math.max(0, incomeNum * 0.9235 * (1 - 0.153 / 2) - standardDeduction);
+    const taxWithoutDeductions = bracketTax(taxableIncomeWithoutDeductions, "single")
     const seTaxWithoutDeductions = (incomeNum * 0.9235) * 0.153;
     const totalTaxWithoutDeductions = taxWithoutDeductions + seTaxWithoutDeductions;
     const taxSavings = Math.max(0, totalTaxWithoutDeductions - totalTax);

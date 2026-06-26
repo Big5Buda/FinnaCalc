@@ -14,6 +14,13 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+    bracketTax,
+    computeSelfEmploymentTax,
+    marginalRate as marginalRateOf,
+    STANDARD_DEDUCTION_2024,
+} from "@/components/tax-engine/engine"
+import type { FilingStatus } from "@/components/tax-engine/types"
+import {
     ArrowLeft,
     Calculator,
     DollarSign,
@@ -149,48 +156,14 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
 
     const calculateTax = () => {
         const incomeNum = sanitizeNumber(income)
-        let standardDeduction = 14600; // Single 2024
-        if (filingStatus === "married") standardDeduction = 29200;
-        if (filingStatus === "head") standardDeduction = 21900;
-
-
-
+        const statusMap: Record<string, FilingStatus> = { single: "single", married: "mfj", head: "hoh" }
+        const fs = statusMap[filingStatus] ?? "single"
+        const standardDeduction = STANDARD_DEDUCTION_2024[fs]
 
         const taxableIncome = Math.max(0, incomeNum - standardDeduction);
-        let tax = 0;
-        let marginalRate = 0;
-
-
-
-
-        if (filingStatus === "single") {
-            if (taxableIncome <= 11600) { tax = taxableIncome * 0.10; marginalRate = 10; }
-            else if (taxableIncome <= 47150) { tax = 1160 + (taxableIncome - 11600) * 0.12; marginalRate = 12; }
-            else if (taxableIncome <= 100525) { tax = 5426 + (taxableIncome - 47150) * 0.22; marginalRate = 22; }
-            else if (taxableIncome <= 191950) { tax = 17168.50 + (taxableIncome - 100525) * 0.24; marginalRate = 24; }
-            else if (taxableIncome <= 243725) { tax = 39110.50 + (taxableIncome - 191950) * 0.32; marginalRate = 32; }
-            else if (taxableIncome <= 609350) { tax = 55678.50 + (taxableIncome - 243725) * 0.35; marginalRate = 35; }
-            else { tax = 183647.25 + (taxableIncome - 609350) * 0.37; marginalRate = 37; }
-        } else if (filingStatus === "married") {
-            if (taxableIncome <= 23200) { tax = taxableIncome * 0.10; marginalRate = 10; }
-            else if (taxableIncome <= 94300) { tax = 2320 + (taxableIncome - 23200) * 0.12; marginalRate = 12; }
-            else if (taxableIncome <= 201050) { tax = 10852 + (taxableIncome - 94300) * 0.22; marginalRate = 22; }
-            else if (taxableIncome <= 383900) { tax = 34337 + (taxableIncome - 201050) * 0.24; marginalRate = 24; }
-            else if (taxableIncome <= 487450) { tax = 78221 + (taxableIncome - 383900) * 0.32; marginalRate = 32; }
-            else if (taxableIncome <= 731200) { tax = 111357 + (taxableIncome - 487450) * 0.35; marginalRate = 35; }
-            else { tax = 196669.50 + (taxableIncome - 731200) * 0.37; marginalRate = 37; }
-        } else { // Head of Household
-            if (taxableIncome <= 16550) { tax = taxableIncome * 0.10; marginalRate = 10; }
-            else if (taxableIncome <= 63100) { tax = 1655 + (taxableIncome - 16550) * 0.12; marginalRate = 12; }
-            else if (taxableIncome <= 100500) { tax = 7241 + (taxableIncome - 63100) * 0.22; marginalRate = 22; }
-            else if (taxableIncome <= 191950) { tax = 15469 + (taxableIncome - 100500) * 0.24; marginalRate = 24; }
-            else if (taxableIncome <= 243700) { tax = 37417 + (taxableIncome - 191950) * 0.32; marginalRate = 32; }
-            else if (taxableIncome <= 609350) { tax = 53977 + (taxableIncome - 243700) * 0.35; marginalRate = 35; }
-            else { tax = 181954.50 + (taxableIncome - 609350) * 0.37; marginalRate = 37; }
-        }
-
-
-
+        // Shared engine: exact 2024 rate-schedule tax + marginal rate.
+        const tax = bracketTax(taxableIncome, fs)
+        const marginalRate = marginalRateOf(taxableIncome, fs) * 100
 
         setResults({
             grossIncome: incomeNum,
@@ -210,17 +183,9 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
         const incomeNum = sanitizeNumber(refundIncome)
         const withheldNum = sanitizeNumber(refundWithheld)
         const creditsNum = sanitizeNumber(refundCredits)
-        const standardDeduction = 14600; // Assuming single 2024
+        const standardDeduction = STANDARD_DEDUCTION_2024.single
         const taxableIncome = Math.max(0, incomeNum - standardDeduction);
-        let tax = 0;
-        if (taxableIncome <= 11600) { tax = taxableIncome * 0.10; }
-        else if (taxableIncome <= 47150) { tax = 1160 + (taxableIncome - 11600) * 0.12; }
-        else if (taxableIncome <= 100525) { tax = 5426 + (taxableIncome - 47150) * 0.22; }
-        else if (taxableIncome <= 191950) { tax = 17168.50 + (taxableIncome - 100525) * 0.24; }
-        else { tax = 39110.50 + (taxableIncome - 191950) * 0.32; }
-
-
-
+        const tax = bracketTax(taxableIncome, "single")
 
         const totalTaxLiability = Math.max(0, tax - creditsNum);
         const refund = withheldNum - totalTaxLiability;
@@ -243,20 +208,13 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
 
     const calculateQuarterly = () => {
         const netIncome = sanitizeNumber(quarterlyNetIncome)
-        const seTaxableIncome = netIncome * 0.9235;
-        const selfEmploymentTax = seTaxableIncome * 0.153;
-        const deductibleSETax = selfEmploymentTax * 0.5;
+        const se = computeSelfEmploymentTax({ taxpayer: netIncome, spouse: 0 }, { taxpayer: 0, spouse: 0 })
+        const selfEmploymentTax = se.seTax
+        const deductibleSETax = se.deduction
         const adjustedIncome = netIncome - deductibleSETax;
-        const standardDeduction = 14600; // Assuming single 2024
+        const standardDeduction = STANDARD_DEDUCTION_2024.single
         const taxableIncome = Math.max(0, adjustedIncome - standardDeduction);
-        let incomeTax = 0;
-        if (taxableIncome <= 11600) { incomeTax = taxableIncome * 0.10; }
-        else if (taxableIncome <= 47150) { incomeTax = 1160 + (taxableIncome - 11600) * 0.12; }
-        else if (taxableIncome <= 100525) { incomeTax = 5426 + (taxableIncome - 47150) * 0.22; }
-        else { incomeTax = 17168.50 + (taxableIncome - 100525) * 0.24; }
-
-
-
+        const incomeTax = bracketTax(taxableIncome, "single")
 
         const totalFederalTax = incomeTax + selfEmploymentTax;
         const quarterlyPayment = totalFederalTax / 4;
@@ -289,7 +247,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                 }
             })
         })
-        const standardDeduction = 14600; // Single 2024
+        const standardDeduction = STANDARD_DEDUCTION_2024.single
         const shouldItemize = totalDeductions > standardDeduction;
         setDeductionResults({
             totalItemized: totalDeductions,
@@ -309,16 +267,9 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
         const incomeNum = sanitizeNumber(withholdingIncome)
         const payPeriodsNum = sanitizeNumber(withholdingPayPeriods) || 26;
         const allowancesNum = sanitizeNumber(withholdingAllowances) || 0;
-        const standardDeduction = 14600; // Assuming single 2024
+        const standardDeduction = STANDARD_DEDUCTION_2024.single
         const taxableIncome = Math.max(0, incomeNum - standardDeduction);
-        let annualTax = 0;
-        if (taxableIncome <= 11600) { annualTax = taxableIncome * 0.10; }
-        else if (taxableIncome <= 47150) { annualTax = 1160 + (taxableIncome - 11600) * 0.12; }
-        else if (taxableIncome <= 100525) { annualTax = 5426 + (taxableIncome - 47150) * 0.22; }
-        else { annualTax = 17168.50 + (taxableIncome - 100525) * 0.24; }
-
-
-
+        const annualTax = bracketTax(taxableIncome, "single")
 
         const simplifiedAllowanceValue = 5150;
         const adjustedAnnualTax = Math.max(0, annualTax - (allowancesNum * simplifiedAllowanceValue * 0.12));
