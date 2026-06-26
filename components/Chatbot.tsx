@@ -5,20 +5,28 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { MessageCircle, Send, X } from "lucide-react"
-import { useChat } from "@ai-sdk/react"
+
+type Message = { id: string; role: "user" | "assistant"; content: string }
 
 const WELCOME_CONTENT =
     "Hi! I'm FinnaBot. Ask me about budgeting, investing, taxes, or any of the calculators on this site. I'm not a licensed advisor, so verify anything important with a professional."
 
+function uid() {
+    return typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2)
+}
+
 export default function ChatBot() {
     const [isOpen, setIsOpen] = useState(false)
+    const [messages, setMessages] = useState<Message[]>([
+        { id: "welcome", role: "assistant", content: WELCOME_CONTENT },
+    ])
+    const [input, setInput] = useState("")
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
-
-    const { messages, input, setInput, isLoading, append, error } = useChat({
-        api: "/api/chat",
-        initialMessages: [{ id: "welcome", role: "assistant", content: WELCOME_CONTENT }],
-    })
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
@@ -31,11 +39,57 @@ export default function ChatBot() {
     const send = async () => {
         const trimmed = input.trim()
         if (!trimmed || isLoading) return
+
+        setError(null)
+        const userMessage: Message = { id: uid(), role: "user", content: trimmed }
+        const history = [...messages, userMessage]
+        setMessages(history)
         setInput("")
+        setIsLoading(true)
+
+        const assistantId = uid()
         try {
-            await append({ role: "user", content: trimmed })
-        } catch {
-            // useChat surfaces errors via its own error state; this prevents an unhandled rejection crash
+            const res = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    // Drop the welcome message so the model conversation starts with a user turn
+                    messages: history
+                        .filter((m) => m.id !== "welcome")
+                        .map(({ role, content }) => ({ role, content })),
+                }),
+            })
+
+            if (!res.ok || !res.body) {
+                const detail = await res.text().catch(() => "")
+                throw new Error(detail || `Request failed (${res.status}). Please try again.`)
+            }
+
+            // Add an empty assistant bubble, then stream tokens into it
+            setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }])
+
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let accumulated = ""
+
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                accumulated += decoder.decode(value, { stream: true })
+                setMessages((prev) =>
+                    prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
+                )
+            }
+
+            if (!accumulated.trim()) {
+                setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+                throw new Error("No response received. Please try again.")
+            }
+        } catch (e: any) {
+            setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+            setError(e?.message ?? "Something went wrong. Please try again.")
+        } finally {
+            setIsLoading(false)
         }
     }
 
@@ -79,7 +133,9 @@ export default function ChatBot() {
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Personal finance & business AI assistant · Powered by Gemini</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Personal finance &amp; business AI assistant · Powered by Gemini
+                    </p>
                 </CardHeader>
 
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -105,7 +161,7 @@ export default function ChatBot() {
                     )}
                     {error && (
                         <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-md px-2 py-1.5">
-                            {error.message}
+                            {error}
                         </div>
                     )}
                 </div>
