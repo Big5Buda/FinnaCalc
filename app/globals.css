@@ -64,3 +64,21 @@
 .ad-space {
   @apply bg-gray-100 border-2 border-dashed border-gray-300 p-4 text-center text-gray-500 rounded-lg dark:bg-muted dark:border-border dark:text-muted-foreground;
 }
+
+/* Print isolation: only the tax summary (#print-area) prints, cleanly. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+  }
+}

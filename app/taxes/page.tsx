@@ -46,12 +46,12 @@ export default function TaxesPage() {
                                 <FileText className="h-6 w-6 text-primary-foreground" />
                             </div>
                             <CardTitle className="text-lg">Easy Tax Filing</CardTitle>
-                            <CardDescription className="text-sm text-muted-foreground">Simple, step-by-step tax preparation</CardDescription>
+                            <CardDescription className="text-sm text-muted-foreground">IRS-accurate estimate with a live refund</CardDescription>
                         </CardHeader>
                         <CardContent className="text-center flex-grow flex flex-col justify-between">
                             <p className="text-sm text-muted-foreground mb-4">
-                                File your taxes easily with our guided interface. Supports personal, business, and rental
-                                properties.
+                                Answer a few questions and watch your Tax Year 2024 federal refund update live. Wages,
+                                self-employment, investments, Social Security, deductions, and credits.
                             </p>
                             <Button className="w-full bg-blue-600 hover:bg-blue-700 mt-auto">Start Filing</Button>
                         </CardContent>
