@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ArrowLeft, TrendingUp, TrendingDown, Cpu, HeartPulse, Landmark, Fuel } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { ArrowLeft, TrendingUp, TrendingDown, Cpu, HeartPulse, Landmark, Fuel, Search } from "lucide-react"
 
 interface Mover {
     symbol: string;
@@ -11,6 +12,11 @@ interface Mover {
     change: number;
     price: number;
     changesPercentage: number;
+}
+
+interface SearchResult {
+    "1. symbol": string;
+    "2. name": string;
 }
 
 interface InvestingOptionsProps {
@@ -68,6 +74,46 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
     const [error, setError] = useState<string | null>(null);
     const [selectedIndustry, setSelectedIndustry] = useState(industries[0]);
 
+    const [searchTerm, setSearchTerm] = useState("");
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+                setShowResults(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleSearch = async () => {
+        if (!searchTerm.trim()) return;
+        setIsSearching(true);
+        setSearchResults([]);
+        setShowResults(true);
+        try {
+            const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(searchTerm)}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Search failed.");
+            setSearchResults(data);
+        } catch {
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleSelectResult = (symbol: string) => {
+        setShowResults(false);
+        setSearchTerm("");
+        setSearchResults([]);
+        onSelect('stocks', symbol);
+    };
+
     useEffect(() => {
         const fetchMovers = async () => {
             try {
@@ -93,6 +139,45 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
 
     return (
         <div className="space-y-6">
+            {/* Stock Search */}
+            <div ref={searchRef} className="relative">
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            className="pl-9"
+                            placeholder="Search stocks by name or ticker (e.g. AAPL, Tesla)"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && handleSearch()}
+                        />
+                    </div>
+                    <Button onClick={handleSearch} disabled={isSearching}>
+                        {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                </div>
+                {showResults && (
+                    <div className="absolute z-10 top-full mt-1 w-full bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto">
+                        {isSearching && (
+                            <p className="p-3 text-sm text-muted-foreground">Searching...</p>
+                        )}
+                        {!isSearching && searchResults.length === 0 && (
+                            <p className="p-3 text-sm text-muted-foreground">No results found.</p>
+                        )}
+                        {searchResults.map(result => (
+                            <div
+                                key={result["1. symbol"]}
+                                onClick={() => handleSelectResult(result["1. symbol"])}
+                                className="px-3 py-2 hover:bg-muted cursor-pointer flex justify-between items-center"
+                            >
+                                <span className="font-semibold text-sm">{result["1. symbol"]}</span>
+                                <span className="text-sm text-muted-foreground truncate ml-4">{result["2. name"]}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             <div className="flex items-center gap-4">
                 <Button variant="outline" size="sm" onClick={onBack}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
