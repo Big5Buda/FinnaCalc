@@ -12,7 +12,6 @@ import {
     TrendingDown,
     DollarSign,
     BarChart3,
-    ExternalLink,
     ChevronRight,
 } from "lucide-react"
 
@@ -173,26 +172,6 @@ export default function StockResearchTools({ onBack }: StockResearchToolsProps) 
                     </p>
                 </div>
             </div>
-
-            {/* Advertisement Space */}
-            <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <BarChart3 className="h-8 w-8 text-purple-600" />
-                            <div>
-                                <h3 className="font-semibold">Advanced Analytics</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Professional-grade research tools
-                                </p>
-                            </div>
-                        </div>
-                        <Button size="sm" variant="outline">
-                            Upgrade <ExternalLink className="h-3 w-3 ml-1" />
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
 
             {/* Tool Tabs */}
             <div className="flex gap-2 border-b">
@@ -368,7 +347,7 @@ export default function StockResearchTools({ onBack }: StockResearchToolsProps) 
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-2 gap-6">
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="text-lg">Key Metrics Explained</CardTitle>

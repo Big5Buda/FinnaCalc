@@ -210,7 +210,7 @@ export default function PricingCalculator() {
 
   return (
       <div className="min-h-screen bg-muted/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="mb-8">
             <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -236,7 +236,7 @@ export default function PricingCalculator() {
                     </TabsList>
 
                     <TabsContent value="service" className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="industryType">Industry Type</Label>
                           <Select value={industryType} onValueChange={setIndustryType}>
@@ -344,7 +344,7 @@ export default function PricingCalculator() {
                     </TabsContent>
 
                     <TabsContent value="product" className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="productCost">Product Cost ($)</Label>
                           <Input
@@ -427,7 +427,7 @@ export default function PricingCalculator() {
 
                               {result.type === "service" && activeTab === "service" ? (
                                   <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-4 gap-4">
                                       <div>
                                         <p className="text-sm text-muted-foreground">Current Annual Revenue</p>
                                         <p className="text-2xl font-bold text-green-600">
@@ -499,7 +499,7 @@ export default function PricingCalculator() {
                                   </>
                               ) : result.type === "product" && activeTab === "product" ? (
                                   <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-4 gap-4">
                                       <div>
                                         <p className="text-sm text-muted-foreground">Recommended Selling Price</p>
                                         <p className="text-2xl font-bold text-green-600">${result.sellingPrice.toFixed(2)}</p>

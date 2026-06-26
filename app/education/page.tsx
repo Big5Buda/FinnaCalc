@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -57,7 +57,7 @@ export default function EducationPage() {
                     </CardContent>
                 </Card> */}
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-4 gap-6 mb-8">
                     <Card
                         className="hover:shadow-lg transition-shadow cursor-pointer"
                         onClick={() => handleSectionClick("financial-education", "credit")}
@@ -70,9 +70,9 @@ export default function EducationPage() {
                         </CardHeader>
                         <CardContent className="text-center">
                             <div className="space-y-1 text-sm mb-3">
-                                <div>• Understanding credit scores</div>
-                                <div>• How to improve credit</div>
-                                <div>• Debt payoff strategies</div>
+                                <div>â€¢ Understanding credit scores</div>
+                                <div>â€¢ How to improve credit</div>
+                                <div>â€¢ Debt payoff strategies</div>
                             </div>
                             <Button size="sm" className="w-full bg-transparent" variant="outline">
                                 Learn More
@@ -91,9 +91,9 @@ export default function EducationPage() {
                         </CardHeader>
                         <CardContent className="text-center">
                             <div className="space-y-1 text-sm mb-3">
-                                <div>• What are stocks & bonds?</div>
-                                <div>• Risk vs reward explained</div>
-                                <div>• Portfolio diversification</div>
+                                <div>â€¢ What are stocks & bonds?</div>
+                                <div>â€¢ Risk vs reward explained</div>
+                                <div>â€¢ Portfolio diversification</div>
                             </div>
                             <Button size="sm" className="w-full bg-transparent" variant="outline">
                                 Learn More
@@ -112,9 +112,9 @@ export default function EducationPage() {
                         </CardHeader>
                         <CardContent className="text-center">
                             <div className="space-y-1 text-sm mb-3">
-                                <div>• Creating a budget</div>
-                                <div>• Tracking expenses</div>
-                                <div>• Emergency fund planning</div>
+                                <div>â€¢ Creating a budget</div>
+                                <div>â€¢ Tracking expenses</div>
+                                <div>â€¢ Emergency fund planning</div>
                             </div>
                             <Button size="sm" className="w-full bg-transparent" variant="outline">
                                 Learn More
@@ -133,9 +133,9 @@ export default function EducationPage() {
                         </CardHeader>
                         <CardContent className="text-center">
                             <div className="space-y-1 text-sm mb-3">
-                                <div>• 401(k) vs IRA explained</div>
-                                <div>• Compound interest power</div>
-                                <div>• Retirement calculators</div>
+                                <div>â€¢ 401(k) vs IRA explained</div>
+                                <div>â€¢ Compound interest power</div>
+                                <div>â€¢ Retirement calculators</div>
                             </div>
                             <Button size="sm" className="w-full bg-transparent" variant="outline">
                                 Learn More
@@ -154,9 +154,9 @@ export default function EducationPage() {
                         </CardHeader>
                         <CardContent className="text-center">
                             <div className="space-y-1 text-sm mb-3">
-                                <div>• Understanding tax brackets</div>
-                                <div>• Deductions vs credits</div>
-                                <div>• Business vs personal taxes</div>
+                                <div>â€¢ Understanding tax brackets</div>
+                                <div>â€¢ Deductions vs credits</div>
+                                <div>â€¢ Business vs personal taxes</div>
                             </div>
                             <Button size="sm" className="w-full bg-transparent" variant="outline">
                                 Learn More

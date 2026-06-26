@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import {
@@ -769,7 +769,7 @@ export default function BudgetingPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                    <div className="grid grid-cols-4 gap-6 mb-8">
                         <Card>
                             <CardContent className="p-4 sm:p-6">
                                 <div className="flex items-center justify-between">
@@ -828,14 +828,14 @@ export default function BudgetingPage() {
                     </div>
 
                     <Tabs defaultValue="budget" className="space-y-6">
-                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="budget">Budget</TabsTrigger>
                             <TabsTrigger value="analysis">Analysis</TabsTrigger>
                             <TabsTrigger value="goals">Savings Goals</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                         </TabsList>
                         <TabsContent value="budget" className="space-y-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-2 gap-6">
                                 <Card>
                                     <CardHeader>
                                         <div className="flex justify-between items-center">
@@ -1418,7 +1418,7 @@ export default function BudgetingPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <Card>
                                 <CardContent className="p-4">
                                     <p className="text-sm text-muted-foreground">Monthly Income</p>

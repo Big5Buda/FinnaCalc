@@ -236,7 +236,7 @@ export default function StartupCostCalculator() {
 
   return (
       <div className="min-h-screen bg-muted/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="mb-8">
             <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -287,7 +287,7 @@ export default function StartupCostCalculator() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="equipment">Equipment & Technology ($)</Label>
                           <Input
@@ -422,7 +422,7 @@ export default function StartupCostCalculator() {
                     </TabsContent>
 
                     <TabsContent value="funding" className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="personalSavings">Personal Savings ($)</Label>
                           <Input
@@ -467,7 +467,7 @@ export default function StartupCostCalculator() {
                       <div className="calculator-result space-y-6 mt-6">
                         <h3 className="text-lg font-semibold text-blue-800">Your Comprehensive Startup Analysis</h3>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           <div>
                             <p className="text-sm text-muted-foreground">Total Startup Costs</p>
                             <p className="text-3xl font-bold text-green-600">${result.totalCosts.toLocaleString()}</p>

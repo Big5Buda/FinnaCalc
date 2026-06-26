@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -125,7 +125,7 @@ export default function InvestmentEducation({ onBack }: InvestmentEducationProps
                     <CardDescription>Short, engaging videos that explain complex topics simply</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         {videoLessons.map((video, index) => (
                             <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
                                 <div className="relative">
@@ -166,7 +166,7 @@ export default function InvestmentEducation({ onBack }: InvestmentEducationProps
                     <CardDescription>Curated articles and resources from trusted financial experts</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         {readingResources.map((resource, index) => (
                             <Card key={index} className="hover:shadow-md transition-shadow">
                                 <CardContent className="p-4">
