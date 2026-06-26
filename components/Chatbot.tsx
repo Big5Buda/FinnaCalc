@@ -32,7 +32,11 @@ export default function ChatBot() {
         const trimmed = input.trim()
         if (!trimmed || isLoading) return
         setInput("")
-        await append({ role: "user", content: trimmed })
+        try {
+            await append({ role: "user", content: trimmed })
+        } catch {
+            // useChat surfaces errors via its own error state; this prevents an unhandled rejection crash
+        }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

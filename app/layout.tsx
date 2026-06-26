@@ -1,8 +1,11 @@
 import { type Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import ChatBot from '@/components/Chatbot'
+import dynamic from 'next/dynamic'
 import Header from "@/components/header";
+
+// Disable SSR to prevent useChat hydration mismatch (useChat generates IDs that differ server/client)
+const ChatBot = dynamic(() => import('@/components/Chatbot'), { ssr: false })
 import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
