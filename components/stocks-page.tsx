@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { ArrowLeft, Search, TrendingUp, TrendingDown } from "lucide-react"
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from "recharts"
+import TradingViewChart from "@/components/tradingview-chart"
 
 interface StocksPageProps {
     onBack: () => void;
@@ -29,16 +29,10 @@ interface SearchResult {
     "2. name": string
 }
 
-interface ChartDataPoint {
-    date: string
-    price: number
-}
-
 export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
-    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
@@ -81,7 +75,7 @@ export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to fetch stock data.");
 
-            const { quote, overview, timeSeries } = data;
+            const { quote, overview } = data;
             setSelectedStock({
                 symbol: quote["01. symbol"],
                 name: overview.Name,
@@ -92,15 +86,6 @@ export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
                 description: overview.Description,
                 logo: overview.Logo, // <-- ADDED THIS
             });
-
-            const formattedChartData = Object.entries(timeSeries)
-                .map(([date, values]: [string, any]) => ({
-                    date: new Date(date).toLocaleDateString("en-US", { month: 'short', day: 'numeric' }),
-                    price: parseFloat(values["4. close"]),
-                }))
-                .slice(-30);
-            setChartData(formattedChartData);
-
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -173,17 +158,7 @@ export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
                                 </div>
                             </div>
 
-                            {chartData.length > 0 && (
-                                <div className="h-64 w-full">
-                                    <ResponsiveContainer>
-                                        <LineChart data={chartData}>
-                                            <XAxis dataKey="date" interval="preserveStartEnd" />
-                                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                                            <Line type="monotone" dataKey="price" stroke="#3b82f6" strokeWidth={3} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
+                            <TradingViewChart symbol={selectedStock.symbol} height={420} />
                         </div>
                     )}
                 </CardContent>

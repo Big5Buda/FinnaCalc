@@ -3,12 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Shield, GraduationCap } from "lucide-react"
+import { Shield, GraduationCap } from "lucide-react"
 import InvestingOptions from "@/components/investing-options"
 import StocksPage from "@/components/stocks-page"
 import BondsPage from "@/components/bonds-page"
 import SafeInvestmentsPage from "@/components/safe-investments-page"
-import StockResearchTools from "@/components/stock-research-tools"
 import Link from "next/link"
 
 export default function InvestingPage() {
@@ -38,9 +37,6 @@ export default function InvestingPage() {
     if (activeSection === "safe-investments") {
       return <SafeInvestmentsPage onBack={() => setActiveSection("investing-options")} />
     }
-    if (activeSection === "stock-research") {
-      return <StockResearchTools onBack={handleBackToTab} />
-    }
     // "investment-education" is now handled by a direct link
     return (
         <section className="space-y-8">
@@ -50,7 +46,7 @@ export default function InvestingPage() {
               Professional investment tools to help individuals and businesses make better financial decisions.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-2 gap-6 mb-8 max-w-3xl mx-auto">
             <Card
                 className="bg-background hover:shadow-lg transition-shadow cursor-pointer border border-border"
                 onClick={() => handleSectionClick("investing-options")}
@@ -60,35 +56,13 @@ export default function InvestingPage() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <CardTitle className="text-lg text-foreground">Investing</CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">Explore safe investment options</CardDescription>
+                <CardDescription className="text-sm text-muted-foreground">Market overview, portfolio & screener</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Explore curated safe investment options including index funds, ETFs, and bonds.
+                  Explore live market data, track your portfolio, and research stocks with interactive charts.
                 </p>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">View Safe Options</Button>
-              </CardContent>
-            </Card>
-            <Card
-                className="bg-background hover:shadow-lg transition-shadow cursor-pointer border border-border"
-                onClick={() => handleSectionClick("stock-research")}
-            >
-              <CardHeader className="text-center pb-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <CardTitle className="text-lg text-foreground">Stock Research Tools</CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">
-                  Tools to research and analyze stocks
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Basic stock screener and analysis tools designed for beginners.
-                </p>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  Explore Tools
-                </Button>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">Open Markets</Button>
               </CardContent>
             </Card>
             <Link href="/education">

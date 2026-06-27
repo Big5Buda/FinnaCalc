@@ -4,14 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import {
     ArrowLeft, Search, TrendingUp, TrendingDown, Activity,
     Cpu, HeartPulse, Landmark, ShoppingCart, Flame, Radio, Factory,
-    RefreshCw, ArrowUpRight, ArrowDownRight,
+    ArrowUpRight, ArrowDownRight, LineChart, Wallet,
 } from "lucide-react"
 import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
 import PortfolioCard from "@/components/portfolio-card"
+import StockScreener from "@/components/stock-screener"
 
 // ─── Sector config (icon + metadata) ──────────────────────────────────────────
 
@@ -60,13 +60,6 @@ function changeBadgeClass(n: number) {
         : n < 0
         ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400"
         : "bg-muted text-muted-foreground"
-}
-
-function timeAgo(ts: number) {
-    const secs = Math.floor((Date.now() - ts) / 1000)
-    if (secs < 60) return `${secs}s ago`
-    const mins = Math.floor(secs / 60)
-    return `${mins}m ago`
 }
 
 // ─── Stock logo with fallback ──────────────────────────────────────────────────
@@ -133,12 +126,12 @@ function StockCard({ stock, onClick }: { stock: StockQuote; onClick: () => void 
     )
 }
 
-function MoverRow({ stock, rank, maxPct }: { stock: StockQuote; rank: number; maxPct: number }) {
+function MoverRow({ stock, rank, maxPct, onClick }: { stock: StockQuote; rank: number; maxPct: number; onClick: () => void }) {
     const pos = stock.changesPercentage >= 0
     const barPct = maxPct > 0 ? (Math.abs(stock.changesPercentage) / maxPct) * 100 : 0
 
     return (
-        <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors rounded-lg cursor-pointer group">
+        <div onClick={onClick} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors rounded-lg cursor-pointer group">
             <span className="text-muted-foreground text-sm font-mono w-5 text-center flex-shrink-0">{rank}</span>
             <Logo symbol={stock.symbol} size={36} />
             <div className="flex-1 min-w-0">
@@ -190,6 +183,8 @@ interface InvestingOptionsProps {
     onSelect: (option: "stocks" | "bonds" | "safe-investments", symbol?: string) => void
 }
 
+type View = "overview" | "portfolio" | "screener"
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsProps) {
@@ -198,6 +193,7 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
     const [error, setError] = useState<string | null>(null)
     const [activeSector, setActiveSector] = useState("technology")
     const [moverTab, setMoverTab] = useState<"gainers" | "losers" | "mostActive">("gainers")
+    const [activeView, setActiveView] = useState<View>("overview")
 
     const [searchTerm, setSearchTerm] = useState("")
     const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -266,15 +262,29 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
     }) ?? []
 
     const activeSectorSummary = data?.sectorSummary.find(s => s.id === activeSector)
-    const activeSectorColor = SECTOR_COLORS[activeSectorSummary?.color ?? "blue"]
 
     const currentMovers = moverTab === "gainers" ? data?.gainers : moverTab === "losers" ? data?.losers : data?.mostActive
     const maxPct = currentMovers ? Math.max(...currentMovers.map(s => Math.abs(s.changesPercentage))) : 1
 
+    const VIEW_TABS = [
+        { key: "overview" as const, label: "Market Overview", icon: <LineChart className="h-4 w-4" /> },
+        { key: "portfolio" as const, label: "Portfolio", icon: <Wallet className="h-4 w-4" /> },
+        { key: "screener" as const, label: "Screener", icon: <Search className="h-4 w-4" /> },
+    ]
+
     return (
         <div className="space-y-6">
 
-            {/* ── Search ── */}
+            {/* ── Header ── */}
+            <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={onBack}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                </Button>
+                <h1 className="text-2xl font-bold">Market Overview</h1>
+            </div>
+
+            {/* ── Universal search (below the title) ── */}
             <div ref={searchRef} className="relative">
                 <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -315,200 +325,200 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
                 )}
             </div>
 
-            {/* ── Header row ── */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={onBack}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold">Market Overview</h1>
-                        <p className="text-xs text-muted-foreground">
-                            {data ? `Updated ${timeAgo(data.timestamp)} · ${data.stocks.length} securities` : "Loading live data…"}
-                        </p>
-                    </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-                    Refresh
-                </Button>
+            {/* ── View tabs ── */}
+            <div className="flex gap-1 border-b border-border">
+                {VIEW_TABS.map(t => (
+                    <button
+                        key={t.key}
+                        onClick={() => setActiveView(t.key)}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                            activeView === t.key
+                                ? "border-blue-600 text-blue-600"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                    >
+                        {t.icon}
+                        {t.label}
+                    </button>
+                ))}
             </div>
 
-            {error && (
+            {error && activeView === "overview" && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-3 text-sm">
                     {error}
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                  BROWSE BY INDUSTRY  +  PORTFOLIO
-            ════════════════════════════════════════════════════════════════════ */}
-            <div className="grid grid-cols-3 gap-6 items-start">
-            <Card className="overflow-hidden col-span-2">
-                <CardHeader className="pb-4 border-b border-border">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-lg">Browse by Industry</CardTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                                Average sector performance based on today's top holdings
-                            </p>
-                        </div>
-                        {activeSectorSummary && (
-                            <div className="text-right">
-                                <p className="text-xs text-muted-foreground">Sector avg</p>
-                                <p className={`text-lg font-bold ${changeClass(activeSectorSummary.avgChange)}`}>
-                                    {fmtPct(activeSectorSummary.avgChange)}
-                                </p>
+            {/* ═══════════════════════ MARKET OVERVIEW TAB ═══════════════════════ */}
+            {activeView === "overview" && (
+                <div className="space-y-6">
+                    {/* Browse by Industry */}
+                    <Card className="overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-lg">Browse by Industry</CardTitle>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Average sector performance based on today's top holdings
+                                    </p>
+                                </div>
+                                {activeSectorSummary && (
+                                    <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">Sector avg</p>
+                                        <p className={`text-lg font-bold ${changeClass(activeSectorSummary.avgChange)}`}>
+                                            {fmtPct(activeSectorSummary.avgChange)}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    {/* Sector pills */}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                        {data?.sectorSummary.map(sector => {
-                            const isActive = sector.id === activeSector
-                            const colors = SECTOR_COLORS[sector.color]
-                            return (
-                                <button
-                                    key={sector.id}
-                                    onClick={() => setActiveSector(sector.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
-                                        isActive
-                                            ? colors.active
-                                            : "border-border text-foreground hover:bg-muted"
-                                    }`}
-                                >
-                                    {SECTOR_ICONS[sector.id]}
-                                    {sector.name}
-                                    <span className={`ml-0.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                                        isActive ? "bg-white/20 text-white" : changeBadgeClass(sector.avgChange)
-                                    }`}>
-                                        {fmtPct(sector.avgChange)}
-                                    </span>
-                                </button>
-                            )
-                        })}
-                        {isLoading && !data && (
-                            <div className="flex gap-2">
-                                {Array.from({ length: 7 }).map((_, i) => (
-                                    <div key={i} className="h-8 w-28 rounded-full bg-muted animate-pulse" />
+                            {/* Sector pills */}
+                            <div className="flex flex-wrap gap-2 mt-4">
+                                {data?.sectorSummary.map(sector => {
+                                    const isActive = sector.id === activeSector
+                                    const colors = SECTOR_COLORS[sector.color]
+                                    return (
+                                        <button
+                                            key={sector.id}
+                                            onClick={() => setActiveSector(sector.id)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
+                                                isActive ? colors.active : "border-border text-foreground hover:bg-muted"
+                                            }`}
+                                        >
+                                            {SECTOR_ICONS[sector.id]}
+                                            {sector.name}
+                                            <span className={`ml-0.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                                                isActive ? "bg-white/20 text-white" : changeBadgeClass(sector.avgChange)
+                                            }`}>
+                                                {fmtPct(sector.avgChange)}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                                {isLoading && !data && (
+                                    <div className="flex gap-2">
+                                        {Array.from({ length: 7 }).map((_, i) => (
+                                            <div key={i} className="h-8 w-28 rounded-full bg-muted animate-pulse" />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </CardHeader>
+
+                        <CardContent className="pt-5">
+                            {isLoading && !data ? (
+                                <div className="grid grid-cols-3 gap-4">
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
+                                    ))}
+                                </div>
+                            ) : sectorStocks.length > 0 ? (
+                                <div className="grid grid-cols-3 gap-4">
+                                    {sectorStocks.map(stock => (
+                                        <StockCard
+                                            key={stock.symbol}
+                                            stock={stock}
+                                            onClick={() => handleSelectStock(stock.symbol)}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground py-6 text-center">No data available for this sector.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Market Movers */}
+                    <Card className="overflow-hidden">
+                        <CardHeader className="pb-0 border-b border-border">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <CardTitle className="text-lg">Market Movers</CardTitle>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Top performers across 42 tracked securities
+                                    </p>
+                                </div>
+                                <div className="flex gap-4 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Gaining</span>
+                                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Losing</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-1">
+                                {([
+                                    { key: "gainers",    label: "Top Gainers",   icon: <TrendingUp className="h-3.5 w-3.5" /> },
+                                    { key: "losers",     label: "Top Losers",    icon: <TrendingDown className="h-3.5 w-3.5" /> },
+                                    { key: "mostActive", label: "Most Active",   icon: <Activity className="h-3.5 w-3.5" /> },
+                                ] as const).map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setMoverTab(tab.key)}
+                                        className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                            moverTab === tab.key
+                                                ? "border-blue-600 text-blue-600"
+                                                : "border-transparent text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        {tab.icon}
+                                        {tab.label}
+                                    </button>
                                 ))}
                             </div>
-                        )}
-                    </div>
-                </CardHeader>
+                        </CardHeader>
 
-                <CardContent className="pt-5">
-                    {isLoading && !data ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
-                            ))}
-                        </div>
-                    ) : sectorStocks.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {sectorStocks.map(stock => (
-                                <StockCard
-                                    key={stock.symbol}
-                                    stock={stock}
-                                    onClick={() => handleSelectStock(stock.symbol)}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground py-6 text-center">No data available for this sector.</p>
-                    )}
-                </CardContent>
-            </Card>
+                        <CardContent className="pt-2 px-2">
+                            <div className="flex items-center gap-3 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50">
+                                <span className="w-5 text-center flex-shrink-0">#</span>
+                                <span className="w-9 flex-shrink-0" />
+                                <span className="flex-1">Company</span>
+                                <span className="flex-shrink-0 min-w-[120px] text-right">Price / Change</span>
+                                <span className="min-w-[60px] flex-shrink-0 text-right">Day Range</span>
+                            </div>
 
-            {/* Portfolio (Plaid) sits beside Browse by Industry */}
-            <div className="col-span-1">
-                <PortfolioCard />
-            </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════════════════════════════
-                  MARKET MOVERS
-            ════════════════════════════════════════════════════════════════════ */}
-            <Card className="overflow-hidden">
-                <CardHeader className="pb-0 border-b border-border">
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <CardTitle className="text-lg">Market Movers</CardTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                                Top performers across 42 tracked securities
-                            </p>
-                        </div>
-                        {/* Movers legend */}
-                        <div className="flex gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Gaining</span>
-                            <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Losing</span>
-                        </div>
-                    </div>
-
-                    {/* Tab switcher */}
-                    <div className="flex gap-1">
-                        {([
-                            { key: "gainers",    label: "Top Gainers",   icon: <TrendingUp className="h-3.5 w-3.5" /> },
-                            { key: "losers",     label: "Top Losers",    icon: <TrendingDown className="h-3.5 w-3.5" /> },
-                            { key: "mostActive", label: "Most Active",   icon: <Activity className="h-3.5 w-3.5" /> },
-                        ] as const).map(tab => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setMoverTab(tab.key)}
-                                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                    moverTab === tab.key
-                                        ? "border-blue-600 text-blue-600"
-                                        : "border-transparent text-muted-foreground hover:text-foreground"
-                                }`}
-                            >
-                                {tab.icon}
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </CardHeader>
-
-                <CardContent className="pt-2 px-2">
-                    {/* Column headers */}
-                    <div className="flex items-center gap-3 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50">
-                        <span className="w-5 text-center flex-shrink-0">#</span>
-                        <span className="w-9 flex-shrink-0" />
-                        <span className="flex-1">Company</span>
-                        <span className="flex-shrink-0 min-w-[120px] text-right">Price / Change</span>
-                        <span className="min-w-[60px] flex-shrink-0 text-right">Day Range</span>
-                    </div>
-
-                    {isLoading && !data ? (
-                        <div className="space-y-2 pt-2">
-                            {Array.from({ length: 8 }).map((_, i) => (
-                                <div key={i} className="h-14 rounded-lg bg-muted animate-pulse mx-2" />
-                            ))}
-                        </div>
-                    ) : currentMovers && currentMovers.length > 0 ? (
-                        <div className="divide-y divide-border/30">
-                            {currentMovers.map((stock, i) => (
-                                <div key={stock.symbol} onClick={() => handleSelectStock(stock.symbol)}>
-                                    <MoverRow stock={stock} rank={i + 1} maxPct={maxPct} />
+                            {isLoading && !data ? (
+                                <div className="space-y-2 pt-2">
+                                    {Array.from({ length: 8 }).map((_, i) => (
+                                        <div key={i} className="h-14 rounded-lg bg-muted animate-pulse mx-2" />
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground py-8 text-center">No data available.</p>
-                    )}
+                            ) : currentMovers && currentMovers.length > 0 ? (
+                                <div className="divide-y divide-border/30">
+                                    {currentMovers.map((stock, i) => (
+                                        <MoverRow
+                                            key={stock.symbol}
+                                            stock={stock}
+                                            rank={i + 1}
+                                            maxPct={maxPct}
+                                            onClick={() => handleSelectStock(stock.symbol)}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground py-8 text-center">No data available.</p>
+                            )}
 
-                    {/* Summary footer */}
-                    {data && (
-                        <div className="mt-3 mx-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                            <span>
-                                {data.gainers.length} gainers · {data.losers.length} losers · {data.stocks.length} total tracked
-                            </span>
-                            <span>Prices delayed ~15 min · Source: Finnhub</span>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                            {data && (
+                                <div className="mt-3 mx-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>
+                                        {data.gainers.length} gainers · {data.losers.length} losers · {data.stocks.length} total tracked
+                                    </span>
+                                    <span>Prices delayed ~15 min · Source: Finnhub</span>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* ═══════════════════════════ PORTFOLIO TAB ═══════════════════════════ */}
+            {activeView === "portfolio" && (
+                <div className="max-w-2xl mx-auto">
+                    <PortfolioCard />
+                </div>
+            )}
+
+            {/* ════════════════════════════ SCREENER TAB ════════════════════════════ */}
+            {activeView === "screener" && <StockScreener />}
         </div>
     )
 }
