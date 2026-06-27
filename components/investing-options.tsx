@@ -228,13 +228,45 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
         return () => document.removeEventListener("mousedown", handler)
     }, [])
 
-    const handleSearch = async () => {
-        if (!searchTerm.trim()) return
-        setIsSearching(true)
+    // Live typeahead — search as the user types (debounced), so no Enter needed.
+    useEffect(() => {
+        const term = searchTerm.trim()
+        if (term.length < 2) {
+            setSearchResults([])
+            if (term.length === 0) setShowResults(false)
+            return
+        }
         setShowResults(true)
-        setSearchResults([])
+        const controller = new AbortController()
+        const timer = setTimeout(async () => {
+            setIsSearching(true)
+            try {
+                const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(term)}`, {
+                    signal: controller.signal,
+                })
+                const json = await res.json()
+                if (!res.ok) throw new Error(json.error)
+                setSearchResults(json)
+            } catch (e: any) {
+                if (e?.name !== "AbortError") setSearchResults([])
+            } finally {
+                setIsSearching(false)
+            }
+        }, 250)
+        return () => {
+            clearTimeout(timer)
+            controller.abort()
+        }
+    }, [searchTerm])
+
+    // Immediate search for the button (bypasses the typeahead debounce).
+    const runSearchNow = async () => {
+        const term = searchTerm.trim()
+        if (!term) return
+        setShowResults(true)
+        setIsSearching(true)
         try {
-            const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(searchTerm)}`)
+            const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(term)}`)
             const json = await res.json()
             if (!res.ok) throw new Error(json.error)
             setSearchResults(json)
@@ -294,10 +326,15 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
                             placeholder="Search any stock by name or ticker — e.g. Apple, TSLA"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && handleSearch()}
+                            onFocus={() => searchResults.length > 0 && setShowResults(true)}
+                            onKeyDown={e => {
+                                if (e.key !== "Enter") return
+                                if (searchResults.length > 0) handleSelectStock(searchResults[0]["1. symbol"])
+                                else runSearchNow()
+                            }}
                         />
                     </div>
-                    <Button onClick={handleSearch} disabled={isSearching} className="bg-blue-600 hover:bg-blue-700">
+                    <Button onClick={runSearchNow} disabled={isSearching} className="bg-blue-600 hover:bg-blue-700">
                         <Search className="h-4 w-4 mr-2" />
                         {isSearching ? "Searching…" : "Search"}
                     </Button>
