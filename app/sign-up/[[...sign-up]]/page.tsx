@@ -14,6 +14,7 @@ export default function SignUpPage() {
     const [password, setPassword] = React.useState("")
     const [error, setError] = React.useState<string | null>(null)
     const [submitting, setSubmitting] = React.useState(false)
+    const [confirmSent, setConfirmSent] = React.useState(false)
 
     React.useEffect(() => {
         if (user) router.replace("/")
@@ -26,13 +27,42 @@ export default function SignUpPage() {
         if (!email.trim()) return setError("Please enter your email.")
         setSubmitting(true)
         try {
-            await signUp(email, password, name)
-            router.push("/")
+            const { needsConfirmation } = await signUp(email, password, name)
+            if (needsConfirmation) {
+                setConfirmSent(true)
+            } else {
+                router.push("/")
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Sign up failed.")
         } finally {
             setSubmitting(false)
         }
+    }
+
+    if (confirmSent) {
+        return (
+            <div className="min-h-[calc(100vh-4rem)] bg-background flex items-center justify-center px-4 py-12">
+                <div className="w-full max-w-md text-center">
+                    <div className="flex justify-center mb-8">
+                        <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center">
+                            <Calculator className="h-6 w-6" />
+                        </div>
+                    </div>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Check your email</h1>
+                    <p className="text-muted-foreground mb-8">
+                        We sent a confirmation link to <span className="font-semibold text-foreground">{email}</span>.
+                        Click it to activate your account, then sign in.
+                    </p>
+                    <Link
+                        href="/sign-in"
+                        className="inline-block w-full rounded-full bg-foreground text-background font-bold py-3 hover:bg-foreground/90 transition-colors"
+                    >
+                        Go to sign in
+                    </Link>
+                </div>
+            </div>
+        )
     }
 
     return (

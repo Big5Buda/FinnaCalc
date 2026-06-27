@@ -1,35 +1,33 @@
 "use client"
 
 import * as React from "react"
+import type { Session } from "@supabase/supabase-js"
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 
-type User = { email: string; name: string }
+type User = { id: string; email: string; name: string }
+
+type SignUpResult = { needsConfirmation: boolean }
 
 type AuthContextValue = {
     user: User | null
     loading: boolean
+    configured: boolean
     signIn: (email: string, password: string) => Promise<void>
-    signUp: (email: string, password: string, name: string) => Promise<void>
-    signOut: () => void
+    signUp: (email: string, password: string, name: string) => Promise<SignUpResult>
+    signOut: () => Promise<void>
 }
-
-const STORAGE_USER = "finnacalc.user"
-const STORAGE_DB = "finnacalc.users"
 
 const AuthContext = React.createContext<AuthContextValue | null>(null)
 
-type StoredUser = { email: string; name: string; password: string }
-
-function readDb(): StoredUser[] {
-    if (typeof window === "undefined") return []
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_DB) ?? "[]")
-    } catch {
-        return []
+function toUser(session: Session | null): User | null {
+    const u = session?.user
+    if (!u) return null
+    const metaName = (u.user_metadata?.name as string | undefined)?.trim()
+    return {
+        id: u.id,
+        email: u.email ?? "",
+        name: metaName || (u.email ? u.email.split("@")[0] : ""),
     }
-}
-
-function writeDb(users: StoredUser[]) {
-    localStorage.setItem(STORAGE_DB, JSON.stringify(users))
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,44 +35,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = React.useState(true)
 
     React.useEffect(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_USER)
-            if (raw) setUser(JSON.parse(raw))
-        } catch {}
-        setLoading(false)
+        // Without credentials, behave as a signed-out app instead of crashing.
+        if (!isSupabaseConfigured) {
+            setLoading(false)
+            return
+        }
+
+        const supabase = getSupabase()
+        let active = true
+
+        supabase.auth.getSession().then(({ data }) => {
+            if (!active) return
+            setUser(toUser(data.session))
+            setLoading(false)
+        })
+
+        const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(toUser(session))
+        })
+
+        return () => {
+            active = false
+            subscription.subscription.unsubscribe()
+        }
     }, [])
 
     const signIn = React.useCallback(async (email: string, password: string) => {
-        const normalized = email.trim().toLowerCase()
-        const match = readDb().find((u) => u.email === normalized && u.password === password)
-        if (!match) throw new Error("Invalid email or password.")
-        const session = { email: match.email, name: match.name }
-        localStorage.setItem(STORAGE_USER, JSON.stringify(session))
-        setUser(session)
+        const supabase = getSupabase()
+        const { error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+        })
+        if (error) throw new Error(error.message)
     }, [])
 
-    const signUp = React.useCallback(async (email: string, password: string, name: string) => {
-        const normalized = email.trim().toLowerCase()
-        const db = readDb()
-        if (db.some((u) => u.email === normalized)) {
-            throw new Error("An account with that email already exists.")
-        }
-        if (password.length < 6) throw new Error("Password must be at least 6 characters.")
-        db.push({ email: normalized, name: name.trim(), password })
-        writeDb(db)
-        const session = { email: normalized, name: name.trim() }
-        localStorage.setItem(STORAGE_USER, JSON.stringify(session))
-        setUser(session)
-    }, [])
+    const signUp = React.useCallback(
+        async (email: string, password: string, name: string): Promise<SignUpResult> => {
+            const supabase = getSupabase()
+            const { data, error } = await supabase.auth.signUp({
+                email: email.trim().toLowerCase(),
+                password,
+                options: { data: { name: name.trim() } },
+            })
+            if (error) throw new Error(error.message)
+            // When email confirmation is required, Supabase returns a user but no session.
+            return { needsConfirmation: !data.session }
+        },
+        []
+    )
 
-    const signOut = React.useCallback(() => {
-        localStorage.removeItem(STORAGE_USER)
+    const signOut = React.useCallback(async () => {
+        if (!isSupabaseConfigured) return
+        await getSupabase().auth.signOut()
         setUser(null)
     }, [])
 
     const value = React.useMemo(
-        () => ({ user, loading, signIn, signUp, signOut }),
-        [user, loading, signIn, signUp, signOut],
+        () => ({ user, loading, configured: isSupabaseConfigured, signIn, signUp, signOut }),
+        [user, loading, signIn, signUp, signOut]
     )
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
