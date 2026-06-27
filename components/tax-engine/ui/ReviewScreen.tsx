@@ -9,7 +9,6 @@ import type { Answers } from "../types/question"
 import type { Section } from "../types/question"
 import type { TaxCalculationResult } from "../types/result"
 import { AuditRiskPanel } from "./AuditRiskPanel"
-import { Disclaimer } from "./Disclaimer"
 import { SmartSuggestions, computeSuggestions } from "./SmartSuggestions"
 
 export function ReviewScreen({
@@ -30,7 +29,7 @@ export function ReviewScreen({
   return (
     <div className="space-y-6">
       <div className="text-center space-y-1">
-        <h2 className="text-2xl font-bold text-foreground">Review your 2024 estimate</h2>
+        <h2 className="text-2xl font-bold text-foreground">Review your estimate</h2>
         <p className="text-muted-foreground">
           {result.owes
             ? `You owe an estimated ${formatCurrency(Math.abs(result.refundOrOwed), { cents: false })}.`
@@ -94,7 +93,6 @@ export function ReviewScreen({
       </Card>
 
       <AuditRiskPanel result={result} />
-      <Disclaimer />
 
       <Separator />
       <div className="flex justify-end">

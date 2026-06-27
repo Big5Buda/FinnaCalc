@@ -31,14 +31,14 @@ export const QUESTION_BANK: Question[] = [
   {
     id: "q_lived_apart",
     sectionId: "about-you",
-    text: "Did you live apart from your spouse for all of 2024?",
+    text: "Did you live apart from your spouse for the entire tax year?",
     inputType: "boolean",
     dependsOn: isMFS,
     helpText: "Affects how your Social Security benefits and some credits are treated.",
   },
-  { id: "q_age", sectionId: "about-you", text: "How old were you at the end of 2024?", inputType: "integer", placeholder: "e.g. 40" },
+  { id: "q_age", sectionId: "about-you", text: "How old were you at the end of the tax year?", inputType: "integer", placeholder: "e.g. 40" },
   { id: "q_blind", sectionId: "about-you", text: "Are you legally blind?", inputType: "boolean", helpText: "Adds to your standard deduction." },
-  { id: "q_spouse_age", sectionId: "about-you", text: "How old was your spouse at the end of 2024?", inputType: "integer", dependsOn: isMarried },
+  { id: "q_spouse_age", sectionId: "about-you", text: "How old was your spouse at the end of the tax year?", inputType: "integer", dependsOn: isMarried },
   { id: "q_spouse_blind", sectionId: "about-you", text: "Is your spouse legally blind?", inputType: "boolean", dependsOn: isMarried },
   {
     id: "q_claimed_dependent",
@@ -157,7 +157,7 @@ export const QUESTION_BANK: Question[] = [
   { id: "q_ev_credit", sectionId: "credits", text: "Clean vehicle (EV) credit amount", inputType: "dollar", dependsOn: (a) => a.ls_energy === true },
 
   // ---- Payments ----
-  { id: "q_est_payments", sectionId: "payments", text: "Estimated tax payments made in 2024", inputType: "dollar" },
+  { id: "q_est_payments", sectionId: "payments", text: "Estimated tax payments made", inputType: "dollar" },
   { id: "q_extra_withholding", sectionId: "payments", text: "Other federal tax withheld (not on your W-2)", inputType: "dollar" },
   { id: "q_state_withholding", sectionId: "payments", text: "State income tax withheld (W-2 box 17)", inputType: "dollar", dependsOn: (a) => typeof a.q_state === "string" && a.q_state !== "" },
   { id: "q_prior_tax", sectionId: "payments", text: "Your 2023 total tax (for the underpayment check)", inputType: "dollar" },

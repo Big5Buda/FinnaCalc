@@ -24,7 +24,6 @@ import { RefundMeter } from "./RefundMeter"
 import { LifeSituations } from "./LifeSituations"
 import { ReviewScreen } from "./ReviewScreen"
 import { FilingScreen } from "./FilingScreen"
-import { Disclaimer } from "./Disclaimer"
 import { ICONS } from "./icons"
 
 type Phase = "life" | "sections" | "review" | "filing"
@@ -33,7 +32,7 @@ type Phase = "life" | "sections" | "review" | "filing"
  * The adaptive tax interview. Default export — replaces the legacy
  * tax-filing-interface, preserving the `{ onBack }` prop contract.
  */
-export default function TaxInterview({ onBack }: { onBack: () => void }) {
+export default function TaxInterview({ onBack }: { onBack?: () => void }) {
   const { answers, setAnswer, reset, result } = useTaxEngine()
   const [phase, setPhase] = useState<Phase>("life")
   const [sectionIndex, setSectionIndex] = useState(0)
@@ -73,13 +72,8 @@ export default function TaxInterview({ onBack }: { onBack: () => void }) {
   return (
     <section className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="outline" size="sm" onClick={onBack} className="flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">IRS-accurate · TY 2024</Badge>
+      <div className="flex items-center justify-end gap-2">
+          <Badge variant="secondary">IRS-accurate</Badge>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -109,17 +103,15 @@ export default function TaxInterview({ onBack }: { onBack: () => void }) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
       </div>
 
       {phase !== "life" && <Progress value={progress} className="h-2" />}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-6 grid-cols-2 items-start">
         <div className="space-y-6">
           {phase === "life" && (
             <>
               <LifeSituations answers={answers} setAnswer={setAnswer} />
-              <Disclaimer />
               <div className="flex justify-end">
                 <Button onClick={() => setPhase("sections")} className="bg-blue-600 hover:bg-blue-700">
                   Continue <ArrowRight className="h-4 w-4 ml-2" />

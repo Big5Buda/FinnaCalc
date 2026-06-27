@@ -21,7 +21,6 @@ import {
 } from "@/components/tax-engine/engine"
 import type { FilingStatus } from "@/components/tax-engine/types"
 import {
-    ArrowLeft,
     Calculator,
     DollarSign,
     Search,
@@ -48,7 +47,7 @@ function sanitizeNumber(value: string | number | undefined) {
 
 
 interface TaxCalculatorsProps {
-    onBack: () => void
+    onBack?: () => void
 }
 
 
@@ -349,22 +348,11 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
 
 
 
-    const commonDisclaimer = "*Estimate is for federal taxes only. State taxes vary and are not included.*";
-
-
-
-
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" onClick={onBack}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                </Button>
-                <div>
-                    <h1 className="text-3xl font-bold">Tax Optimization Tools</h1>
-                    <p className="text-muted-foreground">Calculators and tools to maximize your refund</p>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold">Tax Optimization Tools</h1>
+                <p className="text-muted-foreground">Calculators and tools to maximize your refund</p>
             </div>
 
 
@@ -493,7 +481,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-muted-foreground text-center mt-2">{commonDisclaimer}</p>
+                                            <p className="text-xs text-muted-foreground text-center mt-2"></p>
                                         </div>
                                     )}
                                 </div>
@@ -584,7 +572,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                      </span>
                                                     </div>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground text-center mt-2">{commonDisclaimer}</p>
+                                                <p className="text-xs text-muted-foreground text-center mt-2"></p>
                                             </>
                                         ) : (
                                             <div className="text-center p-6 bg-muted rounded-lg h-full flex flex-col justify-center">
@@ -669,7 +657,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                         <span className="font-semibold">${deductionResults.totalItemized.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex justify-between items-center">
-                                                        <span>Standard Deduction (Single 2024)</span>
+                                                        <span>Standard Deduction (Single)</span>
                                                         <span className="font-semibold">
                                                          ${deductionResults.standardDeduction.toLocaleString()}
                                                      </span>
@@ -759,11 +747,11 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                         <span className="font-bold">${quarterlyResults.totalTax.toFixed(0).toLocaleString()}</span>
                                                     </div>
                                                 </div>
-                                                <h3 className="font-semibold mt-4">Estimated Federal Payments (2024 Schedule)</h3>
+                                                <h3 className="font-semibold mt-4">Estimated Federal Payments</h3>
                                                 <div className="space-y-3">
                                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                                         <div>
-                                                            <div className="font-medium">Q1 2024</div>
+                                                            <div className="font-medium">Q1</div>
                                                             <div className="text-sm text-muted-foreground">Due: April 15</div>
                                                         </div>
                                                         <div className="font-semibold">
@@ -772,7 +760,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                     </div>
                                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                                         <div>
-                                                            <div className="font-medium">Q2 2024</div>
+                                                            <div className="font-medium">Q2</div>
                                                             <div className="text-sm text-muted-foreground">Due: June 17</div>
                                                         </div>
                                                         <div className="font-semibold">
@@ -781,7 +769,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                     </div>
                                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                                         <div>
-                                                            <div className="font-medium">Q3 2024</div>
+                                                            <div className="font-medium">Q3</div>
                                                             <div className="text-sm text-muted-foreground">Due: September 16</div>
                                                         </div>
                                                         <div className="font-semibold">
@@ -790,7 +778,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                     </div>
                                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                                         <div>
-                                                            <div className="font-medium">Q4 2024</div>
+                                                            <div className="font-medium">Q4</div>
                                                             <div className="text-sm text-muted-foreground">Due: January 15, 2025</div>
                                                         </div>
                                                         <div className="font-semibold">
@@ -798,7 +786,7 @@ export default function TaxCalculators({ onBack }: TaxCalculatorsProps) {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground text-center mt-2">{commonDisclaimer} State quarterly payments may also be required.</p>
+                                                <p className="text-xs text-muted-foreground text-center mt-2"> State quarterly payments may also be required.</p>
                                             </>
                                         ) : (
                                             <div className="text-center p-12 bg-muted rounded-lg h-full flex flex-col justify-center">
