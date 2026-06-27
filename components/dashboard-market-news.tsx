@@ -55,20 +55,20 @@ export default function MarketNews() {
                 ) : error ? (
                     <p className="p-6 text-sm text-muted-foreground text-center">{error}</p>
                 ) : (
-                    <div className="divide-y divide-border/60 max-h-[640px] overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-px bg-border/60">
                         {items.map((n) => (
                             <a
                                 key={n.id}
                                 href={n.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex gap-3 p-4 hover:bg-muted/50 transition-colors group"
+                                className="flex gap-3 p-4 bg-background hover:bg-muted/50 transition-colors group"
                             >
                                 {n.image ? (
                                     <img
                                         src={n.image}
                                         alt=""
-                                        className="w-20 h-16 rounded-md object-cover flex-shrink-0 bg-muted"
+                                        className="w-24 h-20 rounded-md object-cover flex-shrink-0 bg-muted"
                                         onError={(e) => {
                                             ;(e.currentTarget as HTMLImageElement).style.display = "none"
                                         }}
@@ -76,9 +76,9 @@ export default function MarketNews() {
                                 ) : null}
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                                        <span className="font-semibold uppercase tracking-wide text-blue-600">{n.source}</span>
+                                        <span className="font-semibold uppercase tracking-wide text-blue-600 truncate">{n.source}</span>
                                         <span>·</span>
-                                        <span>{timeAgo(n.datetime)}</span>
+                                        <span className="whitespace-nowrap">{timeAgo(n.datetime)}</span>
                                     </div>
                                     <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
                                         {n.headline}

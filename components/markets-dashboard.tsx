@@ -8,16 +8,10 @@ import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
     LineChart, Line, XAxis, YAxis,
 } from "recharts"
-import {
-    Wallet, RefreshCw, PlusCircle, ShieldCheck, AlertCircle, TrendingUp, TrendingDown,
-    Activity, Gauge, ArrowUpRight, ArrowDownRight,
-} from "lucide-react"
+import { Wallet, RefreshCw, PlusCircle, ShieldCheck, AlertCircle, TrendingUp } from "lucide-react"
 import type { PortfolioResponse } from "@/app/api/plaid/holdings/route"
-import type { StockQuote } from "@/app/api/market-overview/route"
 import MarketNews from "@/components/dashboard-market-news"
-import StockScreener from "@/components/dashboard-screener"
 import Watchlist from "@/components/dashboard-watchlist"
-import EarningsCalendar from "@/components/dashboard-earnings"
 
 const COLORS = ["#2563eb", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"]
 const TREND_KEY = "finnacalc.portfolioTrend"
@@ -32,124 +26,7 @@ function changeClass(n: number) {
     return n > 0 ? "text-emerald-600 dark:text-emerald-400" : n < 0 ? "text-red-500 dark:text-red-400" : "text-muted-foreground"
 }
 
-// ─── Market data (sentiment + compact movers) ───────────────────────────────────
-
-interface MarketData {
-    stocks: StockQuote[]
-    gainers: StockQuote[]
-    losers: StockQuote[]
-    mostActive: StockQuote[]
-}
-
-function useMarketData() {
-    const [data, setData] = useState<MarketData | null>(null)
-    useEffect(() => {
-        let active = true
-        fetch("/api/market-overview")
-            .then((r) => r.json())
-            .then((j) => { if (active && !j.error) setData(j) })
-            .catch(() => {})
-        return () => { active = false }
-    }, [])
-    return data
-}
-
-// ─── Sentiment gauge ────────────────────────────────────────────────────────────
-
-function sentimentFrom(stocks: StockQuote[]) {
-    const withChange = stocks.filter((s) => s.changesPercentage !== 0)
-    const advancers = withChange.filter((s) => s.changesPercentage > 0).length
-    const decliners = withChange.filter((s) => s.changesPercentage < 0).length
-    const total = advancers + decliners || 1
-    const advPct = (advancers / total) * 100
-    const avgMove = withChange.reduce((s, x) => s + x.changesPercentage, 0) / (withChange.length || 1)
-    // Blend breadth with average move magnitude, clamp to 0–100.
-    const score = Math.max(0, Math.min(100, Math.round(advPct * 0.7 + (avgMove + 3) * (100 / 6) * 0.3)))
-    const label =
-        score < 25 ? "Extreme Fear" : score < 45 ? "Fear" : score < 55 ? "Neutral" : score < 75 ? "Greed" : "Extreme Greed"
-    return { score, label, advancers, decliners, advPct, avgMove }
-}
-
-function SentimentGauge({ stocks }: { stocks: StockQuote[] }) {
-    const s = sentimentFrom(stocks)
-    const factors = [
-        { name: "Advancing stocks", value: Math.round(s.advPct) },
-        { name: "Average move", value: Math.max(0, Math.min(100, Math.round((s.avgMove + 3) * (100 / 6)))) },
-        { name: "Up / down ratio", value: Math.round((s.advancers / (s.decliners || 1)) * 25) > 100 ? 100 : Math.round((s.advancers / (s.decliners || 1)) * 25) },
-    ]
-    return (
-        <Card className="overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                    <Gauge className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-lg">Market Sentiment</CardTitle>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Breadth-based · derived from tracked securities</p>
-            </CardHeader>
-            <CardContent className="pt-5">
-                <div className="text-center mb-4">
-                    <p className="text-4xl font-bold">{s.score}</p>
-                    <p className={`text-sm font-semibold ${s.score >= 55 ? "text-emerald-600" : s.score < 45 ? "text-red-500" : "text-amber-600"}`}>{s.label}</p>
-                </div>
-                <div className="relative h-2.5 rounded-full overflow-hidden mb-1" style={{ background: "linear-gradient(to right, #ef4444, #f59e0b, #10b981)" }}>
-                    <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-foreground border-2 border-background shadow" style={{ left: `calc(${s.score}% - 6px)` }} />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-4">
-                    <span>Fear</span><span>Neutral</span><span>Greed</span>
-                </div>
-                <div className="space-y-2">
-                    {factors.map((f) => (
-                        <div key={f.name}>
-                            <div className="flex justify-between text-xs mb-0.5">
-                                <span className="text-muted-foreground">{f.name}</span>
-                                <span className="font-medium">{f.value}</span>
-                            </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${f.value}%` }} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-// ─── Compact movers list ────────────────────────────────────────────────────────
-
-function MoversList({ title, icon, stocks, positive }: { title: string; icon: React.ReactNode; stocks: StockQuote[]; positive: boolean }) {
-    return (
-        <Card className="overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                    {icon}
-                    <CardTitle className="text-base">{title}</CardTitle>
-                </div>
-            </CardHeader>
-            <CardContent className="p-2">
-                {stocks.slice(0, 5).map((s) => (
-                    <div key={s.symbol} className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-muted/50">
-                        <div className="min-w-0">
-                            <p className="font-bold text-sm">{s.symbol}</p>
-                            <p className="text-xs text-muted-foreground truncate max-w-[120px]">{s.name}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm font-medium">${s.price.toFixed(2)}</p>
-                            <p className={`text-xs font-semibold flex items-center justify-end gap-0.5 ${changeClass(s.changesPercentage)}`}>
-                                {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                                {Math.abs(s.changesPercentage).toFixed(2)}%
-                            </p>
-                        </div>
-                    </div>
-                ))}
-                {stocks.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No data.</p>}
-            </CardContent>
-        </Card>
-    )
-}
-
-// ─── Portfolio value trend (localStorage snapshots) ─────────────────────────────
-
+// Portfolio value trend — daily snapshots persisted in localStorage.
 function recordTrend(value: number): { date: string; value: number }[] {
     if (typeof window === "undefined") return []
     let arr: { date: string; value: number }[] = []
@@ -171,12 +48,7 @@ function recordTrend(value: number): { date: string; value: number }[] {
     return arr
 }
 
-// ─── Main ───────────────────────────────────────────────────────────────────────
-
 export default function MarketsDashboard() {
-    const market = useMarketData()
-
-    // Plaid portfolio
     const [linkToken, setLinkToken] = useState<string | null>(null)
     const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
     const [status, setStatus] = useState<"idle" | "linking" | "loading" | "ready" | "error">("idle")
@@ -250,7 +122,6 @@ export default function MarketsDashboard() {
             {/* ════════════════ PORTFOLIO ════════════════ */}
             {status === "ready" && portfolio ? (
                 <>
-                    {/* Summary + allocation */}
                     <div className="grid grid-cols-3 gap-6">
                         <Card className="col-span-2 overflow-hidden">
                             <CardHeader className="pb-3 border-b border-border">
@@ -291,7 +162,6 @@ export default function MarketsDashboard() {
                                     </div>
                                 </div>
 
-                                {/* Value trend */}
                                 <div className="mt-5">
                                     <p className="text-xs text-muted-foreground mb-2">Portfolio value trend</p>
                                     {trend.length >= 2 ? (
@@ -314,7 +184,6 @@ export default function MarketsDashboard() {
                             </CardContent>
                         </Card>
 
-                        {/* Allocation donut */}
                         <Card className="overflow-hidden">
                             <CardHeader className="pb-3 border-b border-border">
                                 <CardTitle className="text-lg">Asset Allocation</CardTitle>
@@ -345,7 +214,6 @@ export default function MarketsDashboard() {
                         </Card>
                     </div>
 
-                    {/* Holdings table */}
                     <Card className="overflow-hidden">
                         <CardHeader className="pb-3 border-b border-border">
                             <CardTitle className="text-lg">My Holdings</CardTitle>
@@ -399,7 +267,6 @@ export default function MarketsDashboard() {
                     </Card>
                 </>
             ) : (
-                /* Connect prompt (portfolio not linked) */
                 <Card>
                     <CardContent className="py-10">
                         <div className="flex flex-col items-center justify-center text-center">
@@ -408,7 +275,7 @@ export default function MarketsDashboard() {
                             </div>
                             <h3 className="font-semibold mb-1">Connect your portfolio</h3>
                             <p className="text-sm text-muted-foreground mb-5 max-w-md">
-                                Securely link your brokerage to see total value, asset allocation, holdings, and returns. The live market data below works without connecting.
+                                Securely link your brokerage to see total value, asset allocation, holdings, and returns. The market news below works without connecting.
                             </p>
                             {error && (
                                 <div className="w-full max-w-md mb-4 flex items-start gap-2 text-left text-xs text-red-600 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -433,37 +300,11 @@ export default function MarketsDashboard() {
                 </Card>
             )}
 
-            {/* ════════════════ MARKET PULSE ════════════════ */}
-            <div className="grid grid-cols-3 gap-6">
-                {market ? (
-                    <>
-                        <MoversList title="Top Gainers" icon={<TrendingUp className="h-4 w-4 text-emerald-500" />} stocks={market.gainers} positive />
-                        <MoversList title="Top Losers" icon={<TrendingDown className="h-4 w-4 text-red-500" />} stocks={market.losers} positive={false} />
-                        <MoversList title="Most Active" icon={<Activity className="h-4 w-4 text-blue-500" />} stocks={market.mostActive} positive />
-                    </>
-                ) : (
-                    Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />)
-                )}
-            </div>
-
-            {/* ════════════════ SCREENER ════════════════ */}
-            <StockScreener />
-
-            {/* ════════════════ NEWS + SENTIMENT ════════════════ */}
-            <div className="grid grid-cols-3 gap-6 items-start">
-                <div className="col-span-2">
-                    <MarketNews />
-                </div>
-                <div className="space-y-6">
-                    {market ? <SentimentGauge stocks={market.stocks} /> : <div className="h-72 rounded-xl bg-muted animate-pulse" />}
-                </div>
-            </div>
+            {/* ════════════════ MARKET NEWS ════════════════ */}
+            <MarketNews />
 
             {/* ════════════════ WATCHLIST ════════════════ */}
             <Watchlist />
-
-            {/* ════════════════ UPCOMING EARNINGS ════════════════ */}
-            <EarningsCalendar />
         </div>
     )
 }
