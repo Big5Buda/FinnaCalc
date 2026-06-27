@@ -10,7 +10,7 @@ import {
     ArrowUpRight, ArrowDownRight, LineChart, Wallet,
 } from "lucide-react"
 import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
-import PortfolioCard from "@/components/portfolio-card"
+import MarketsDashboard from "@/components/markets-dashboard"
 import StockScreener from "@/components/stock-screener"
 
 // ─── Sector config (icon + metadata) ──────────────────────────────────────────
@@ -544,11 +544,7 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
             )}
 
             {/* ═══════════════════════════ PORTFOLIO TAB ═══════════════════════════ */}
-            {activeView === "portfolio" && (
-                <div className="max-w-2xl mx-auto">
-                    <PortfolioCard />
-                </div>
-            )}
+            {activeView === "portfolio" && <MarketsDashboard />}
 
             {/* ════════════════════════════ SCREENER TAB ════════════════════════════ */}
             {activeView === "screener" && <StockScreener />}
