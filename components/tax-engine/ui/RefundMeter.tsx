@@ -29,7 +29,7 @@ export function RefundMeter({ result }: { result: TaxCalculationResult }) {
           >
             {formatCurrency(amount, { cents: false })}
           </p>
-          <p className="text-xs text-muted-foreground">Tax Year 2024 · federal estimate</p>
+          <p className="text-xs text-muted-foreground">Federal estimate</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-sm">

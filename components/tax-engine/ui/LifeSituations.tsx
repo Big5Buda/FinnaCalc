@@ -21,9 +21,9 @@ export function LifeSituations({
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-foreground">Let&apos;s start with your 2024</h2>
+        <h2 className="text-2xl font-bold text-foreground">Let&apos;s start with your situation</h2>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          Pick everything that happened to you in 2024. We&apos;ll only ask about what applies —
+          Pick everything that applies to you. We&apos;ll only ask about what&apos;s relevant —
           and your estimated refund updates as you go.
         </p>
       </div>

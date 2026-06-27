@@ -68,8 +68,7 @@ export function PrintableSummary({ result }: { result: TaxCalculationResult }) {
       </div>
 
       <p className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
-        Educational estimate using 2024 IRS figures (Rev. Proc. 2023-34) — not an official IRS filing
-        or tax advice.
+        Educational federal estimate.
       </p>
     </div>
   )

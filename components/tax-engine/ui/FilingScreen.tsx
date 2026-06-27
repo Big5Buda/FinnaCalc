@@ -64,8 +64,7 @@ export function FilingScreen({
               className="mt-0.5"
             />
             <span className="text-muted-foreground">
-              I understand this is an estimate, not an official filing, and that I should verify the
-              numbers (or consult a tax professional) before filing with the IRS.
+              I understand this is an estimate and want to continue.
             </span>
           </label>
 
