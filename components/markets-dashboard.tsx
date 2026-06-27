@@ -10,7 +10,6 @@ import {
 } from "recharts"
 import { Wallet, RefreshCw, PlusCircle, ShieldCheck, AlertCircle, TrendingUp } from "lucide-react"
 import type { PortfolioResponse } from "@/app/api/plaid/holdings/route"
-import MarketNews from "@/components/dashboard-market-news"
 import Watchlist from "@/components/dashboard-watchlist"
 
 const COLORS = ["#2563eb", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"]
@@ -275,7 +274,7 @@ export default function MarketsDashboard() {
                             </div>
                             <h3 className="font-semibold mb-1">Connect your portfolio</h3>
                             <p className="text-sm text-muted-foreground mb-5 max-w-md">
-                                Securely link your brokerage to see total value, asset allocation, holdings, and returns. The market news below works without connecting.
+                                Securely link your brokerage to see total value, asset allocation, holdings, and returns. The watchlist below works without connecting.
                             </p>
                             {error && (
                                 <div className="w-full max-w-md mb-4 flex items-start gap-2 text-left text-xs text-red-600 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -299,9 +298,6 @@ export default function MarketsDashboard() {
                     </CardContent>
                 </Card>
             )}
-
-            {/* ════════════════ MARKET NEWS ════════════════ */}
-            <MarketNews />
 
             {/* ════════════════ WATCHLIST ════════════════ */}
             <Watchlist />
