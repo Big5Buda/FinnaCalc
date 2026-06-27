@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
-    ArrowLeft, Search, TrendingUp, TrendingDown, Activity,
+    Search, TrendingUp, TrendingDown, Activity,
     Cpu, HeartPulse, Landmark, ShoppingCart, Flame, Radio, Factory,
     ArrowUpRight, ArrowDownRight, LineChart, Wallet,
 } from "lucide-react"
@@ -179,7 +179,6 @@ interface SearchResult {
 }
 
 interface InvestingOptionsProps {
-    onBack: () => void
     onSelect: (option: "stocks" | "bonds" | "safe-investments", symbol?: string) => void
 }
 
@@ -187,7 +186,7 @@ type View = "overview" | "portfolio" | "screener"
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsProps) {
+export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
     const [data, setData] = useState<MarketData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -308,12 +307,9 @@ export default function InvestingOptions({ onBack, onSelect }: InvestingOptionsP
         <div className="space-y-6">
 
             {/* ── Header ── */}
-            <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={onBack}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                </Button>
-                <h1 className="text-2xl font-bold">Market Overview</h1>
+            <div>
+                <h1 className="text-2xl font-bold text-foreground">Investing</h1>
+                <p className="text-sm text-muted-foreground">Live markets, your portfolio, and stock research in one place.</p>
             </div>
 
             {/* ── Universal search (below the title) ── */}
