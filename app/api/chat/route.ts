@@ -43,10 +43,17 @@ export async function POST(req: Request) {
 
     try {
         const result = streamText({
-            model: google("gemini-2.0-flash"),
+            // gemini-2.5-flash has free-tier quota on the current project;
+            // gemini-2.0-flash is capped at limit:0 (429) for this key.
+            model: google("gemini-2.5-flash"),
             system: SYSTEM_PROMPT,
             messages,
             temperature: 0.7,
+            onError: ({ error }) => {
+                // Streaming errors (quota, auth, etc.) are masked from the client
+                // by the SDK — log them server-side so they're diagnosable.
+                console.error("[/api/chat] streamText error:", error);
+            },
         });
 
         // Plain UTF-8 text stream — no version-specific data-stream protocol.
