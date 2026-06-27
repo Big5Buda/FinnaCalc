@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
 import MarketsDashboard from "@/components/markets-dashboard"
-import StockScreener from "@/components/stock-screener"
 import ScreenerTable from "@/components/dashboard-screener"
 import TradingViewNews from "@/components/tradingview-news"
 
@@ -128,37 +127,20 @@ function StockCard({ stock, onClick }: { stock: StockQuote; onClick: () => void 
     )
 }
 
-function MoverRow({ stock, rank, maxPct, onClick }: { stock: StockQuote; rank: number; maxPct: number; onClick: () => void }) {
-    const pos = stock.changesPercentage >= 0
-    const barPct = maxPct > 0 ? (Math.abs(stock.changesPercentage) / maxPct) * 100 : 0
-
+function MoverRow({ stock, rank, onClick }: { stock: StockQuote; rank: number; onClick: () => void }) {
     return (
-        <div onClick={onClick} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors rounded-lg cursor-pointer group">
+        <div onClick={onClick} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors rounded-lg cursor-pointer">
             <span className="text-muted-foreground text-sm font-mono w-5 text-center flex-shrink-0">{rank}</span>
-            <Logo symbol={stock.symbol} size={36} />
+            <Logo symbol={stock.symbol} size={32} />
             <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-sm">{stock.symbol}</span>
-                    <span className="text-xs text-muted-foreground truncate">{stock.name}</span>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all ${pos ? "bg-emerald-500" : "bg-red-500"}`}
-                            style={{ width: `${barPct}%` }}
-                        />
-                    </div>
-                </div>
+                <p className="font-bold text-sm leading-tight">{stock.symbol}</p>
+                <p className="text-xs text-muted-foreground truncate">{stock.name}</p>
             </div>
-            <div className="text-right flex-shrink-0 space-y-0.5">
+            <div className="text-right flex-shrink-0">
                 <p className="font-bold text-sm">${fmt(stock.price)}</p>
                 <p className={`text-xs font-semibold ${changeClass(stock.changesPercentage)}`}>
-                    {fmtChange(stock.change)} ({fmtPct(stock.changesPercentage)})
+                    {fmtPct(stock.changesPercentage)}
                 </p>
-            </div>
-            <div className="text-right flex-shrink-0 min-w-[60px] text-xs text-muted-foreground space-y-0.5">
-                <p>H: ${fmt(stock.high)}</p>
-                <p>L: ${fmt(stock.low)}</p>
             </div>
         </div>
     )
@@ -297,7 +279,6 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
     const activeSectorSummary = data?.sectorSummary.find(s => s.id === activeSector)
 
     const currentMovers = moverTab === "gainers" ? data?.gainers : moverTab === "losers" ? data?.losers : data?.mostActive
-    const maxPct = currentMovers ? Math.max(...currentMovers.map(s => Math.abs(s.changesPercentage))) : 1
 
     const VIEW_TABS = [
         { key: "overview" as const, label: "Market Overview", icon: <LineChart className="h-4 w-4" /> },
@@ -463,99 +444,72 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
                         </CardContent>
                     </Card>
 
-                    {/* Market Movers */}
-                    <Card className="overflow-hidden">
-                        <CardHeader className="pb-0 border-b border-border">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <CardTitle className="text-lg">Market Movers</CardTitle>
-                                    <p className="text-sm text-muted-foreground mt-0.5">
-                                        Top performers across 42 tracked securities
-                                    </p>
-                                </div>
-                                <div className="flex gap-4 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Gaining</span>
-                                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Losing</span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-1">
-                                {([
-                                    { key: "gainers",    label: "Top Gainers",   icon: <TrendingUp className="h-3.5 w-3.5" /> },
-                                    { key: "losers",     label: "Top Losers",    icon: <TrendingDown className="h-3.5 w-3.5" /> },
-                                    { key: "mostActive", label: "Most Active",   icon: <Activity className="h-3.5 w-3.5" /> },
-                                ] as const).map(tab => (
-                                    <button
-                                        key={tab.key}
-                                        onClick={() => setMoverTab(tab.key)}
-                                        className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                            moverTab === tab.key
-                                                ? "border-blue-600 text-blue-600"
-                                                : "border-transparent text-muted-foreground hover:text-foreground"
-                                        }`}
-                                    >
-                                        {tab.icon}
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </CardHeader>
-
-                        <CardContent className="pt-2 px-2">
-                            <div className="flex items-center gap-3 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50">
-                                <span className="w-5 text-center flex-shrink-0">#</span>
-                                <span className="w-9 flex-shrink-0" />
-                                <span className="flex-1">Company</span>
-                                <span className="flex-shrink-0 min-w-[120px] text-right">Price / Change</span>
-                                <span className="min-w-[60px] flex-shrink-0 text-right">Day Range</span>
-                            </div>
-
-                            {isLoading && !data ? (
-                                <div className="space-y-2 pt-2">
-                                    {Array.from({ length: 8 }).map((_, i) => (
-                                        <div key={i} className="h-14 rounded-lg bg-muted animate-pulse mx-2" />
+                    {/* Market Movers + Market News, side by side and equal size */}
+                    <div className="grid grid-cols-2 gap-6 items-stretch">
+                        {/* Market Movers */}
+                        <Card className="overflow-hidden flex flex-col h-[640px]">
+                            <CardHeader className="pb-0 border-b border-border">
+                                <CardTitle className="text-lg">Market Movers</CardTitle>
+                                <div className="flex gap-1 mt-3">
+                                    {([
+                                        { key: "gainers",    label: "Gainers",     icon: <TrendingUp className="h-3.5 w-3.5" /> },
+                                        { key: "losers",     label: "Losers",      icon: <TrendingDown className="h-3.5 w-3.5" /> },
+                                        { key: "mostActive", label: "Most Active", icon: <Activity className="h-3.5 w-3.5" /> },
+                                    ] as const).map(tab => (
+                                        <button
+                                            key={tab.key}
+                                            onClick={() => setMoverTab(tab.key)}
+                                            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                                moverTab === tab.key
+                                                    ? "border-blue-600 text-blue-600"
+                                                    : "border-transparent text-muted-foreground hover:text-foreground"
+                                            }`}
+                                        >
+                                            {tab.icon}
+                                            {tab.label}
+                                        </button>
                                     ))}
                                 </div>
-                            ) : currentMovers && currentMovers.length > 0 ? (
-                                <div className="divide-y divide-border/30">
-                                    {currentMovers.map((stock, i) => (
-                                        <MoverRow
-                                            key={stock.symbol}
-                                            stock={stock}
-                                            rank={i + 1}
-                                            maxPct={maxPct}
-                                            onClick={() => handleSelectStock(stock.symbol)}
-                                        />
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground py-8 text-center">No data available.</p>
-                            )}
+                            </CardHeader>
 
-                            {data && (
-                                <div className="mt-3 mx-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>
-                                        {data.gainers.length} gainers · {data.losers.length} losers · {data.stocks.length} total tracked
-                                    </span>
-                                    <span>Prices delayed ~15 min · Source: Finnhub</span>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            <CardContent className="p-2 flex-1 overflow-y-auto">
+                                {isLoading && !data ? (
+                                    <div className="space-y-2 pt-2">
+                                        {Array.from({ length: 8 }).map((_, i) => (
+                                            <div key={i} className="h-12 rounded-lg bg-muted animate-pulse mx-2" />
+                                        ))}
+                                    </div>
+                                ) : currentMovers && currentMovers.length > 0 ? (
+                                    <div className="divide-y divide-border/30">
+                                        {currentMovers.map((stock, i) => (
+                                            <MoverRow
+                                                key={stock.symbol}
+                                                stock={stock}
+                                                rank={i + 1}
+                                                onClick={() => handleSelectStock(stock.symbol)}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground py-8 text-center">No data available.</p>
+                                )}
+                            </CardContent>
+                        </Card>
 
-                    {/* Market News — real-time via TradingView */}
-                    <Card className="overflow-hidden">
-                        <CardHeader className="pb-3 border-b border-border">
-                            <div className="flex items-center gap-2">
-                                <Newspaper className="h-5 w-5 text-blue-600" />
-                                <CardTitle className="text-lg">Market News</CardTitle>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">Real-time headlines · live feed</p>
-                        </CardHeader>
-                        <CardContent className="pt-4">
-                            <TradingViewNews height={600} />
-                        </CardContent>
-                    </Card>
+                        {/* Market News — real-time via TradingView */}
+                        <Card className="overflow-hidden flex flex-col h-[640px]">
+                            <CardHeader className="pb-3 border-b border-border">
+                                <div className="flex items-center gap-2">
+                                    <Newspaper className="h-5 w-5 text-blue-600" />
+                                    <CardTitle className="text-lg">Market News</CardTitle>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-0.5">Real-time headlines · live feed</p>
+                            </CardHeader>
+                            <CardContent className="p-3 flex-1">
+                                <TradingViewNews height={540} />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             )}
 
@@ -564,10 +518,7 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
 
             {/* ════════════════════════════ SCREENER TAB ════════════════════════════ */}
             {activeView === "screener" && (
-                <div className="space-y-6">
-                    <ScreenerTable />
-                    <StockScreener />
-                </div>
+                <ScreenerTable onSelectSymbol={(s) => onSelect("stocks", s)} />
             )}
         </div>
     )

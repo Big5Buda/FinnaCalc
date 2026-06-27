@@ -137,49 +137,34 @@ export default function HomePage() {
       {/* Features */}
       <section className="py-16 bg-background">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground mb-6">Why Choose FinnaCalc?</h2>
-              <div className="space-y-4">
-                {[
-                  {
-                    title: "All basic calculations are free",
-                    desc: "No hidden fees or premium requirements for essential financial calculations",
-                  },
-                  {
-                    title: "Accurate Results",
-                    desc: "Professional-grade calculations you can trust for important financial decisions",
-                  },
-                  {
-                    title: "AI-Powered Assistant",
-                    desc: "FinnaBot powered by Gemini answers your finance questions instantly",
-                  },
-                ].map((f) => (
-                  <div key={f.title} className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-white text-sm">✓</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{f.title}</h3>
-                      <p className="text-muted-foreground">{f.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-muted/40 rounded-2xl p-8 space-y-4">
-              <h3 className="font-semibold text-lg">Quick Stats</h3>
-              {[
-                { label: "Calculators", value: "10+" },
-                { label: "Calculation Types", value: "25+" },
-                { label: "AI Model", value: "Gemini 2.0 Flash" },
-              ].map((s) => (
-                <div key={s.label} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                  <span className="text-muted-foreground">{s.label}</span>
-                  <span className="font-semibold">{s.value}</span>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground">Why Choose FinnaCalc?</h2>
+          </div>
+          <div className="grid grid-cols-3 gap-8">
+            {[
+              {
+                title: "All basic calculations are free",
+                desc: "No hidden fees or premium requirements for essential financial calculations",
+              },
+              {
+                title: "Accurate Results",
+                desc: "Professional-grade calculations you can trust for important financial decisions",
+              },
+              {
+                title: "AI-Powered Assistant",
+                desc: "FinnaBot powered by Gemini answers your finance questions instantly",
+              },
+            ].map((f) => (
+              <div key={f.title} className="flex items-start gap-3">
+                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                  <span className="text-white text-sm">✓</span>
                 </div>
-              ))}
-            </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{f.title}</h3>
+                  <p className="text-muted-foreground">{f.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

@@ -5,21 +5,33 @@ export const revalidate = 600
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY
 const BASE_URL = "https://finnhub.io/api/v1"
 
-// Curated universe kept small to stay within the Finnhub free-tier rate limit
-// (each symbol needs quote + profile + metric). Cached for 10 minutes.
-const UNIVERSE = [
-    { symbol: "AAPL", sector: "Technology" },
-    { symbol: "MSFT", sector: "Technology" },
-    { symbol: "NVDA", sector: "Technology" },
-    { symbol: "GOOGL", sector: "Communication" },
-    { symbol: "META", sector: "Communication" },
-    { symbol: "AMZN", sector: "Consumer" },
-    { symbol: "TSLA", sector: "Consumer" },
-    { symbol: "JPM", sector: "Financials" },
-    { symbol: "V", sector: "Financials" },
-    { symbol: "UNH", sector: "Healthcare" },
-    { symbol: "JNJ", sector: "Healthcare" },
-    { symbol: "XOM", sector: "Energy" },
+// Curated universe (name + sector hardcoded so we only need 2 API calls each:
+// quote + metric). Well within the Finnhub free-tier rate limit, cached 10m.
+const UNIVERSE: { symbol: string; name: string; sector: string }[] = [
+    { symbol: "AAPL", name: "Apple Inc.", sector: "Technology" },
+    { symbol: "MSFT", name: "Microsoft Corp.", sector: "Technology" },
+    { symbol: "NVDA", name: "NVIDIA Corp.", sector: "Technology" },
+    { symbol: "AMD", name: "Advanced Micro Devices", sector: "Technology" },
+    { symbol: "ORCL", name: "Oracle Corp.", sector: "Technology" },
+    { symbol: "GOOGL", name: "Alphabet Inc.", sector: "Communication" },
+    { symbol: "META", name: "Meta Platforms Inc.", sector: "Communication" },
+    { symbol: "NFLX", name: "Netflix Inc.", sector: "Communication" },
+    { symbol: "DIS", name: "Walt Disney Co.", sector: "Communication" },
+    { symbol: "AMZN", name: "Amazon.com Inc.", sector: "Consumer" },
+    { symbol: "TSLA", name: "Tesla Inc.", sector: "Consumer" },
+    { symbol: "HD", name: "Home Depot Inc.", sector: "Consumer" },
+    { symbol: "MCD", name: "McDonald's Corp.", sector: "Consumer" },
+    { symbol: "JPM", name: "JPMorgan Chase & Co.", sector: "Financials" },
+    { symbol: "BAC", name: "Bank of America Corp.", sector: "Financials" },
+    { symbol: "V", name: "Visa Inc.", sector: "Financials" },
+    { symbol: "MA", name: "Mastercard Inc.", sector: "Financials" },
+    { symbol: "UNH", name: "UnitedHealth Group", sector: "Healthcare" },
+    { symbol: "JNJ", name: "Johnson & Johnson", sector: "Healthcare" },
+    { symbol: "LLY", name: "Eli Lilly and Co.", sector: "Healthcare" },
+    { symbol: "PFE", name: "Pfizer Inc.", sector: "Healthcare" },
+    { symbol: "XOM", name: "Exxon Mobil Corp.", sector: "Energy" },
+    { symbol: "CVX", name: "Chevron Corp.", sector: "Energy" },
+    { symbol: "CAT", name: "Caterpillar Inc.", sector: "Industrials" },
 ]
 
 export interface ScreenerRow {
@@ -28,9 +40,10 @@ export interface ScreenerRow {
     sector: string
     price: number
     changePercent: number
-    marketCap: number | null // in USD
+    marketCap: number | null // USD
     peRatio: number | null
     dividendYield: number | null // %
+    beta: number | null
 }
 
 async function fhSafe(path: string): Promise<any | null> {
@@ -43,33 +56,36 @@ async function fhSafe(path: string): Promise<any | null> {
     }
 }
 
+function round(n: number, d = 2) {
+    const f = 10 ** d
+    return Math.round(n * f) / f
+}
+
 export async function GET() {
     if (!FINNHUB_API_KEY) {
         return NextResponse.json({ error: "Finnhub API key not configured." }, { status: 500 })
     }
     try {
         const rows = await Promise.all(
-            UNIVERSE.map(async ({ symbol, sector }) => {
-                const [quote, profile, metric] = await Promise.all([
+            UNIVERSE.map(async ({ symbol, name, sector }) => {
+                const [quote, metric] = await Promise.all([
                     fhSafe(`/quote?symbol=${symbol}`),
-                    fhSafe(`/stock/profile2?symbol=${symbol}`),
                     fhSafe(`/stock/metric?symbol=${symbol}&metric=all`),
                 ])
                 if (!quote || !quote.c) return null
                 const m = metric?.metric ?? {}
-                const marketCap = profile?.marketCapitalization
-                    ? Math.round(profile.marketCapitalization * 1_000_000)
-                    : null
                 const dy = m.currentDividendYieldTTM ?? m.dividendYieldIndicatedAnnual ?? null
                 return {
                     symbol,
-                    company: profile?.name || symbol,
+                    company: name,
                     sector,
-                    price: quote.c,
-                    changePercent: quote.dp ?? 0,
-                    marketCap,
-                    peRatio: m.peTTM != null ? Math.round(m.peTTM * 100) / 100 : null,
-                    dividendYield: dy != null ? Math.round(dy * 100) / 100 : null,
+                    price: round(quote.c),
+                    changePercent: round(quote.dp ?? 0),
+                    // metric.marketCapitalization is in millions
+                    marketCap: m.marketCapitalization != null ? Math.round(m.marketCapitalization * 1_000_000) : null,
+                    peRatio: m.peTTM != null ? round(m.peTTM) : null,
+                    dividendYield: dy != null ? round(dy) : null,
+                    beta: m.beta != null ? round(m.beta) : null,
                 } as ScreenerRow
             })
         )
