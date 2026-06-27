@@ -3,12 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
 
-async function fh(path: string) {
-    const res = await fetch(`${BASE_URL}${path}&token=${FINNHUB_API_KEY}`, {
-        next: { revalidate: 60 },
-    });
-    if (!res.ok) throw new Error(`Finnhub error: ${res.status}`);
-    return res.json();
+// Returns parsed JSON, or null on any failure (network, non-OK, premium-gated).
+// This keeps a single endpoint failing (e.g. a premium-only metric) from
+// taking down the whole stock lookup.
+async function fhSafe(path: string): Promise<any | null> {
+    try {
+        const res = await fetch(`${BASE_URL}${path}&token=${FINNHUB_API_KEY}`, {
+            next: { revalidate: 60 },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
 }
 
 export async function GET(request: NextRequest) {
@@ -23,19 +30,20 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const now = Math.floor(Date.now() / 1000);
-        const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
-
-        const [quoteData, profileData, candleData, metricsData] = await Promise.all([
-            fh(`/quote?symbol=${symbol}`),
-            fh(`/stock/profile2?symbol=${symbol}`),
-            fh(`/stock/candle?symbol=${symbol}&resolution=D&from=${thirtyDaysAgo}&to=${now}`),
-            fh(`/stock/metric?symbol=${symbol}&metric=all`),
+        // NB: /stock/candle is intentionally omitted — it's a paid-only Finnhub
+        // endpoint (returns 403 on the free tier) and charts are now rendered
+        // by TradingView directly from the symbol, so OHLC data isn't needed.
+        const [quoteData, profileData, metricsData] = await Promise.all([
+            fhSafe(`/quote?symbol=${symbol}`),
+            fhSafe(`/stock/profile2?symbol=${symbol}`),
+            fhSafe(`/stock/metric?symbol=${symbol}&metric=all`),
         ]);
 
-        if (!quoteData.c || quoteData.c === 0) {
+        if (!quoteData || !quoteData.c || quoteData.c === 0) {
             return NextResponse.json({ error: `No data found for symbol "${symbol}".` }, { status: 404 });
         }
+
+        const profile = profileData ?? {};
 
         const quote = {
             "01. symbol": symbol,
@@ -44,30 +52,22 @@ export async function GET(request: NextRequest) {
             "10. change percent": `${quoteData.dp ?? 0}%`,
         };
 
-        const marketCapRaw = profileData.marketCapitalization;
+        const marketCapRaw = profile.marketCapitalization;
         const overview = {
-            Name: profileData.name || symbol,
+            Name: profile.name || symbol,
             MarketCapitalization: marketCapRaw
                 ? String(Math.round(marketCapRaw * 1_000_000))
                 : "0",
-            Description: profileData.finnhubIndustry
-                ? `${profileData.name} operates in the ${profileData.finnhubIndustry} industry.${profileData.weburl ? ` Learn more at ${profileData.weburl}.` : ""}`
+            Description: profile.finnhubIndustry
+                ? `${profile.name} operates in the ${profile.finnhubIndustry} industry.${profile.weburl ? ` Learn more at ${profile.weburl}.` : ""}`
                 : "No description available.",
-            Logo: profileData.logo || "",
+            Logo: profile.logo || "",
             PERatio: metricsData?.metric?.peTTM != null
                 ? String(metricsData.metric.peTTM.toFixed(2))
                 : "N/A",
         };
 
-        const timeSeries: Record<string, { "4. close": string }> = {};
-        if (candleData.s === "ok" && Array.isArray(candleData.t)) {
-            candleData.t.forEach((ts: number, i: number) => {
-                const date = new Date(ts * 1000).toISOString().split("T")[0];
-                timeSeries[date] = { "4. close": String(candleData.c[i]) };
-            });
-        }
-
-        return NextResponse.json({ quote, overview, timeSeries });
+        return NextResponse.json({ quote, overview });
     } catch (err: any) {
         return NextResponse.json({ error: err.message || "Failed to fetch stock data." }, { status: 500 });
     }

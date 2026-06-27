@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,36 @@ export default function StockScreener() {
     const [stockData, setStockData] = useState<StockData | null>(null)
     const [isLoadingDetails, setIsLoadingDetails] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    // Live typeahead — surface matches as the user types (debounced).
+    useEffect(() => {
+        const term = searchTerm.trim()
+        if (term.length < 2) {
+            setSearchResults([])
+            return
+        }
+        const controller = new AbortController()
+        const timer = setTimeout(async () => {
+            setIsSearching(true)
+            setError(null)
+            try {
+                const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(term)}`, {
+                    signal: controller.signal,
+                })
+                const json = await res.json()
+                if (!res.ok) throw new Error(json.error || "Search failed.")
+                setSearchResults(json)
+            } catch (e: any) {
+                if (e?.name !== "AbortError") setSearchResults([])
+            } finally {
+                setIsSearching(false)
+            }
+        }, 250)
+        return () => {
+            clearTimeout(timer)
+            controller.abort()
+        }
+    }, [searchTerm])
 
     const findSymbols = async () => {
         if (!searchTerm.trim()) return
@@ -104,7 +134,11 @@ export default function StockScreener() {
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className="pl-9"
-                                onKeyDown={e => e.key === "Enter" && findSymbols()}
+                                onKeyDown={e => {
+                                    if (e.key !== "Enter") return
+                                    if (searchResults.length > 0) fetchStockDetails(searchResults[0]["1. symbol"])
+                                    else findSymbols()
+                                }}
                             />
                         </div>
                         <Button onClick={findSymbols} disabled={isSearching} className="bg-blue-600 hover:bg-blue-700">

@@ -45,6 +45,31 @@ export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
         }
     }, [initialSymbol]);
 
+    // Live typeahead — show matches as the user types (debounced).
+    useEffect(() => {
+        const term = searchTerm.trim();
+        if (term.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/stock-search?keywords=${encodeURIComponent(term)}`, {
+                    signal: controller.signal,
+                });
+                const json = await res.json();
+                if (res.ok) setSearchResults(json);
+            } catch {
+                /* ignore aborted/failed typeahead lookups */
+            }
+        }, 250);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [searchTerm]);
+
     const handleSearch = async () => {
         if (!searchTerm.trim()) return;
         setIsLoading(true);
@@ -119,7 +144,11 @@ export default function StocksPage({ onBack, initialSymbol }: StocksPageProps) {
                             placeholder="e.g., AAPL, Microsoft"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                if (searchResults.length > 0) fetchStockDetails(searchResults[0]["1. symbol"]);
+                                else handleSearch();
+                            }}
                         />
                         <Button onClick={handleSearch} disabled={isLoading}>
                             <Search className="h-4 w-4 mr-2" />
