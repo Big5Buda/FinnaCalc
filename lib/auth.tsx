@@ -8,12 +8,15 @@ type User = { id: string; email: string; name: string }
 
 type SignUpResult = { needsConfirmation: boolean }
 
+type OAuthProvider = "google" | "apple"
+
 type AuthContextValue = {
     user: User | null
     loading: boolean
     configured: boolean
     signIn: (email: string, password: string) => Promise<void>
     signUp: (email: string, password: string, name: string) => Promise<SignUpResult>
+    signInWithOAuth: (provider: OAuthProvider) => Promise<void>
     signOut: () => Promise<void>
 }
 
@@ -84,6 +87,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         []
     )
 
+    const signInWithOAuth = React.useCallback(async (provider: OAuthProvider) => {
+        const supabase = getSupabase()
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        })
+        // On success the browser is redirected to the provider; we only reach
+        // here (without navigating) if Supabase rejected the request.
+        if (error) throw new Error(error.message)
+    }, [])
+
     const signOut = React.useCallback(async () => {
         if (!isSupabaseConfigured) return
         await getSupabase().auth.signOut()
@@ -91,8 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     const value = React.useMemo(
-        () => ({ user, loading, configured: isSupabaseConfigured, signIn, signUp, signOut }),
-        [user, loading, signIn, signUp, signOut]
+        () => ({ user, loading, configured: isSupabaseConfigured, signIn, signUp, signInWithOAuth, signOut }),
+        [user, loading, signIn, signUp, signInWithOAuth, signOut]
     )
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
