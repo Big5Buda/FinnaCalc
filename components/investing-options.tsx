@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input"
 import {
     Search, TrendingUp, TrendingDown, Activity,
     Cpu, HeartPulse, Landmark, ShoppingCart, Flame, Radio, Factory,
-    ArrowUpRight, ArrowDownRight, LineChart, Wallet,
+    ArrowUpRight, ArrowDownRight, LineChart, Wallet, Newspaper,
 } from "lucide-react"
 import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
 import MarketsDashboard from "@/components/markets-dashboard"
 import StockScreener from "@/components/stock-screener"
 import ScreenerTable from "@/components/dashboard-screener"
+import TradingViewNews from "@/components/tradingview-news"
 
 // ─── Sector config (icon + metadata) ──────────────────────────────────────────
 
@@ -539,6 +540,20 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
                                     <span>Prices delayed ~15 min · Source: Finnhub</span>
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Market News — real-time via TradingView */}
+                    <Card className="overflow-hidden">
+                        <CardHeader className="pb-3 border-b border-border">
+                            <div className="flex items-center gap-2">
+                                <Newspaper className="h-5 w-5 text-blue-600" />
+                                <CardTitle className="text-lg">Market News</CardTitle>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-0.5">Real-time headlines · live feed</p>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <TradingViewNews height={600} />
                         </CardContent>
                     </Card>
                 </div>
