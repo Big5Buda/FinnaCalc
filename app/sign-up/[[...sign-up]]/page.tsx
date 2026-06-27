@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Calculator } from "lucide-react"
 import { useAuth } from "@/lib/auth"
+import { OAuthButtons } from "@/components/oauth-buttons"
 
 export default function SignUpPage() {
     const router = useRouter()
@@ -97,6 +98,8 @@ export default function SignUpPage() {
                     >
                         {submitting ? "Creating account..." : "Sign up"}
                     </button>
+
+                    <OAuthButtons label="Or sign up with" />
 
                     <p className="text-sm text-muted-foreground text-center pt-2">
                         Already have an account?{" "}
