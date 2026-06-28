@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import DebtCard from "@/components/debt-card"
+import BudgetAdvisor from "@/components/budget-advisor"
 import Link from "next/link"
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { toast } from "sonner"
@@ -829,15 +830,27 @@ export default function BudgetingPage() {
                     </div>
 
                     <Tabs defaultValue="budget" className="space-y-6">
-                        <TabsList className="grid w-full grid-cols-5">
+                        <TabsList className="grid w-full grid-cols-6">
                             <TabsTrigger value="budget">Budget</TabsTrigger>
                             <TabsTrigger value="analysis">Analysis</TabsTrigger>
                             <TabsTrigger value="goals">Savings Goals</TabsTrigger>
                             <TabsTrigger value="debt">Debt</TabsTrigger>
+                            <TabsTrigger value="advisor">AI Advisor</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                         </TabsList>
                         <TabsContent value="debt" className="space-y-6">
                             <DebtCard />
+                        </TabsContent>
+                        <TabsContent value="advisor" className="space-y-6">
+                            <BudgetAdvisor
+                                budgetType={budgetType}
+                                monthlyIncome={monthlyIncome}
+                                monthlyExpenses={monthlyExpenses}
+                                monthlyNet={monthlyNet}
+                                expenseByCategory={pieChartData}
+                                incomeByCategory={incomePieChartData}
+                                savingsGoals={savingsGoals}
+                            />
                         </TabsContent>
                         <TabsContent value="budget" className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
