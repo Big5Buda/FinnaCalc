@@ -251,7 +251,7 @@ export default function BudgetAdvisor({
                             </div>
                             <div>
                                 <CardTitle className="text-lg leading-tight">Budget Analysis</CardTitle>
-                                <p className="text-xs text-muted-foreground">Personalized insights for your {budgetType} budget · powered by Gemini</p>
+                                <p className="text-xs text-muted-foreground">Personalized insights for your {budgetType} budget</p>
                             </div>
                         </div>
                         {hasData && (
@@ -271,24 +271,11 @@ export default function BudgetAdvisor({
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-4 gap-3">
-                            <div className="rounded-lg border border-border p-3">
-                                <p className="text-xs text-muted-foreground">Monthly net</p>
-                                <p className={`text-lg font-bold ${monthlyNet >= 0 ? "text-emerald-600" : "text-red-500"}`}>{money(monthlyNet)}</p>
-                            </div>
-                            <div className="rounded-lg border border-border p-3">
-                                <p className="text-xs text-muted-foreground">Savings rate</p>
-                                <p className={`text-lg font-bold ${savingsRate >= 20 ? "text-emerald-600" : savingsRate >= 0 ? "text-amber-600" : "text-red-500"}`}>{savingsRate.toFixed(0)}%</p>
-                            </div>
-                            <div className="rounded-lg border border-border p-3">
-                                <p className="text-xs text-muted-foreground">Top expense</p>
-                                <p className="text-lg font-bold truncate">{topCategories[0]?.name ?? "—"}</p>
-                            </div>
-                            <div className="rounded-lg border border-border p-3">
-                                <p className="text-xs text-muted-foreground">Emergency runway</p>
-                                <p className="text-lg font-bold">{emergencyMonths > 0 ? `${emergencyMonths.toFixed(1)} mo` : "—"}</p>
-                            </div>
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Top expense:{" "}
+                            <span className="font-semibold text-foreground">{topCategories[0]?.name ?? "—"}</span>
+                            {topCategories[0] ? ` · ${money(topCategories[0].value)}/mo` : ""}
+                        </p>
                     )}
                 </CardContent>
             </Card>
