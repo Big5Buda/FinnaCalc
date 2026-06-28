@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
-import { useTheme } from "next-themes"
 
 declare global {
     interface Window {
@@ -48,7 +47,6 @@ export default function TradingViewChart({ symbol, height = 480 }: TradingViewCh
     const reactId = useId()
     const containerId = `tv_${reactId.replace(/[:]/g, "_")}`
     const containerRef = useRef<HTMLDivElement>(null)
-    const { resolvedTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const [failed, setFailed] = useState(false)
 
@@ -69,7 +67,7 @@ export default function TradingViewChart({ symbol, height = 480 }: TradingViewCh
                     symbol,
                     interval: "D",
                     timezone: "Etc/UTC",
-                    theme: resolvedTheme === "dark" ? "dark" : "light",
+                    theme: "light",
                     style: "1",
                     locale: "en",
                     enable_publishing: false,
@@ -86,7 +84,7 @@ export default function TradingViewChart({ symbol, height = 480 }: TradingViewCh
         return () => {
             cancelled = true
         }
-    }, [symbol, resolvedTheme, mounted, containerId])
+    }, [symbol, mounted, containerId])
 
     return (
         <div className="rounded-lg overflow-hidden border border-border bg-muted/30" style={{ height, width: "100%" }}>

@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import Header from "@/components/header";
 import ChatBotWrapper from "@/components/chatbot-wrapper";
-import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
 import { Analytics } from '@vercel/analytics/next'
@@ -19,9 +18,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <AuthProvider>
                 <div className="flex flex-col min-h-screen">
                     <Header />
@@ -32,7 +30,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </AuthProvider>
             <Analytics />
             <SpeedInsights />
-        </ThemeProvider>
         </body>
         </html>
     )
