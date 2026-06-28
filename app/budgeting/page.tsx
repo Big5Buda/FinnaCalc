@@ -36,6 +36,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import DebtCard from "@/components/debt-card"
 import BudgetAdvisor from "@/components/budget-advisor"
+import BankConnect from "@/components/bank-connect"
+import type { BankTransaction } from "@/app/api/plaid/transactions/route"
 import Link from "next/link"
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { toast } from "sonner"
@@ -689,6 +691,81 @@ export default function BudgetingPage() {
         }
     };
 
+    // Maps a Plaid personal-finance category to one of our budget categories.
+    const mapPlaidCategory = (primary: string, type: "income" | "expense"): string => {
+        if (type === "income") {
+            if (budgetType === "business") return "Other Revenue";
+            return /INCOME|PAYROLL|DEPOSIT/.test(primary) ? "Salary" : "Other";
+        }
+        if (budgetType === "business") return "Other Operating Costs";
+        const map: Record<string, string> = {
+            FOOD_AND_DRINK: "Food",
+            RENT_AND_UTILITIES: "Housing",
+            TRANSPORTATION: "Transportation",
+            TRAVEL: "Transportation",
+            ENTERTAINMENT: "Entertainment",
+            MEDICAL: "Healthcare",
+            LOAN_PAYMENTS: "Debt Payments",
+            INSURANCE: "Insurance",
+        };
+        return map[primary] ?? "Other";
+    };
+
+    // Imports Plaid transactions as a budget-history snapshot (mirrors the CSV flow).
+    const handlePlaidImport = (transactions: BankTransaction[]) => {
+        if (!transactions.length) {
+            toast.warning("No transactions were found on that account.");
+            return;
+        }
+        const parsedItems: BudgetItem[] = transactions.map((t) => {
+            // Plaid: positive amount = money out (expense), negative = money in (income).
+            const type: "income" | "expense" = t.amount > 0 ? "expense" : "income";
+            return {
+                id: `${Date.now()}-${Math.random()}`,
+                category: mapPlaidCategory(t.category, type),
+                subcategory: t.name,
+                amount: Math.abs(t.amount),
+                frequency: "monthly" as const,
+                type,
+                isFixed: false,
+                budgetType,
+                importDate: new Date(t.date).toISOString(),
+            };
+        });
+
+        const totalIncome = parsedItems.filter((i) => i.type === "income").reduce((s, i) => s + i.amount, 0);
+        const totalExpenses = parsedItems.filter((i) => i.type === "expense").reduce((s, i) => s + i.amount, 0);
+
+        let firstDate: Date | null = null;
+        let lastDate: Date | null = null;
+        parsedItems.forEach((i) => {
+            if (i.importDate) {
+                const d = new Date(i.importDate);
+                if (isValid(d)) {
+                    if (!firstDate || d < firstDate) firstDate = d;
+                    if (!lastDate || d > lastDate) lastDate = d;
+                }
+            }
+        });
+        const finalStart = firstDate || new Date();
+        const finalEnd = lastDate || new Date();
+
+        handleSaveBudgetHistory(
+            parsedItems,
+            totalIncome,
+            totalExpenses,
+            totalIncome - totalExpenses,
+            budgetType,
+            "Bank Import (Plaid)",
+            finalStart.toISOString(),
+            finalEnd.toISOString(),
+            true
+        );
+
+        toast.success(`Imported ${parsedItems.length} transactions to your budget history.`);
+        setIsBankActionsModalOpen(false);
+    };
+
 
     const [chartView, setChartView] = useState<'expense' | 'income'>('expense');
 
@@ -830,27 +907,15 @@ export default function BudgetingPage() {
                     </div>
 
                     <Tabs defaultValue="budget" className="space-y-6">
-                        <TabsList className="grid w-full grid-cols-6">
+                        <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="budget">Budget</TabsTrigger>
                             <TabsTrigger value="analysis">Analysis</TabsTrigger>
                             <TabsTrigger value="goals">Savings Goals</TabsTrigger>
                             <TabsTrigger value="debt">Debt</TabsTrigger>
-                            <TabsTrigger value="advisor">AI Advisor</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                         </TabsList>
                         <TabsContent value="debt" className="space-y-6">
                             <DebtCard />
-                        </TabsContent>
-                        <TabsContent value="advisor" className="space-y-6">
-                            <BudgetAdvisor
-                                budgetType={budgetType}
-                                monthlyIncome={monthlyIncome}
-                                monthlyExpenses={monthlyExpenses}
-                                monthlyNet={monthlyNet}
-                                expenseByCategory={pieChartData}
-                                incomeByCategory={incomePieChartData}
-                                savingsGoals={savingsGoals}
-                            />
                         </TabsContent>
                         <TabsContent value="budget" className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
@@ -1109,41 +1174,15 @@ export default function BudgetingPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="analysis" className="space-y-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Budget Analysis & Feedback</CardTitle>
-                                    <CardDescription>Get insights and recommendations for your budget</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {filteredBudgetItems.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-8">Add some income and expenses to see your budget analysis here!</p>
-                                    ) : (
-                                        <>
-                                            {analysisFeedback.map((item, index) => {
-                                                let variant: 'default' | 'destructive' = 'default';
-                                                let customClass = '';
-                                                if (item.type === 'destructive') {
-                                                    variant = 'destructive';
-                                                } else if (item.type === 'warning') {
-                                                    customClass = 'bg-yellow-50 border-yellow-200 text-yellow-800';
-                                                } else if (item.type === 'success') {
-                                                    customClass = 'bg-green-50 border-green-200 text-green-800';
-                                                }
-
-                                                return (
-                                                    <Alert key={index} variant={variant} className={cn(customClass)}>
-                                                        {item.icon}
-                                                        <AlertTitle>{item.title}</AlertTitle>
-                                                        <AlertDescription>
-                                                            {item.message}
-                                                        </AlertDescription>
-                                                    </Alert>
-                                                )
-                                            })}
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <BudgetAdvisor
+                                budgetType={budgetType}
+                                monthlyIncome={monthlyIncome}
+                                monthlyExpenses={monthlyExpenses}
+                                monthlyNet={monthlyNet}
+                                expenseByCategory={pieChartData}
+                                incomeByCategory={incomePieChartData}
+                                savingsGoals={savingsGoals}
+                            />
                         </TabsContent>
                         <TabsContent value="goals" className="space-y-6">
                             <Card>
@@ -1553,9 +1592,7 @@ export default function BudgetingPage() {
                         <Button onClick={() => { setIsBankActionsModalOpen(false); setIsFileUploadModalOpen(true); }} className="flex items-center justify-center gap-2">
                             <FileText className="h-4 w-4" /> Upload Bank Statement
                         </Button>
-                        <Button onClick={() => { setIsBankActionsModalOpen(false); setIsConnectingBankModalOpen(true); }} className="flex items-center justify-center gap-2" variant="outline">
-                            <Plug className="h-4 w-4" /> Connect Bank Account (Coming Soon)
-                        </Button>
+                        <BankConnect onImport={handlePlaidImport} onError={(m) => toast.error(m)} />
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsBankActionsModalOpen(false)}>Close</Button>
@@ -1590,28 +1627,6 @@ export default function BudgetingPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Connect Bank Account Modal (Coming Soon) */}
-            <Dialog open={isConnectingBankModalOpen} onOpenChange={setIsConnectingBankModalOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Connect Bank Account</DialogTitle>
-                        <DialogDescription>
-                            Seamlessly link your bank account to automatically import transactions.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-8 text-center">
-                        <Plug className="h-12 w-12 text-blue-500 mx-auto" />
-                        <p className="text-xl font-semibold text-foreground">Coming Soon!</p>
-                        <p className="text-muted-foreground">
-                            We're working on integrating secure bank connections (e.g., via Plaid API) to make budgeting even easier.
-                            Stay tuned for updates!
-                        </p>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsConnectingBankModalOpen(false)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </>
     )
 }
