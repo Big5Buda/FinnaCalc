@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sparkles, RefreshCw, Send, TrendingUp, AlertCircle } from "lucide-react"
@@ -27,6 +27,7 @@ interface BudgetAdvisorProps {
     savingsGoals: Goal[]
 }
 
+type Depth = "quick" | "deep"
 type Message = { id: string; role: "user" | "assistant"; content: string }
 
 function uid() {
@@ -38,7 +39,6 @@ const money = (n: number) => n.toLocaleString("en-US", { style: "currency", curr
 // ─── Lightweight Markdown renderer (headings, bold, bullets, numbered lists) ─────
 
 function renderInline(text: string, keyBase: string) {
-    // Split on **bold** segments
     const parts = text.split(/(\*\*[^*]+\*\*)/g)
     return parts.map((p, i) =>
         p.startsWith("**") && p.endsWith("**") ? (
@@ -119,8 +119,10 @@ export default function BudgetAdvisor({
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [depth, setDepth] = useState<Depth>("quick")
     const [error, setError] = useState<string | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const autoRan = useRef(false)
 
     const savingsRate = monthlyIncome > 0 ? (monthlyNet / monthlyIncome) * 100 : 0
     const totalSaved = savingsGoals.reduce((s, g) => s + (g.currentAmount || 0), 0)
@@ -129,6 +131,7 @@ export default function BudgetAdvisor({
         () => [...expenseByCategory].sort((a, b) => b.value - a.value).slice(0, 3),
         [expenseByCategory]
     )
+    const hasData = monthlyIncome > 0 || monthlyExpenses > 0
 
     const snapshot = useMemo(
         () => ({
@@ -157,9 +160,7 @@ export default function BudgetAdvisor({
         [budgetType, monthlyIncome, monthlyExpenses, monthlyNet, savingsRate, expenseByCategory, incomeByCategory, savingsGoals, totalSaved, emergencyMonths]
     )
 
-    const hasData = monthlyIncome > 0 || monthlyExpenses > 0
-
-    const stream = async (history: Message[]) => {
+    const stream = async (history: Message[], d: Depth) => {
         setIsLoading(true)
         setError(null)
         const assistantId = uid()
@@ -169,6 +170,7 @@ export default function BudgetAdvisor({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     snapshot,
+                    depth: d,
                     messages: history.map(({ role, content }) => ({ role, content })),
                 }),
             })
@@ -199,14 +201,31 @@ export default function BudgetAdvisor({
         }
     }
 
-    const analyze = () => {
+    const runAnalysis = (d: Depth) => {
         if (isLoading) return
+        setDepth(d)
         const seed: Message[] = [
-            { id: uid(), role: "user", content: "Give me a full, deep analysis of my budget with your best personalized recommendations." },
+            {
+                id: uid(),
+                role: "user",
+                content:
+                    d === "deep"
+                        ? "Give me a full, deep analysis of my budget with your best personalized recommendations."
+                        : "Give me a quick, concise summary of my budget with the top quick wins.",
+            },
         ]
         setMessages(seed)
-        stream(seed)
+        stream(seed, d)
     }
+
+    // Auto-load a concise analysis on first open (once), when there's data.
+    useEffect(() => {
+        if (!autoRan.current && hasData) {
+            autoRan.current = true
+            runAnalysis("quick")
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasData])
 
     const send = () => {
         const trimmed = input.trim()
@@ -214,7 +233,7 @@ export default function BudgetAdvisor({
         const next = [...messages, { id: uid(), role: "user" as const, content: trimmed }]
         setMessages(next)
         setInput("")
-        stream(next)
+        stream(next, depth)
     }
 
     // Hide the seed "analyze" user message from the transcript for a cleaner look.
@@ -222,17 +241,25 @@ export default function BudgetAdvisor({
 
     return (
         <div className="space-y-6">
-            {/* Budget Health snapshot */}
+            {/* Budget Health snapshot + Deep Analysis trigger */}
             <Card>
                 <CardHeader className="pb-3 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                            <Sparkles className="h-4 w-4 text-white" />
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                                <Sparkles className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg leading-tight">Budget Analysis</CardTitle>
+                                <p className="text-xs text-muted-foreground">Personalized insights for your {budgetType} budget · powered by Gemini</p>
+                            </div>
                         </div>
-                        <div>
-                            <CardTitle className="text-lg leading-tight">AI Budget Advisor</CardTitle>
-                            <p className="text-xs text-muted-foreground">Personalized analysis of your {budgetType} budget · powered by Gemini</p>
-                        </div>
+                        {hasData && (
+                            <Button onClick={() => runAnalysis("deep")} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Deep Analysis
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent className="pt-5">
@@ -244,44 +271,30 @@ export default function BudgetAdvisor({
                             </p>
                         </div>
                     ) : (
-                        <>
-                            <div className="grid grid-cols-4 gap-3">
-                                <div className="rounded-lg border border-border p-3">
-                                    <p className="text-xs text-muted-foreground">Monthly net</p>
-                                    <p className={`text-lg font-bold ${monthlyNet >= 0 ? "text-emerald-600" : "text-red-500"}`}>{money(monthlyNet)}</p>
-                                </div>
-                                <div className="rounded-lg border border-border p-3">
-                                    <p className="text-xs text-muted-foreground">Savings rate</p>
-                                    <p className={`text-lg font-bold ${savingsRate >= 20 ? "text-emerald-600" : savingsRate >= 0 ? "text-amber-600" : "text-red-500"}`}>{savingsRate.toFixed(0)}%</p>
-                                </div>
-                                <div className="rounded-lg border border-border p-3">
-                                    <p className="text-xs text-muted-foreground">Top expense</p>
-                                    <p className="text-lg font-bold truncate">{topCategories[0]?.name ?? "—"}</p>
-                                </div>
-                                <div className="rounded-lg border border-border p-3">
-                                    <p className="text-xs text-muted-foreground">Emergency runway</p>
-                                    <p className="text-lg font-bold">{emergencyMonths > 0 ? `${emergencyMonths.toFixed(1)} mo` : "—"}</p>
-                                </div>
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-xs text-muted-foreground">Monthly net</p>
+                                <p className={`text-lg font-bold ${monthlyNet >= 0 ? "text-emerald-600" : "text-red-500"}`}>{money(monthlyNet)}</p>
                             </div>
-
-                            {messages.length === 0 && (
-                                <div className="mt-5 text-center">
-                                    <Button onClick={analyze} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
-                                        <Sparkles className="h-4 w-4 mr-2" />
-                                        Analyze my budget
-                                    </Button>
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                        Deep, personalized recommendations based on your exact numbers.
-                                    </p>
-                                </div>
-                            )}
-                        </>
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-xs text-muted-foreground">Savings rate</p>
+                                <p className={`text-lg font-bold ${savingsRate >= 20 ? "text-emerald-600" : savingsRate >= 0 ? "text-amber-600" : "text-red-500"}`}>{savingsRate.toFixed(0)}%</p>
+                            </div>
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-xs text-muted-foreground">Top expense</p>
+                                <p className="text-lg font-bold truncate">{topCategories[0]?.name ?? "—"}</p>
+                            </div>
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-xs text-muted-foreground">Emergency runway</p>
+                                <p className="text-lg font-bold">{emergencyMonths > 0 ? `${emergencyMonths.toFixed(1)} mo` : "—"}</p>
+                            </div>
+                        </div>
                     )}
                 </CardContent>
             </Card>
 
             {/* Analysis + chat */}
-            {messages.length > 0 && (
+            {(messages.length > 0 || isLoading) && (
                 <Card>
                     <CardContent className="p-0">
                         <div ref={scrollRef} className="max-h-[640px] overflow-y-auto p-5 space-y-5">
@@ -300,7 +313,7 @@ export default function BudgetAdvisor({
                             )}
                             {isLoading && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <RefreshCw className="h-4 w-4 animate-spin" /> Thinking through your numbers…
+                                    <RefreshCw className="h-4 w-4 animate-spin" /> {depth === "deep" ? "Running a deep analysis…" : "Analyzing your budget…"}
                                 </div>
                             )}
                             {error && (

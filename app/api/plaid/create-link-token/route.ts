@@ -6,6 +6,7 @@ import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
 const PRODUCT_MAP: Record<string, Products> = {
     investments: Products.Investments,
     liabilities: Products.Liabilities,
+    transactions: Products.Transactions,
 }
 
 export async function POST(req: Request) {
