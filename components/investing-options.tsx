@@ -13,6 +13,7 @@ import type { StockQuote, SectorSummary } from "@/app/api/market-overview/route"
 import MarketsDashboard from "@/components/markets-dashboard"
 import ScreenerTable from "@/components/dashboard-screener"
 import TradingViewNews from "@/components/tradingview-news"
+import BrokerageConnect from "@/components/brokerage-connect"
 
 // ─── Sector config (icon + metadata) ──────────────────────────────────────────
 
@@ -514,7 +515,12 @@ export default function InvestingOptions({ onSelect }: InvestingOptionsProps) {
             )}
 
             {/* ═══════════════════════════ PORTFOLIO TAB ═══════════════════════════ */}
-            {activeView === "portfolio" && <MarketsDashboard />}
+            {activeView === "portfolio" && (
+                <div className="space-y-6">
+                    <BrokerageConnect />
+                    <MarketsDashboard />
+                </div>
+            )}
 
             {/* ════════════════════════════ SCREENER TAB ════════════════════════════ */}
             {activeView === "screener" && (
