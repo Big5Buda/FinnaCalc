@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useTheme } from "next-themes"
 
 interface TradingViewNewsProps {
     height?: number
@@ -14,7 +13,6 @@ interface TradingViewNewsProps {
  */
 export default function TradingViewNews({ height = 600 }: TradingViewNewsProps) {
     const containerRef = useRef<HTMLDivElement>(null)
-    const { resolvedTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
 
     useEffect(() => setMounted(true), [])
@@ -34,11 +32,11 @@ export default function TradingViewNews({ height = 600 }: TradingViewNewsProps) 
             displayMode: "regular",
             width: "100%",
             height,
-            colorTheme: resolvedTheme === "dark" ? "dark" : "light",
+            colorTheme: "light",
             locale: "en",
         })
         container.appendChild(script)
-    }, [mounted, resolvedTheme, height])
+    }, [mounted, height])
 
     return (
         <div style={{ height }}>

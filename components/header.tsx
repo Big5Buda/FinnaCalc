@@ -5,7 +5,6 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuth } from "@/lib/auth"
 import {
     DropdownMenu,
@@ -57,7 +56,6 @@ export default function Header() {
                         ))}
                     </nav>
                     <div className="flex items-center gap-3">
-                        {mounted ? <ThemeToggle /> : <div className="h-10 w-10" />}
                         {mounted && (
                             user ? (
                                 <DropdownMenu>

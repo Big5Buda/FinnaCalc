@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useTheme } from "next-themes"
 
 interface TradingViewMiniProps {
     symbol: string
@@ -14,7 +13,6 @@ interface TradingViewMiniProps {
  */
 export default function TradingViewMini({ symbol, height = 140 }: TradingViewMiniProps) {
     const containerRef = useRef<HTMLDivElement>(null)
-    const { resolvedTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
 
     useEffect(() => setMounted(true), [])
@@ -33,13 +31,13 @@ export default function TradingViewMini({ symbol, height = 140 }: TradingViewMin
             height,
             locale: "en",
             dateRange: "1M",
-            colorTheme: resolvedTheme === "dark" ? "dark" : "light",
+            colorTheme: "light",
             isTransparent: true,
             autosize: false,
             largeChartUrl: "",
         })
         container.appendChild(script)
-    }, [symbol, resolvedTheme, mounted, height])
+    }, [symbol, mounted, height])
 
     return (
         <div style={{ height }}>
