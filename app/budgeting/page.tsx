@@ -89,7 +89,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AF19FF", "#FF1943"
 
 const personalCategories = {
     income: ["Salary", "Freelance", "Investments", "Gift", "Other"],
-    expense: ["Housing", "Utilities", "Food", "Transportation", "Entertainment", "Healthcare", "Insurance", "Debt Payments", "Savings", "Other"],
+    expense: ["Housing", "Utilities", "Food", "Transportation", "Entertainment", "Healthcare", "Insurance", "Debt Payments", "Savings", "Retirement", "Other"],
 };
 
 const businessCategories = {
@@ -226,6 +226,7 @@ export default function BudgetingPage() {
 
     // New states for bank integration
     const [isBankActionsModalOpen, setIsBankActionsModalOpen] = useState(false);
+    const [bankConnectTrigger, setBankConnectTrigger] = useState(0);
     const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isConnectingBankModalOpen, setIsConnectingBankModalOpen] = useState(false);
@@ -248,6 +249,23 @@ export default function BudgetingPage() {
         .reduce((sum, item) => sum + convertToMonthly(item.amount, item.frequency), 0)
 
     const monthlyNet = monthlyIncome - monthlyExpenses
+
+    // Savings rate is based on what the user actually sets aside: their
+    // "Savings" and "Retirement" expense lines. If they haven't entered any,
+    // we show nothing (null) rather than a misleading number.
+    const monthlySavingsContributions = budgetItems
+        .filter(
+            (item) =>
+                item.type === "expense" &&
+                item.budgetType === budgetType &&
+                (item.category === "Savings" || item.category === "Retirement")
+        )
+        .reduce((sum, item) => sum + convertToMonthly(item.amount, item.frequency), 0)
+
+    const savingsRate =
+        monthlyIncome > 0 && monthlySavingsContributions > 0
+            ? (monthlySavingsContributions / monthlyIncome) * 100
+            : null
 
     const handleFormSubmit = () => {
         if (editingItemId) {
@@ -897,7 +915,7 @@ export default function BudgetingPage() {
                                     <div>
                                         <p className="text-sm text-muted-foreground">Savings Rate</p>
                                         <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                                            {monthlyIncome > 0 ? ((monthlyNet / monthlyIncome) * 100).toFixed(1) : "0.0"}%
+                                            {savingsRate != null ? `${savingsRate.toFixed(1)}%` : "—"}
                                         </p>
                                     </div>
                                     <Target className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
@@ -911,7 +929,7 @@ export default function BudgetingPage() {
                             <TabsTrigger value="budget">Budget</TabsTrigger>
                             <TabsTrigger value="analysis">Analysis</TabsTrigger>
                             <TabsTrigger value="goals">Savings Goals</TabsTrigger>
-                            <TabsTrigger value="debt">Debt</TabsTrigger>
+                            <TabsTrigger value="debt">Credit</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                         </TabsList>
                         <TabsContent value="debt" className="space-y-6">
@@ -1592,7 +1610,13 @@ export default function BudgetingPage() {
                         <Button onClick={() => { setIsBankActionsModalOpen(false); setIsFileUploadModalOpen(true); }} className="flex items-center justify-center gap-2">
                             <FileText className="h-4 w-4" /> Upload Bank Statement
                         </Button>
-                        <BankConnect onImport={handlePlaidImport} onError={(m) => toast.error(m)} />
+                        <Button
+                            onClick={() => { setIsBankActionsModalOpen(false); setBankConnectTrigger((c) => c + 1); }}
+                            className="flex items-center justify-center gap-2"
+                            variant="outline"
+                        >
+                            <Plug className="h-4 w-4" /> Connect Bank Account
+                        </Button>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsBankActionsModalOpen(false)}>Close</Button>
@@ -1627,6 +1651,9 @@ export default function BudgetingPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Headless Plaid connect controller — lives outside any dialog so the
+                Plaid modal is fully interactive. */}
+            <BankConnect trigger={bankConnectTrigger} onImport={handlePlaidImport} />
         </>
     )
 }
