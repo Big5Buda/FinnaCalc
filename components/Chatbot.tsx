@@ -11,6 +11,11 @@ type Message = { id: string; role: "user" | "assistant"; content: string }
 const WELCOME_CONTENT =
     "Hi! I'm FinnaBot. Ask me about budgeting, investing, taxes, or any of the calculators on this site. I'm not a licensed advisor, so verify anything important with a professional."
 
+// Persist the conversation for the current browser session, so closing and
+// reopening FinnaBot (or navigating around the site) keeps the chat. Cleared
+// when the tab/session ends.
+const STORAGE_KEY = "finnabot.chat"
+
 function uid() {
     return typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
@@ -19,9 +24,20 @@ function uid() {
 
 export default function ChatBot() {
     const [isOpen, setIsOpen] = useState(false)
-    const [messages, setMessages] = useState<Message[]>([
-        { id: "welcome", role: "assistant", content: WELCOME_CONTENT },
-    ])
+    const [messages, setMessages] = useState<Message[]>(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const saved = window.sessionStorage.getItem(STORAGE_KEY)
+                if (saved) {
+                    const parsed = JSON.parse(saved)
+                    if (Array.isArray(parsed) && parsed.length) return parsed
+                }
+            } catch {
+                /* ignore */
+            }
+        }
+        return [{ id: "welcome", role: "assistant", content: WELCOME_CONTENT }]
+    })
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -31,6 +47,15 @@ export default function ChatBot() {
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
     }, [messages, isLoading])
+
+    // Save the conversation for the session whenever it changes.
+    useEffect(() => {
+        try {
+            window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+        } catch {
+            /* ignore */
+        }
+    }, [messages])
 
     useEffect(() => {
         if (isOpen) inputRef.current?.focus()
@@ -134,7 +159,7 @@ export default function ChatBot() {
                         </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                        Personal finance &amp; business AI assistant · Powered by Gemini
+                        Personal finance &amp; business AI assistant
                     </p>
                 </CardHeader>
 
