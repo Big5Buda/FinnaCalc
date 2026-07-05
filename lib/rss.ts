@@ -18,6 +18,19 @@ export type NewsArticle = {
 export const BROWSER_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
+// Outlet favicon for a news card's source badge, derived from the article
+// URL's host (Google's favicon service; keyless, works for any domain).
+// Returns "" for aggregator/redirect hosts where the favicon would be wrong.
+export function faviconFor(articleUrl: string): string {
+    try {
+        const host = new URL(articleUrl).hostname;
+        if (!host || host.endsWith("news.google.com")) return "";
+        return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${host}&size=128`;
+    } catch {
+        return "";
+    }
+}
+
 // Extract one tag's text from an <item> blob (CDATA-safe, entity-decoded).
 function pickTag(item: string, tag: string): string {
     const m = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -47,7 +60,7 @@ export function parseRssItems(xml: string, sourceName: string, cap = 10): NewsAr
             headline,
             source: sourceName,
             url,
-            image: "",
+            image: faviconFor(url),
             datetime: Number.isFinite(ts) ? Math.round(ts / 1000) : null,
             summary: pickTag(item, "description").replace(/<[^>]+>/g, "").slice(0, 300),
         });
@@ -77,7 +90,7 @@ export function parseGoogleNewsItems(xml: string, cap = 12): NewsArticle[] {
             headline,
             source,
             url,
-            image: "",
+            image: faviconFor(url),
             datetime: Number.isFinite(ts) ? Math.round(ts / 1000) : null,
             summary: "",
         });
