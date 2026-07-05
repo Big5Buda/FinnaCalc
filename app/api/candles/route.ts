@@ -46,14 +46,26 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Chart data key not configured." }, { status: 500 });
     }
 
-    // An explicit candle interval (1min/5min/…) wins over the range presets.
+    // An explicit candle interval composes WITH the range: the range picks the
+    // window, the interval picks the bar size (bars ≈ window / bar duration).
     const preset = RANGES[rangeKey] ?? RANGES["1D"];
-    const interval = intervalOverride && CANDLE_INTERVALS.has(intervalOverride)
-        ? intervalOverride
-        : preset.interval;
-    const outputsize = intervalOverride && CANDLE_INTERVALS.has(intervalOverride)
-        ? 90
-        : preset.outputsize;
+    let interval = preset.interval;
+    let outputsize = preset.outputsize;
+    if (intervalOverride && CANDLE_INTERVALS.has(intervalOverride)) {
+        interval = intervalOverride;
+        const INTERVAL_MINUTES: Record<string, number> = {
+            "1min": 1, "5min": 5, "15min": 15, "30min": 30, "45min": 45,
+            "1h": 60, "1day": 390, "1week": 1950,
+        };
+        // Trading minutes per range (390/day, ~21 trading days/month).
+        const RANGE_MINUTES: Record<string, number> = {
+            "1D": 390, "1W": 1950, "1M": 8190, "1Y": 98280, "ALL": 1965600,
+        };
+        const bars = Math.round(
+            (RANGE_MINUTES[rangeKey] ?? 390) / (INTERVAL_MINUTES[intervalOverride] ?? 5),
+        );
+        outputsize = Math.min(Math.max(bars, 10), 500);
+    }
 
     try {
         const url =
