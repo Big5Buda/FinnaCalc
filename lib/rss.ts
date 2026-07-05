@@ -18,27 +18,29 @@ export type NewsArticle = {
 export const BROWSER_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
+// Extract one tag's text from an <item> blob (CDATA-safe, entity-decoded).
+function pickTag(item: string, tag: string): string {
+    const m = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+    if (!m) return "";
+    return m[1]
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#0?39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .trim();
+}
+
 // Minimal, tolerant RSS <item> extractor (title / link / pubDate; CDATA-safe).
 export function parseRssItems(xml: string, sourceName: string, cap = 10): NewsArticle[] {
     const items = xml.match(/<item[\s>][\s\S]*?<\/item>/g) ?? [];
     const out: NewsArticle[] = [];
     for (const item of items.slice(0, cap)) {
-        const pick = (tag: string): string => {
-            const m = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-            if (!m) return "";
-            return m[1]
-                .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-                .replace(/&amp;/g, "&")
-                .replace(/&lt;/g, "<")
-                .replace(/&gt;/g, ">")
-                .replace(/&#0?39;/g, "'")
-                .replace(/&quot;/g, '"')
-                .trim();
-        };
-        const headline = pick("title");
-        const url = pick("link");
+        const headline = pickTag(item, "title");
+        const url = pickTag(item, "link");
         if (!headline || !url) continue;
-        const pub = pick("pubDate");
+        const pub = pickTag(item, "pubDate");
         const ts = pub ? Date.parse(pub) : NaN;
         out.push({
             id: url,
@@ -47,7 +49,37 @@ export function parseRssItems(xml: string, sourceName: string, cap = 10): NewsAr
             url,
             image: "",
             datetime: Number.isFinite(ts) ? Math.round(ts / 1000) : null,
-            summary: pick("description").replace(/<[^>]+>/g, "").slice(0, 300),
+            summary: pickTag(item, "description").replace(/<[^>]+>/g, "").slice(0, 300),
+        });
+    }
+    return out;
+}
+
+// Google News RSS items carry the real outlet in a <source> tag and suffix
+// the title with " - Outlet"; extract the outlet and strip the suffix so
+// cards show "Quiver Quantitative", not "Google News".
+export function parseGoogleNewsItems(xml: string, cap = 12): NewsArticle[] {
+    const items = xml.match(/<item[\s>][\s\S]*?<\/item>/g) ?? [];
+    const out: NewsArticle[] = [];
+    for (const item of items) {
+        if (out.length >= cap) break;
+        const rawTitle = pickTag(item, "title");
+        const url = pickTag(item, "link");
+        if (!rawTitle || !url) continue;
+        const source = pickTag(item, "source") || "Google News";
+        const headline = rawTitle.endsWith(` - ${source}`)
+            ? rawTitle.slice(0, -(source.length + 3))
+            : rawTitle;
+        const pub = pickTag(item, "pubDate");
+        const ts = pub ? Date.parse(pub) : NaN;
+        out.push({
+            id: url,
+            headline,
+            source,
+            url,
+            image: "",
+            datetime: Number.isFinite(ts) ? Math.round(ts / 1000) : null,
+            summary: "",
         });
     }
     return out;

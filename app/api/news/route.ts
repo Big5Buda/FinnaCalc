@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchRssFeed, interleaveBySource, type NewsArticle } from "@/lib/rss";
+import {
+    BROWSER_UA,
+    fetchRssFeed,
+    interleaveBySource,
+    parseGoogleNewsItems,
+    type NewsArticle,
+} from "@/lib/rss";
 
 // Per-symbol company news (Cash App "News" row on the stock detail).
 //
-// Finnhub /company-news skews heavily Reuters, so it's blended with Yahoo
-// Finance's per-symbol RSS (which aggregates Motley Fool, Barron's, Insider,
-// etc.) and interleaved by source. Both sources are best-effort.
+// Finnhub /company-news skews heavily Reuters, so it's blended with Google
+// News' per-ticker RSS (per-item real outlet names — Barron's, Insider,
+// GuruFocus, etc.) and Yahoo Finance's symbol RSS, interleaved by feed. All
+// sources are best-effort — a blocked feed just drops out.
 
 export const revalidate = 900;
 
@@ -44,14 +51,32 @@ async function fetchFinnhubCompanyNews(symbol: string): Promise<NewsArticle[]> {
     }
 }
 
+async function fetchGoogleNews(symbol: string): Promise<NewsArticle[]> {
+    try {
+        const q = encodeURIComponent(`${symbol} stock`);
+        const res = await fetch(
+            `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`,
+            {
+                headers: { "User-Agent": BROWSER_UA, Accept: "application/rss+xml, application/xml, text/xml, */*" },
+                next: { revalidate },
+            },
+        );
+        if (!res.ok) return [];
+        return parseGoogleNewsItems(await res.text(), 10);
+    } catch {
+        return [];
+    }
+}
+
 export async function GET(request: NextRequest) {
     const symbol = new URL(request.url).searchParams.get("symbol")?.toUpperCase();
     if (!symbol) {
         return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
     }
 
-    const [finnhub, yahoo] = await Promise.all([
+    const [finnhub, google, yahoo] = await Promise.all([
         fetchFinnhubCompanyNews(symbol),
+        fetchGoogleNews(symbol),
         fetchRssFeed(
             "Yahoo Finance",
             `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(symbol)}`,
@@ -59,6 +84,6 @@ export async function GET(request: NextRequest) {
         ),
     ]);
 
-    const articles = interleaveBySource([yahoo, finnhub], 12);
+    const articles = interleaveBySource([google, yahoo, finnhub], 12);
     return NextResponse.json({ symbol, articles });
 }
