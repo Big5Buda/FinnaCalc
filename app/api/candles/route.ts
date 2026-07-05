@@ -30,10 +30,14 @@ function epochSeconds(datetime: string, fallbackIndex: number): number {
     return Number.isFinite(ms) ? Math.round(ms / 1000) : fallbackIndex * 60;
 }
 
+// Intraday interval overrides for the candlestick view.
+const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h"]);
+
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get("symbol")?.toUpperCase();
     const rangeKey = (searchParams.get("range") || "1D").toUpperCase();
+    const intervalOverride = searchParams.get("interval");
 
     if (!symbol) {
         return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
@@ -42,7 +46,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Chart data key not configured." }, { status: 500 });
     }
 
-    const { interval, outputsize } = RANGES[rangeKey] ?? RANGES["1D"];
+    // An explicit candle interval (1min/5min/…) wins over the range presets.
+    const preset = RANGES[rangeKey] ?? RANGES["1D"];
+    const interval = intervalOverride && CANDLE_INTERVALS.has(intervalOverride)
+        ? intervalOverride
+        : preset.interval;
+    const outputsize = intervalOverride && CANDLE_INTERVALS.has(intervalOverride)
+        ? 90
+        : preset.outputsize;
 
     try {
         const url =
@@ -61,11 +72,22 @@ export async function GET(request: NextRequest) {
             : json.values;
 
         // order=ASC gives oldest-first already; map + drop bad closes.
-        const points: { t: number; c: number }[] = [];
+        // Full OHLC rides along for the candlestick view (o/h/l optional
+        // client-side, so older app builds keep working).
+        const points: { t: number; c: number; o?: number; h?: number; l?: number }[] = [];
         values.forEach((v, i) => {
             const c = Number(v?.close);
             if (Number.isFinite(c) && v?.datetime) {
-                points.push({ t: epochSeconds(String(v.datetime), i), c });
+                const o = Number(v?.open);
+                const h = Number(v?.high);
+                const l = Number(v?.low);
+                points.push({
+                    t: epochSeconds(String(v.datetime), i),
+                    c,
+                    ...(Number.isFinite(o) ? { o } : {}),
+                    ...(Number.isFinite(h) ? { h } : {}),
+                    ...(Number.isFinite(l) ? { l } : {}),
+                });
             }
         });
 
