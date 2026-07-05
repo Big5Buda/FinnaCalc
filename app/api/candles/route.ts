@@ -31,7 +31,7 @@ function epochSeconds(datetime: string, fallbackIndex: number): number {
 }
 
 // Intraday interval overrides for the candlestick view.
-const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h"]);
+const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h", "1day", "1week"]);
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
