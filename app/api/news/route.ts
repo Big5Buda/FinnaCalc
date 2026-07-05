@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
     BROWSER_UA,
+    faviconFor,
     fetchRssFeed,
     interleaveBySource,
     parseGoogleNewsItems,
@@ -42,7 +43,7 @@ async function fetchFinnhubCompanyNews(symbol: string): Promise<NewsArticle[]> {
                 headline: a.headline,
                 source: a.source ?? "Finnhub",
                 url: a.url,
-                image: a.image ?? "",
+                image: faviconFor(a.url) || (a.image ?? ""),
                 datetime: typeof a.datetime === "number" ? a.datetime : null,
                 summary: a.summary ?? "",
             }));
