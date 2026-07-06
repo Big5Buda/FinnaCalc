@@ -10,7 +10,24 @@ import { NextRequest, NextResponse } from "next/server";
 export const revalidate = 300;
 
 const FMP_KEY = process.env.FMP_API_KEY;
-const FMP = "https://financialmodelingprep.com/api/v3/stock-screener";
+export interface ScreenerRow {
+    symbol: string;
+    company: string;
+    sector: string;
+    industry: string;
+    price: number;
+    marketCap: number | null;
+    beta: number | null;
+    dividendYield: number | null;
+    volume: number | null;
+    exchange: string;
+}
+
+// Stable first (new accounts), legacy second (grandfathered keys).
+const FMP_URLS = [
+    "https://financialmodelingprep.com/stable/company-screener",
+    "https://financialmodelingprep.com/api/v3/stock-screener",
+];
 
 // Filter params passed straight through to FMP (whitelisted).
 const PASSTHROUGH = [
@@ -52,12 +69,13 @@ export async function GET(request: NextRequest) {
     params.set("apikey", FMP_KEY);
 
     try {
-        const res = await fetch(`${FMP}?${params.toString()}`, { next: { revalidate } });
-        if (!res.ok) {
-            return NextResponse.json({ rows: [] });
+        let arr: any[] = [];
+        for (const base of FMP_URLS) {
+            const res = await fetch(`${base}?${params.toString()}`, { next: { revalidate } });
+            if (!res.ok) continue;
+            const raw = (await res.json()) as any;
+            if (Array.isArray(raw) && raw.length > 0) { arr = raw; break; }
         }
-        const raw = (await res.json()) as any;
-        const arr: any[] = Array.isArray(raw) ? raw : [];
 
         const rows = arr
             .map((s) => {
@@ -73,7 +91,7 @@ export async function GET(request: NextRequest) {
                     beta: s.beta != null && Number.isFinite(Number(s.beta)) ? Number(s.beta) : null,
                     dividendYield: price > 0 ? (div / price) * 100 : null,
                     volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : null,
-                    exchange: s.exchangeShortName ?? "",
+                    exchange: s.exchangeShortName ?? s.exchange ?? "",
                 };
             })
             .filter((r) => r.symbol);
