@@ -145,15 +145,22 @@ export async function GET() {
         if (FMP_KEY) {
             try {
                 const symbolsCsv = allSymbols.map(s => s.symbol).join(",");
-                const res = await fetch(
+                // New FMP accounts can only use the /stable API (legacy /api/v3
+                // returns 403 for them); older keys are the reverse. Try both.
+                const batchUrls = [
+                    `https://financialmodelingprep.com/stable/batch-quote?symbols=${symbolsCsv}&apikey=${FMP_KEY}`,
+                    `https://financialmodelingprep.com/stable/batch-quote-short?symbols=${symbolsCsv}&apikey=${FMP_KEY}`,
                     `https://financialmodelingprep.com/api/v3/quote/${symbolsCsv}?apikey=${FMP_KEY}`,
-                    { next: { revalidate: 120 } }
-                );
-                if (res.ok) {
-                    const arr = (await res.json()) as any[];
-                    const bySymbol = new Map<string, any>(
-                        (Array.isArray(arr) ? arr : []).map(q => [q.symbol, q])
-                    );
+                ];
+                let arr: any[] = [];
+                for (const url of batchUrls) {
+                    const res = await fetch(url, { next: { revalidate: 120 } });
+                    if (!res.ok) continue;
+                    const json = await res.json();
+                    if (Array.isArray(json) && json.length > 0) { arr = json; break; }
+                }
+                if (arr.length > 0) {
+                    const bySymbol = new Map<string, any>(arr.map(q => [q.symbol, q]));
                     stocks = allSymbols.flatMap(({ symbol, name, sector, sectorColor }) => {
                         const q = bySymbol.get(symbol);
                         const price = Number(q?.price);
@@ -165,7 +172,10 @@ export async function GET() {
                             sectorColor,
                             price,
                             change: Number(q.change) || 0,
-                            changesPercentage: Number(q.changesPercentage) || 0,
+                            changesPercentage: Number(q.changesPercentage)
+                                || (Number(q.change) && price !== Number(q.change)
+                                    ? (Number(q.change) / (price - Number(q.change))) * 100
+                                    : 0),
                             high: Number(q.dayHigh) || price,
                             low: Number(q.dayLow) || price,
                             open: Number(q.open) || price,

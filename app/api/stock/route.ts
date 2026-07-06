@@ -24,17 +24,21 @@ const FMP_KEY = process.env.FMP_API_KEY;
 // (plus CEO / employees / sector). Best-effort.
 async function fmpProfile(symbol: string): Promise<any | null> {
     if (!FMP_KEY) return null;
-    try {
-        const res = await fetch(
-            `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(symbol)}?apikey=${FMP_KEY}`,
-            { next: { revalidate: 3600 } },
-        );
-        if (!res.ok) return null;
-        const arr = await res.json();
-        return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
-    } catch {
-        return null;
+    const urls = [
+        `https://financialmodelingprep.com/stable/profile?symbol=${encodeURIComponent(symbol)}&apikey=${FMP_KEY}`,
+        `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(symbol)}?apikey=${FMP_KEY}`,
+    ];
+    for (const url of urls) {
+        try {
+            const res = await fetch(url, { next: { revalidate: 3600 } });
+            if (!res.ok) continue;
+            const arr = await res.json();
+            if (Array.isArray(arr) && arr.length > 0) return arr[0];
+        } catch {
+            // try the next form
+        }
     }
+    return null;
 }
 
 function num(v: any): number | null {
