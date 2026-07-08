@@ -42,27 +42,49 @@ export async function GET(req: NextRequest) {
 
     try {
         const st = getSnapTrade()
-        const { data } = await st.accountInformation.getAllUserHoldings({
+
+        // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
+        // endpoint is no longer available for your account") for every account
+        // created after 2026-04-25. Replaced by listUserAccounts plus a
+        // per-account getUserHoldings fetch (the account-specific endpoint).
+        const { data: accountData } = await st.accountInformation.listUserAccounts({
             userId: session.userId,
             userSecret: session.userSecret,
         })
-        const holdings = Array.isArray(data) ? data : []
+        const accountList = Array.isArray(accountData) ? accountData : []
 
-        const accounts: BrokerageAccount[] = holdings.map((h: any) => ({
-            id: h.account?.id ?? "",
-            name: h.account?.name ?? "Account",
-            institution: h.account?.institution_name ?? "Brokerage",
-            number: h.account?.number ?? "",
-            totalValue: h.total_value?.amount != null ? round2(h.total_value.amount) : null,
-            currency: h.total_value?.currency ?? "USD",
+        const accounts: BrokerageAccount[] = accountList.map((a: any) => ({
+            id: a.id ?? "",
+            name: a.name ?? "Account",
+            institution: a.institution_name ?? "Brokerage",
+            number: a.number ?? "",
+            totalValue: a.balance?.total?.amount != null ? round2(a.balance.total.amount) : null,
+            currency: a.balance?.total?.currency ?? "USD",
         }))
 
-        const positions: BrokeragePosition[] = holdings.flatMap((h: any) =>
-            (h.positions ?? []).map((p: any) => {
+        // Positions now come from the per-account holdings endpoint. Fetch all
+        // accounts in parallel; a single failing account shouldn't blank the rest.
+        const holdingsByAccount = await Promise.all(
+            accountList.map(async (a: any) => {
+                try {
+                    const { data } = await st.accountInformation.getUserHoldings({
+                        accountId: a.id,
+                        userId: session.userId,
+                        userSecret: session.userSecret,
+                    })
+                    return { accountId: a.id ?? "", positions: data?.positions ?? [] }
+                } catch {
+                    return { accountId: a.id ?? "", positions: [] }
+                }
+            })
+        )
+
+        const positions: BrokeragePosition[] = holdingsByAccount.flatMap(({ accountId, positions: accountPositions }) =>
+            (accountPositions ?? []).map((p: any) => {
                 const units = p.units ?? 0
                 const price = p.price ?? null
                 return {
-                    accountId: h.account?.id ?? "",
+                    accountId,
                     symbol:
                         p.symbol?.symbol?.symbol ??
                         p.symbol?.symbol?.raw_symbol ??
