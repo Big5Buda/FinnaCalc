@@ -12,6 +12,10 @@ const config: Config = {
 	],
 	theme: {
 		extend: {
+			fontFamily: {
+				sans: ['var(--font-ibm-plex-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				mono: ['var(--font-ibm-plex-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+			},
 			colors: {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
