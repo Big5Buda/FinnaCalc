@@ -66,7 +66,9 @@ export async function POST(req: Request) {
 
     try {
         const result = streamText({
-            model: google("gemini-2.5-flash"),
+            // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
+            // current free-tier flash model (15 RPM / 1,500 RPD).
+            model: google("gemini-3.5-flash"),
             system: `${BASE_PROMPT}${format}\n\n=== THE USER'S CURRENT MONTHLY BUDGET (JSON) ===\n${JSON.stringify(body.snapshot, null, 2)}`,
             messages,
             temperature: 0.6,
