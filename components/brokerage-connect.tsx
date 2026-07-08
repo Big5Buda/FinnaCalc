@@ -1,9 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Landmark, RefreshCw, PlusCircle, ShieldCheck, AlertCircle, LinkIcon } from "lucide-react"
+import { Landmark, RefreshCw, PlusCircle, ShieldCheck, AlertCircle, LinkIcon, UserRound } from "lucide-react"
+import { useAuth } from "@/lib/auth"
+import { supabaseAuthHeader } from "@/lib/supabase"
 import type { BrokerageAccount, BrokeragePosition } from "@/app/api/snaptrade/accounts/route"
 
 interface AccountsResponse {
@@ -22,15 +25,20 @@ function money(n: number | null | undefined, currency = "USD") {
 }
 
 export default function BrokerageConnect() {
+    const { user, loading: authLoading } = useAuth()
     const [data, setData] = useState<AccountsResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [connecting, setConnecting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    // Brokerage routes verify the signed-in user (SnapTrade credentials are
+    // stored server-side keyed to the account), so every call sends the token.
     const load = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await fetch("/api/snaptrade/accounts")
+            const res = await fetch("/api/snaptrade/accounts", {
+                headers: await supabaseAuthHeader(),
+            })
             const json = await res.json()
             setData(json)
             if (json.error) setError(json.error)
@@ -42,14 +50,17 @@ export default function BrokerageConnect() {
     }, [])
 
     useEffect(() => {
-        load()
-    }, [load])
+        if (user) load()
+    }, [load, user])
 
     const connect = async () => {
         setError(null)
         setConnecting(true)
         try {
-            const res = await fetch("/api/snaptrade/connect", { method: "POST" })
+            const res = await fetch("/api/snaptrade/connect", {
+                method: "POST",
+                headers: await supabaseAuthHeader(),
+            })
             const json = await res.json()
             if (!res.ok) throw new Error(json.error || "Could not start the connection.")
             if (!json.redirectURI) throw new Error("No connection link returned.")
@@ -62,7 +73,10 @@ export default function BrokerageConnect() {
     }
 
     const disconnect = async () => {
-        await fetch("/api/snaptrade/disconnect", { method: "POST" }).catch(() => {})
+        await fetch("/api/snaptrade/disconnect", {
+            method: "POST",
+            headers: await supabaseAuthHeader(),
+        }).catch(() => {})
         setData((d) => (d ? { ...d, connected: false, accounts: [], positions: [] } : d))
     }
 
@@ -102,7 +116,22 @@ export default function BrokerageConnect() {
             </CardHeader>
 
             <CardContent className="pt-5">
-                {loading ? (
+                {!user && !authLoading ? (
+                    /* Signed out — brokerage links are tied to your FinnaCalc account */
+                    <div className="flex flex-col items-center justify-center text-center py-8">
+                        <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center mb-4">
+                            <UserRound className="h-7 w-7 text-blue-600" />
+                        </div>
+                        <h3 className="font-semibold mb-1">Sign in to connect your brokerage</h3>
+                        <p className="text-sm text-muted-foreground mb-5 max-w-md">
+                            Your brokerage link is tied to your FinnaCalc account, so it follows you across devices and signing
+                            out ends access.
+                        </p>
+                        <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                            <Link href="/sign-in">Sign in</Link>
+                        </Button>
+                    </div>
+                ) : loading || authLoading ? (
                     <div className="space-y-2">
                         {Array.from({ length: 3 }).map((_, i) => (
                             <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />

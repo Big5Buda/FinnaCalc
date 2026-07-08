@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    mapOrderRecord,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-} from "@/lib/snaptrade"
+import { getSnapTrade, isSnapTradeConfigured, mapOrderRecord, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Cancels an open order previously placed through the connected brokerage.
@@ -15,12 +9,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
     }
     // Order mutation requires a signed-in FinnaCalc user, same as place.
-    if (!(await verifiedAppUserId(req))) {
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
         return NextResponse.json({ error: "Sign in to FinnaCalc to trade." }, { status: 401 })
-    }
-    const session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-    if (!session) {
-        return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
     }
 
     let body: { accountId?: string; brokerageOrderId?: string }
@@ -36,6 +27,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const session = await loadSession(appUserId)
+        if (!session) {
+            return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+        }
         const st = getSnapTrade()
         const { data } = await st.trading.cancelUserAccountOrder({
             userId: session.userId,

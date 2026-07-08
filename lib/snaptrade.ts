@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 import { Snaptrade } from "snaptrade-typescript-sdk"
 
 /**
@@ -8,9 +9,8 @@ import { Snaptrade } from "snaptrade-typescript-sdk"
  *   SNAPTRADE_CONSUMER_KEY
  *
  * Per-user credentials: SnapTrade returns a { userId, userSecret } pair on
- * registration. The userSecret is sensitive, so we keep it in an httpOnly
- * cookie (never exposed to client JS). For production this should move to a
- * server-side store keyed by the Supabase user id.
+ * registration, stored server-side keyed to the Supabase user
+ * (lib/snaptrade-session.ts) — never on the client.
  */
 
 const clientId = process.env.SNAPTRADE_CLIENT_ID
@@ -18,6 +18,7 @@ const consumerKey = process.env.SNAPTRADE_CONSUMER_KEY
 
 export const isSnapTradeConfigured = Boolean(clientId && consumerKey)
 
+/** Legacy client-held cookie name, kept only so old cookies can be cleared. */
 export const SNAPTRADE_COOKIE = "snaptrade_session"
 
 export interface SnapTradeSession {
@@ -37,14 +38,9 @@ export function getSnapTrade(): Snaptrade {
     return client
 }
 
-export function parseSession(raw: string | undefined): SnapTradeSession | null {
-    if (!raw) return null
-    try {
-        const s = JSON.parse(raw)
-        return s?.userId && s?.userSecret ? { userId: s.userId, userSecret: s.userSecret } : null
-    } catch {
-        return null
-    }
+/** Wipes any leftover pre-migration cookie. Its contents are never read or trusted. */
+export function clearLegacySnapTradeCookie(res: NextResponse): void {
+    res.cookies.set(SNAPTRADE_COOKIE, "", { maxAge: 0, path: "/" })
 }
 
 export function snapTradeErrorMessage(err: any, fallback: string): string {

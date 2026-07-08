@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    mapOrderRecord,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-} from "@/lib/snaptrade"
+import { getSnapTrade, isSnapTradeConfigured, mapOrderRecord, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Recent orders (open + executed) for one connected account.
 export async function GET(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
     }
-    const session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-    if (!session) {
-        return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
+        return NextResponse.json({ error: "Sign in to view your brokerage." }, { status: 401 })
     }
 
     const accountId = req.nextUrl.searchParams.get("accountId")?.trim() ?? ""
@@ -26,6 +21,10 @@ export async function GET(req: NextRequest) {
     const days = Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 365) : 30
 
     try {
+        const session = await loadSession(appUserId)
+        if (!session) {
+            return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+        }
         const st = getSnapTrade()
         const { data } = await st.accountInformation.getUserAccountOrders({
             userId: session.userId,

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-} from "@/lib/snaptrade"
+import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Live brokerage quote for one symbol in a connected account — feeds the
 // order ticket. Uses the account-level quotes endpoint so the price comes
@@ -14,9 +10,9 @@ export async function POST(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
     }
-    const session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-    if (!session) {
-        return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
+        return NextResponse.json({ error: "Sign in to view your brokerage." }, { status: 401 })
     }
 
     let body: { accountId?: string; symbol?: string }
@@ -32,6 +28,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const session = await loadSession(appUserId)
+        if (!session) {
+            return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+        }
         const st = getSnapTrade()
         const { data } = await st.trading.getUserAccountQuotes({
             userId: session.userId,
@@ -44,12 +44,14 @@ export async function POST(req: NextRequest) {
         if (!q) {
             return NextResponse.json({ error: `No quote available for ${symbol}.` }, { status: 404 })
         }
-        return NextResponse.json({
+        const res = NextResponse.json({
             symbol: q.symbol?.symbol ?? symbol,
             bid: q.bid_price ?? null,
             ask: q.ask_price ?? null,
             last: q.last_trade_price ?? null,
         })
+        clearLegacySnapTradeCookie(res)
+        return res
     } catch (err: any) {
         return NextResponse.json(
             { error: snapTradeErrorMessage(err, "Failed to fetch a quote.") },

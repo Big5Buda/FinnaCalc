@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { randomUUID } from "crypto"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-    type SnapTradeSession,
-} from "@/lib/snaptrade"
+import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { resolveOrCreateSession } from "@/lib/snaptrade-session"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Registers the user with SnapTrade if needed, then returns a one-time
 // connection-portal URL where the user picks and links their brokerage.
+// Requires a signed-in FinnaCalc user: SnapTrade credentials live server-side
+// keyed to the Supabase user (lib/snaptrade-session.ts), never on the client.
 export async function POST(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json(
@@ -18,18 +14,14 @@ export async function POST(req: NextRequest) {
             { status: 503 }
         )
     }
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
+        return NextResponse.json({ error: "Sign in to connect a brokerage." }, { status: 401 })
+    }
 
     try {
         const st = getSnapTrade()
-
-        let session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-        let isNew = false
-        if (!session) {
-            const userId = `finnacalc-${randomUUID()}`
-            const reg = await st.authentication.registerSnapTradeUser({ userId })
-            session = { userId: reg.data.userId as string, userSecret: reg.data.userSecret as string }
-            isNew = true
-        }
+        const session = await resolveOrCreateSession(appUserId)
 
         // The iOS app posts { platform: "ios" } so the portal redirects back
         // into the app's own callback scheme instead of the marketing site —
@@ -60,15 +52,7 @@ export async function POST(req: NextRequest) {
         if (!redirectURI) throw new Error("Could not generate a connection link.")
 
         const res = NextResponse.json({ redirectURI })
-        if (isNew) {
-            res.cookies.set(SNAPTRADE_COOKIE, JSON.stringify(session as SnapTradeSession), {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                path: "/",
-                maxAge: 60 * 60 * 24 * 365,
-            })
-        }
+        clearLegacySnapTradeCookie(res)
         return res
     } catch (err: any) {
         return NextResponse.json(
