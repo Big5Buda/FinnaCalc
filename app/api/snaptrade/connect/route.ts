@@ -48,9 +48,11 @@ export async function POST(req: NextRequest) {
         const login = await st.authentication.loginSnapTradeUser({
             userId: session.userId,
             userSecret: session.userSecret,
-            // Establish a trading connection where the brokerage supports it,
-            // otherwise fall back to read-only automatically.
-            connectionType: "trade-if-available" as any,
+            // "trade-if-available" requests trading permission, which SnapTrade
+            // gates behind account approval — this account isn't approved for
+            // it, and the app has no trading UI yet anyway ("Trading from
+            // FinnaCalc is coming next"), so request read-only for now.
+            connectionType: "read",
             customRedirect,
         })
 
