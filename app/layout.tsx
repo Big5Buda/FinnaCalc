@@ -1,10 +1,6 @@
 import { type Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import Header from "@/components/header";
-import ChatBotWrapper from "@/components/chatbot-wrapper";
-import { AuthProvider } from '@/lib/auth'
-import { Toaster } from '@/components/ui/sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -12,22 +8,15 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-    title: 'FinnaCalc - Financial Calculators and Planning Tools',
-    description: 'Free financial calculators and planning tools for small business owners and entrepreneurs.',
+    title: 'FinnaCalc — Personal Finance, on iOS',
+    description: 'FinnaCalc is coming to iOS. Financial planning and tax tools for entrepreneurs and small business owners.',
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-            <AuthProvider>
-                <div className="flex flex-col min-h-screen">
-                    <Header />
-                    <main className="flex-grow">{children}</main>
-                    <ChatBotWrapper />
-                    <Toaster />
-                </div>
-            </AuthProvider>
+            {children}
             <Analytics />
             <SpeedInsights />
         </body>
