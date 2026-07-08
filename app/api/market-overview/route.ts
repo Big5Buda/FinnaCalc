@@ -137,12 +137,61 @@ export async function GET() {
         );
 
         // 105 symbols would blow Finnhub's 60-calls/min free limit as
-        // individual quotes, so quotes come from ONE FMP batch call. If FMP
-        // is unavailable, fall back to Finnhub with the old 6-per-sector cap.
+        // individual quotes, so quotes come from one real batch call —
+        // Alpaca's free-tier snapshot endpoint (no per-symbol credit cost,
+        // unlike FMP/Twelve Data), falling back to FMP (batch-quote is a
+        // paid-plan-only endpoint there, so this only helps on a paid key),
+        // then to Finnhub individual quotes trimmed to 6/sector.
         let stocks: StockQuote[] = [];
 
+        const ALPACA_KEY_ID = process.env.ALPACA_API_KEY_ID;
+        const ALPACA_SECRET_KEY = process.env.ALPACA_API_SECRET_KEY;
+        if (ALPACA_KEY_ID && ALPACA_SECRET_KEY) {
+            try {
+                const symbolsCsv = allSymbols.map(s => s.symbol).join(",");
+                const res = await fetch(
+                    `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsCsv}&feed=iex`,
+                    {
+                        headers: {
+                            "APCA-API-KEY-ID": ALPACA_KEY_ID,
+                            "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
+                        },
+                        next: { revalidate: 120 },
+                    }
+                );
+                if (res.ok) {
+                    const snapshots: Record<string, any> = await res.json();
+                    stocks = allSymbols.flatMap(({ symbol, name, sector, sectorColor }) => {
+                        const snap = snapshots[symbol];
+                        const price = Number(snap?.latestTrade?.p ?? snap?.dailyBar?.c);
+                        if (!snap || !Number.isFinite(price) || price === 0) return [];
+                        const prevClose = Number(snap.prevDailyBar?.c);
+                        const hasPrevClose = Number.isFinite(prevClose) && prevClose !== 0;
+                        const change = hasPrevClose ? price - prevClose : 0;
+                        const changesPercentage = hasPrevClose ? (change / prevClose) * 100 : 0;
+                        return [{
+                            symbol,
+                            name,
+                            sector,
+                            sectorColor,
+                            price,
+                            change,
+                            changesPercentage,
+                            high: Number(snap.dailyBar?.h) || price,
+                            low: Number(snap.dailyBar?.l) || price,
+                            open: Number(snap.dailyBar?.o) || price,
+                            previousClose: hasPrevClose ? prevClose : price,
+                            logo: `https://financialmodelingprep.com/image-stock/${symbol}.png`,
+                        } as StockQuote];
+                    });
+                }
+            } catch {
+                stocks = [];
+            }
+        }
+
         const FMP_KEY = process.env.FMP_API_KEY;
-        if (FMP_KEY) {
+        if (stocks.length < allSymbols.length / 2 && FMP_KEY) {
             try {
                 const symbolsCsv = allSymbols.map(s => s.symbol).join(",");
                 // New FMP accounts can only use the /stable API (legacy /api/v3
