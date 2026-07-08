@@ -2,28 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Marketing-site tokens. Light is the shipped look (the iOS app is dark-first;
+ * marketing presents light by decision). Values mirror the app's design system
+ * (Core/DesignSystem/Theme.swift): white page, ink #020817 text, brand blue
+ * #2563eb, slate borders. Dark tokens kept so a future dark toggle just works.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%;          /* white */
+    --foreground: 222.2 84% 4.9%;     /* ink #020817 */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 221.2 83.2% 53.3%;     /* brand blue #2563eb */
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
+    --secondary: 210 40% 96%;         /* slate-100 surface */
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 46.9%;  /* slate-500 */
     --accent: 210 40% 96%;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 91.4%;      /* slate-200 */
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --radius: 0.75rem;                /* 12px, app card radius */
   }
   .dark {
     --background: 222.2 84% 4.9%;
@@ -52,33 +58,16 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
   }
 }
 
-.calculator-result {
-  @apply bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg dark:bg-blue-950/40 dark:border-blue-400;
-}
-
-.ad-space {
-  @apply bg-gray-100 border-2 border-dashed border-gray-300 p-4 text-center text-gray-500 rounded-lg dark:bg-muted dark:border-border dark:text-muted-foreground;
-}
-
-/* Print isolation: only the tax summary (#print-area) prints, cleanly. */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #print-area,
-  #print-area * {
-    visibility: visible;
-  }
-  #print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    border: none;
-  }
+/* Numeric figures use the mono face — the app's "figures are the heroes" signature. */
+.figure {
+  font-family: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  font-feature-settings: 'tnum' 1;
 }
