@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-} from "@/lib/snaptrade"
+import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 export interface BrokerageAccount {
     id: string
@@ -35,12 +31,19 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ configured: false, accounts: [], positions: [] })
     }
 
-    const session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-    if (!session) {
-        return NextResponse.json({ configured: true, connected: false, accounts: [], positions: [] })
+    // Brokerage data requires a signed-in FinnaCalc user — credentials live
+    // server-side keyed to the Supabase user (lib/snaptrade-session.ts).
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
+        return NextResponse.json({ error: "Sign in to view your brokerage." }, { status: 401 })
     }
-
     try {
+        const session = await loadSession(appUserId)
+        if (!session) {
+            const res = NextResponse.json({ configured: true, connected: false, accounts: [], positions: [] })
+            clearLegacySnapTradeCookie(res)
+            return res
+        }
         const st = getSnapTrade()
 
         // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
@@ -102,7 +105,7 @@ export async function GET(req: NextRequest) {
         const currency = accounts[0]?.currency ?? "USD"
         const totalValue = round2(accounts.reduce((s, a) => s + (a.totalValue ?? 0), 0))
 
-        return NextResponse.json({
+        const res = NextResponse.json({
             configured: true,
             connected: accounts.length > 0,
             accounts,
@@ -110,10 +113,14 @@ export async function GET(req: NextRequest) {
             totalValue,
             currency,
         })
+        clearLegacySnapTradeCookie(res)
+        return res
     } catch (err: any) {
-        return NextResponse.json(
+        const res = NextResponse.json(
             { configured: true, connected: false, accounts: [], positions: [], error: snapTradeErrorMessage(err, "Failed to load brokerage accounts.") },
             { status: 500 }
         )
+        clearLegacySnapTradeCookie(res)
+        return res
     }
 }

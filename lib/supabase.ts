@@ -36,3 +36,19 @@ export function getSupabase(): SupabaseClient {
     }
     return client
 }
+
+/**
+ * Authorization header for API routes that verify the signed-in user
+ * (brokerage/trading routes). Empty when signed out or unconfigured — the
+ * route then responds 401 and the UI shows its sign-in prompt.
+ */
+export async function supabaseAuthHeader(): Promise<Record<string, string>> {
+    if (!isSupabaseConfigured) return {}
+    try {
+        const { data } = await getSupabase().auth.getSession()
+        const token = data.session?.access_token
+        return token ? { Authorization: `Bearer ${token}` } : {}
+    } catch {
+        return {}
+    }
+}

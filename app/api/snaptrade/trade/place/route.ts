@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-    getSnapTrade,
-    isSnapTradeConfigured,
-    mapOrderRecord,
-    parseSession,
-    snapTradeErrorMessage,
-    SNAPTRADE_COOKIE,
-} from "@/lib/snaptrade"
+import { getSnapTrade, isSnapTradeConfigured, mapOrderRecord, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Step 2 of the two-step order flow: execute a trade previously validated by
@@ -17,14 +11,11 @@ export async function POST(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
     }
-    // Trading requires a signed-in FinnaCalc user on top of the SnapTrade
-    // cookie — the cookie alone must not authorize real-money actions.
-    if (!(await verifiedAppUserId(req))) {
+    // Trading requires a signed-in FinnaCalc user — SnapTrade credentials
+    // live server-side keyed to the Supabase user, never on the client.
+    const appUserId = await verifiedAppUserId(req)
+    if (!appUserId) {
         return NextResponse.json({ error: "Sign in to FinnaCalc to trade." }, { status: 401 })
-    }
-    const session = parseSession(req.cookies.get(SNAPTRADE_COOKIE)?.value)
-    if (!session) {
-        return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
     }
 
     let body: { tradeId?: string }
@@ -39,6 +30,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const session = await loadSession(appUserId)
+        if (!session) {
+            return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
+        }
         const st = getSnapTrade()
         const { data } = await st.trading.placeOrder({
             tradeId,

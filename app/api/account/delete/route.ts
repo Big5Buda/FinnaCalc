@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
 
 // Permanently deletes the caller's Supabase account. Deletion can only be done
 // with the service_role key, which must never reach the client — so the app
@@ -31,6 +33,21 @@ export async function POST(req: NextRequest) {
     const { data: userData, error: userErr } = await admin.auth.getUser(token)
     if (userErr || !userData?.user) {
         return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 })
+    }
+
+    // Tear down the user's SnapTrade user first (revokes its brokerage
+    // connections and stops per-user billing). Best-effort: a SnapTrade
+    // failure shouldn't block account deletion — the stored credentials row
+    // cascades away with the auth user either way.
+    if (isSnapTradeConfigured) {
+        try {
+            const session = await loadSession(userData.user.id)
+            if (session) {
+                await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
+            }
+        } catch (err) {
+            console.error("[/api/account/delete] SnapTrade teardown failed:", err)
+        }
     }
 
     const { error: delErr } = await admin.auth.admin.deleteUser(userData.user.id)
