@@ -49,9 +49,9 @@ export async function POST(req: Request) {
 
     try {
         const result = streamText({
-            // gemini-2.5-flash has free-tier quota on the current project;
-            // gemini-2.0-flash is capped at limit:0 (429) for this key.
-            model: google("gemini-2.5-flash"),
+            // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
+            // current free-tier flash model (15 RPM / 1,500 RPD).
+            model: google("gemini-3.5-flash"),
             system: SYSTEM_PROMPT,
             messages,
             temperature: 0.7,

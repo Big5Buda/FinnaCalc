@@ -31,14 +31,27 @@ export async function POST(req: NextRequest) {
             isNew = true
         }
 
+        // The iOS app posts { platform: "ios" } so the portal redirects back
+        // into the app's own callback scheme instead of the marketing site —
+        // otherwise the native app was left showing this website post-connect.
+        let platform: string | undefined
+        try {
+            const body = await req.json()
+            platform = body?.platform
+        } catch {
+            // No body (the web client posts none) — falls through to the web redirect.
+        }
+
         const origin = new URL(req.url).origin
+        const customRedirect = platform === "ios" ? "finnacalc://snaptrade-callback" : `${origin}/investing`
+
         const login = await st.authentication.loginSnapTradeUser({
             userId: session.userId,
             userSecret: session.userSecret,
             // Establish a trading connection where the brokerage supports it,
             // otherwise fall back to read-only automatically.
             connectionType: "trade-if-available" as any,
-            customRedirect: `${origin}/investing`,
+            customRedirect,
         })
 
         const redirectURI = (login.data as any)?.redirectURI
