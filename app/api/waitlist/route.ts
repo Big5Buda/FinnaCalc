@@ -44,8 +44,11 @@ async function count(supabase: SupabaseClient): Promise<number> {
  */
 async function sendConfirmation(email: string): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY
-    const from = process.env.WAITLIST_FROM_EMAIL // e.g. "FinnaCalc <finnacalc@felipejmiranda.com>"
-    if (!apiKey || !from) return
+    const fromEnv = process.env.WAITLIST_FROM_EMAIL // "FinnaCalc <finnacalc@felipejmiranda.com>" or bare address
+    if (!apiKey || !fromEnv) return
+    // Guarantee a "FinnaCalc" display name. Without one, mail clients fall back to
+    // the address local-part and show a lowercase "finnacalc" as the sender.
+    const from = fromEnv.includes("<") ? fromEnv : `FinnaCalc <${fromEnv}>`
     try {
         const resend = new Resend(apiKey)
         await resend.emails.send({
