@@ -1,6 +1,5 @@
 import Image from "next/image"
 import {
-    Apple,
     Wallet,
     LineChart,
     FileText,
@@ -14,6 +13,7 @@ import {
 import { Phone } from "@/components/marketing/phone"
 import { WaitlistForm } from "@/components/marketing/waitlist-form"
 import { WaitlistCount } from "@/components/marketing/waitlist-count"
+import { StoreBadge } from "@/components/marketing/store-badge"
 
 function Wordmark({ className = "" }: { className?: string }) {
     return (
@@ -53,9 +53,7 @@ function Hero() {
             <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 to-transparent" />
             <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-28">
                 <div className="flex flex-col items-start gap-6">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-sm font-medium text-muted-foreground">
-                        <Apple className="h-4 w-4" /> Coming soon to iOS
-                    </span>
+                    <StoreBadge topText="Coming soon to the" bottomText="App Store" href="#waitlist" />
                     <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
                         Your whole financial life, in one app.
                     </h1>
