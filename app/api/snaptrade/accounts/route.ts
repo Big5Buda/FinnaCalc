@@ -9,6 +9,8 @@ export interface BrokerageAccount {
     institution: string
     number: string
     totalValue: number | null
+    /** Available cash in the account's currency (buying power for the order ticket). */
+    cash: number | null
     currency: string
 }
 
@@ -56,17 +58,9 @@ export async function GET(req: NextRequest) {
         })
         const accountList = Array.isArray(accountData) ? accountData : []
 
-        const accounts: BrokerageAccount[] = accountList.map((a: any) => ({
-            id: a.id ?? "",
-            name: a.name ?? "Account",
-            institution: a.institution_name ?? "Brokerage",
-            number: a.number ?? "",
-            totalValue: a.balance?.total?.amount != null ? round2(a.balance.total.amount) : null,
-            currency: a.balance?.total?.currency ?? "USD",
-        }))
-
-        // Positions now come from the per-account holdings endpoint. Fetch all
-        // accounts in parallel; a single failing account shouldn't blank the rest.
+        // Positions and cash balances come from the per-account holdings
+        // endpoint. Fetch all accounts in parallel; a single failing account
+        // shouldn't blank the rest.
         const holdingsByAccount = await Promise.all(
             accountList.map(async (a: any) => {
                 try {
@@ -75,12 +69,41 @@ export async function GET(req: NextRequest) {
                         userId: session.userId,
                         userSecret: session.userSecret,
                     })
-                    return { accountId: a.id ?? "", positions: data?.positions ?? [] }
+                    return {
+                        accountId: a.id ?? "",
+                        positions: data?.positions ?? [],
+                        balances: data?.balances ?? [],
+                    }
                 } catch {
-                    return { accountId: a.id ?? "", positions: [] }
+                    return { accountId: a.id ?? "", positions: [], balances: [] }
                 }
             })
         )
+
+        // Available cash in the account's own currency — the order ticket's
+        // "buying power" line. Multi-currency accounts may hold several cash
+        // balances; take the one matching the account currency.
+        const cashByAccount = new Map<string, number | null>(
+            holdingsByAccount.map(({ accountId, balances }) => {
+                const accountCurrency = accountList.find((a: any) => a.id === accountId)?.balance?.total
+                    ?.currency
+                const match = (balances as any[]).find(
+                    (b: any) => b?.currency?.code === accountCurrency || accountCurrency == null
+                )
+                const cash = match?.cash ?? (balances as any[])[0]?.cash ?? null
+                return [accountId, cash != null ? round2(cash) : null]
+            })
+        )
+
+        const accounts: BrokerageAccount[] = accountList.map((a: any) => ({
+            id: a.id ?? "",
+            name: a.name ?? "Account",
+            institution: a.institution_name ?? "Brokerage",
+            number: a.number ?? "",
+            totalValue: a.balance?.total?.amount != null ? round2(a.balance.total.amount) : null,
+            cash: cashByAccount.get(a.id ?? "") ?? null,
+            currency: a.balance?.total?.currency ?? "USD",
+        }))
 
         const positions: BrokeragePosition[] = holdingsByAccount.flatMap(({ accountId, positions: accountPositions }) =>
             (accountPositions ?? []).map((p: any) => {
