@@ -60,8 +60,8 @@ function Hero() {
                         Your whole financial life, in one app.
                     </h1>
                     <p className="max-w-md text-lg text-muted-foreground">
-                        Budgeting, investing, and taxes — with an AI that actually helps. FinnaCalc puts every
-                        money decision in one place.
+                        Budgeting, investing, and taxes, all in one place. Plus an AI that actually helps you
+                        figure out what to do with your money.
                     </p>
                     <div id="waitlist-hero" className="flex w-full flex-col gap-3">
                         <WaitlistForm referralSource="hero" />
@@ -149,7 +149,7 @@ function Features() {
                 icon={Wallet}
                 eyebrow="Budgeting"
                 title="Budgeting that keeps up with you."
-                body="Build a budget in minutes, track every category, and get an AI advisor that spots where your money actually goes — and what to do about it."
+                body="Set up a budget in a few minutes and see where your money actually goes. Your AI advisor points out what's off and tells you what to do about it."
                 screenshot="/screenshots/budgeting.png"
                 alt="FinnaCalc budgeting screen"
             />
@@ -157,7 +157,7 @@ function Features() {
                 icon={LineChart}
                 eyebrow="Investing"
                 title="Markets, portfolio, and research in one place."
-                body="Follow live markets, track your holdings, screen stocks, and trade — all inside the app. Real quotes, real research, no tab-hopping."
+                body="Watch live markets, keep tabs on your holdings, screen stocks, and place trades without ever leaving the app. Real quotes, real research, no jumping between a dozen browser tabs."
                 screenshot="/screenshots/investing.png"
                 alt="FinnaCalc investing screen"
                 reverse
@@ -166,11 +166,11 @@ function Features() {
                 icon={FileText}
                 eyebrow="Taxes"
                 title="File your taxes. No forms, no jargon."
-                body="Answer simple questions and watch your refund update in real time."
+                body="Answer a few simple questions and watch your refund update as you go."
                 bullets={[
-                    "IRS-accurate engine — the real 1040 math",
-                    "Live refund tracker as you answer",
-                    "Sensitive info never leaves your device unencrypted",
+                    "It runs the real 1040 math, the same way the IRS does",
+                    "Your refund updates live as you answer",
+                    "Your sensitive info never leaves your device unencrypted",
                 ]}
                 screenshot="/screenshots/taxes.png"
                 alt="FinnaCalc taxes screen"
@@ -197,8 +197,9 @@ function Finnabot() {
                     An AI that actually helps with your money.
                 </h2>
                 <p className="max-w-xl text-lg text-muted-foreground">
-                    Ask anything — “Can I afford this?”, “How’s my portfolio?”, “What lowers my taxes?” Finnabot
-                    knows your full picture and answers in plain language, right where you are.
+                    Ask it anything. “Can I afford this?” “How’s my portfolio doing?” “What can I do to pay
+                    less in taxes?” Finnabot sees your whole financial picture and answers in plain English,
+                    right where you are.
                 </p>
             </div>
         </section>
@@ -210,12 +211,12 @@ function Privacy() {
         {
             icon: Lock,
             title: "Encrypted end to end",
-            body: "Bank-level encryption everywhere. Sensitive tax info never leaves your device unencrypted.",
+            body: "We use bank-level encryption everywhere, and your sensitive tax info never leaves your device unencrypted.",
         },
         {
             icon: EyeOff,
             title: "Read-only by default",
-            body: "Accounts connect read-only through Plaid. FinnaCalc can see balances — never move your money without you.",
+            body: "Your accounts connect read-only through Plaid. FinnaCalc can see your balances, but it can never move your money.",
         },
         {
             icon: ShieldCheck,
@@ -228,7 +229,7 @@ function Privacy() {
             <div className="mx-auto mb-14 max-w-2xl text-center">
                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Your money stays yours.</h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                    Real finance means real trust. Here’s exactly how we handle your data.
+                    A money app only works if you trust it, so here’s exactly how we handle your data.
                 </p>
             </div>
             <div className="grid gap-8 sm:grid-cols-3">

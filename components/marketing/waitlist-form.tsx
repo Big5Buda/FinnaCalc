@@ -34,7 +34,7 @@ export function WaitlistForm({
             setStatus("done")
             setMessage(
                 data.alreadyJoined
-                    ? "You're already on the list — see you at launch."
+                    ? "You're already on the list. See you at launch."
                     : "You're in. We'll email you the moment FinnaCalc launches."
             )
         } catch {
