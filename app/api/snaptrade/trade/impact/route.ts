@@ -32,11 +32,18 @@ export async function POST(req: NextRequest) {
     const accountId = typeof body.accountId === "string" ? body.accountId.trim() : ""
     const symbol = typeof body.symbol === "string" ? body.symbol.trim().toUpperCase() : ""
     const action = body.action
-    const orderType = body.orderType
-    const timeInForce = body.timeInForce
-    const units = typeof body.units === "number" ? body.units : NaN
     const price = body.price == null ? null : typeof body.price === "number" ? body.price : NaN
     const stop = body.stop == null ? null : typeof body.stop === "number" ? body.stop : NaN
+
+    // A ticket is EITHER a share-quantity order (`units`) OR a dollar-amount
+    // order (`notionalValue`) — mutually exclusive per the SnapTrade SDK.
+    // Notional orders can only be Market + Day and are brokerage-dependent, so
+    // we force those terms server-side rather than trust the client.
+    const hasNotional = body.notionalValue != null
+    const notionalValue = hasNotional && typeof body.notionalValue === "number" ? body.notionalValue : NaN
+    const units = hasNotional ? NaN : typeof body.units === "number" ? body.units : NaN
+    const orderType = hasNotional ? "Market" : body.orderType
+    const timeInForce = hasNotional ? "Day" : body.timeInForce
 
     if (!accountId || !symbol) {
         return NextResponse.json({ error: "accountId and symbol are required." }, { status: 400 })
@@ -50,14 +57,20 @@ export async function POST(req: NextRequest) {
     if (!TIME_IN_FORCE.includes(timeInForce)) {
         return NextResponse.json({ error: "Unsupported time in force." }, { status: 400 })
     }
-    if (!Number.isFinite(units) || units <= 0) {
-        return NextResponse.json({ error: "units must be a positive number." }, { status: 400 })
-    }
-    if ((orderType === "Limit" || orderType === "StopLimit") && (price == null || !Number.isFinite(price) || price <= 0)) {
-        return NextResponse.json({ error: "A positive limit price is required for limit orders." }, { status: 400 })
-    }
-    if ((orderType === "Stop" || orderType === "StopLimit") && (stop == null || !Number.isFinite(stop) || stop <= 0)) {
-        return NextResponse.json({ error: "A positive stop price is required for stop orders." }, { status: 400 })
+    if (hasNotional) {
+        if (!Number.isFinite(notionalValue) || notionalValue <= 0) {
+            return NextResponse.json({ error: "Enter a dollar amount greater than zero." }, { status: 400 })
+        }
+    } else {
+        if (!Number.isFinite(units) || units <= 0) {
+            return NextResponse.json({ error: "units must be a positive number." }, { status: 400 })
+        }
+        if ((orderType === "Limit" || orderType === "StopLimit") && (price == null || !Number.isFinite(price) || price <= 0)) {
+            return NextResponse.json({ error: "A positive limit price is required for limit orders." }, { status: 400 })
+        }
+        if ((orderType === "Stop" || orderType === "StopLimit") && (stop == null || !Number.isFinite(stop) || stop <= 0)) {
+            return NextResponse.json({ error: "A positive stop price is required for stop orders." }, { status: 400 })
+        }
     }
 
     try {
@@ -125,9 +138,11 @@ export async function POST(req: NextRequest) {
             universal_symbol_id: resolved.id,
             order_type: orderType,
             time_in_force: timeInForce,
-            units,
-            price,
-            stop,
+            // Exactly one of units / notional_value is sent; the other is null.
+            units: hasNotional ? null : units,
+            notional_value: hasNotional ? notionalValue : null,
+            price: hasNotional ? null : price,
+            stop: hasNotional ? null : stop,
         })
 
         const tradeId = data?.trade?.id
@@ -142,8 +157,9 @@ export async function POST(req: NextRequest) {
             tradeId,
             symbol,
             action,
-            units: data.trade?.units ?? units,
-            price: (data.trade as any)?.price ?? price,
+            units: data.trade?.units ?? (hasNotional ? null : units),
+            price: (data.trade as any)?.price ?? (hasNotional ? null : price),
+            notionalValue: hasNotional ? notionalValue : null,
             estimatedCommission: impact?.estimated_commission ?? null,
             forexFees: impact?.forex_fees ?? null,
             remainingCash: impact?.remaining_cash ?? null,
