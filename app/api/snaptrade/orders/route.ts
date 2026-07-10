@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
             state: "all",
             days,
         })
-        const orders = (Array.isArray(data) ? data : []).map(mapOrderRecord)
+        // Tag each order with its accountId so the client can cancel it
+        // (cancel needs accountId + brokerageOrderId).
+        const orders = (Array.isArray(data) ? data : []).map((o: any) => ({
+            ...mapOrderRecord(o),
+            accountId,
+        }))
         return NextResponse.json({ orders })
     } catch (err: any) {
         return NextResponse.json(
