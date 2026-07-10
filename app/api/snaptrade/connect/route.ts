@@ -26,10 +26,16 @@ export async function POST(req: NextRequest) {
         // The iOS app posts { platform: "ios" } so the portal redirects back
         // into the app's own callback scheme instead of the marketing site —
         // otherwise the native app was left showing this website post-connect.
+        // { reconnect: <connectionId> } re-auths a specific disabled connection
+        // (fix-broken-connections flow) instead of adding a new one.
         let platform: string | undefined
+        let reconnect: string | undefined
         try {
             const body = await req.json()
             platform = body?.platform
+            reconnect = typeof body?.reconnect === "string" && body.reconnect.trim()
+                ? body.reconnect.trim()
+                : undefined
         } catch {
             // No body (the web client posts none) — falls through to the web redirect.
         }
@@ -46,6 +52,9 @@ export async function POST(req: NextRequest) {
             // those users must disconnect and reconnect to grant trading.
             connectionType: "trade-if-available",
             customRedirect,
+            // Only set when repairing a disabled connection; the SDK ignores
+            // an empty value for a fresh connect.
+            ...(reconnect ? { reconnect } : {}),
         })
 
         const redirectURI = (login.data as any)?.redirectURI

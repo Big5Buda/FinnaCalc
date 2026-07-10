@@ -43,7 +43,18 @@ export function clearLegacySnapTradeCookie(res: NextResponse): void {
     res.cookies.set(SNAPTRADE_COOKIE, "", { maxAge: 0, path: "/" })
 }
 
+// NOTE: no app-level 429 retry helper — the SnapTrade SDK already retries
+// rate-limited requests internally (3x with backoff) before throwing, so a
+// wrapper here would never see a 429. snapTradeErrorMessage maps the SDK's
+// exhausted-429 error to a friendly message instead.
+
 export function snapTradeErrorMessage(err: any, fallback: string): string {
+    // The SnapTrade SDK retries HTTP 429 internally (3x backoff) and, once
+    // exhausted, throws a plain Error mentioning "429 (rate limit)". Surface a
+    // clean, actionable message for that instead of the raw SDK text.
+    if (typeof err?.message === "string" && /429|rate limit/i.test(err.message) && err?.status == null) {
+        return "The brokerage service is busy right now (rate limited). Please try again in a moment."
+    }
     const candidates = [
         err?.responseBody?.detail,
         err?.response?.data?.detail,
