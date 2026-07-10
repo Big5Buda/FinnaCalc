@@ -80,20 +80,23 @@ export async function POST(req: NextRequest) {
         }
         const st = getSnapTrade()
 
-        // Orders take a universal_symbol_id, not a ticker — resolve it within
-        // this account so we only match symbols this brokerage can trade. A
-        // failure here (SnapTrade returns the terse "symbols_search" code)
-        // almost always means the connection is read-only, so surface an
-        // actionable message instead of the raw slug.
-        let matches: any[]
+        // Orders take a universal_symbol_id, not a ticker. Per SnapTrade's
+        // getting-started guide the tradeable symbol is resolved from the
+        // account quotes endpoint (not symbol search): it returns the account's
+        // own tradeable listing — so cross-listed tickers resolve to the right
+        // one automatically — along with its universalSymbolId, exchange, and
+        // currency. A failure here (or a missing symbol) almost always means the
+        // connection is read-only.
+        let resolved: any
         try {
-            const search = await st.referenceData.symbolSearchUserAccount({
+            const { data: quotes } = await st.trading.getUserAccountQuotes({
                 userId: session.userId,
                 userSecret: session.userSecret,
                 accountId,
-                substring: symbol,
+                symbols: symbol,
+                useTicker: true,
             })
-            matches = Array.isArray(search.data) ? search.data : []
+            resolved = (Array.isArray(quotes) ? quotes[0] : null)?.symbol
         } catch {
             return NextResponse.json(
                 {
@@ -102,40 +105,6 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             )
         }
-        // Prefer exact `symbol` matches; fall back to raw_symbol (SnapTrade
-        // strips the exchange suffix there, e.g. "VAB.TO" → raw "VAB").
-        const bySymbol = matches.filter((s: any) => s?.symbol?.toUpperCase() === symbol)
-        let candidates: any[] = bySymbol.length
-            ? bySymbol
-            : matches.filter((s: any) => s?.raw_symbol?.toUpperCase() === symbol)
-
-        // Cross-listed tickers (NYSE + TSX etc.) return several exact matches;
-        // silently taking the first could route the order to the wrong listing.
-        // Tie-break by the account's own currency; if still ambiguous, refuse
-        // rather than guess — this is an order, not a chart.
-        if (candidates.length > 1) {
-            const accountsRes = await st.accountInformation.listUserAccounts({
-                userId: session.userId,
-                userSecret: session.userSecret,
-            })
-            const accountCurrency = (Array.isArray(accountsRes.data) ? accountsRes.data : []).find(
-                (a: any) => a?.id === accountId
-            )?.balance?.total?.currency
-            const byCurrency = candidates.filter((s: any) => s?.currency?.code === accountCurrency)
-            if (byCurrency.length === 1) {
-                candidates = byCurrency
-            } else {
-                const listings = candidates
-                    .map((s: any) => [s?.exchange?.code, s?.currency?.code].filter(Boolean).join("/"))
-                    .filter(Boolean)
-                    .join(", ")
-                return NextResponse.json(
-                    { error: `${symbol} has multiple listings in this account (${listings}). Trading cross-listed symbols isn't supported yet.` },
-                    { status: 400 }
-                )
-            }
-        }
-        const resolved: any = candidates[0]
         if (!resolved?.id) {
             return NextResponse.json(
                 { error: `${symbol} isn't tradeable in this account.` },
