@@ -81,14 +81,27 @@ export async function POST(req: NextRequest) {
         const st = getSnapTrade()
 
         // Orders take a universal_symbol_id, not a ticker — resolve it within
-        // this account so we only match symbols this brokerage can trade.
-        const search = await st.referenceData.symbolSearchUserAccount({
-            userId: session.userId,
-            userSecret: session.userSecret,
-            accountId,
-            substring: symbol,
-        })
-        const matches = Array.isArray(search.data) ? search.data : []
+        // this account so we only match symbols this brokerage can trade. A
+        // failure here (SnapTrade returns the terse "symbols_search" code)
+        // almost always means the connection is read-only, so surface an
+        // actionable message instead of the raw slug.
+        let matches: any[]
+        try {
+            const search = await st.referenceData.symbolSearchUserAccount({
+                userId: session.userId,
+                userSecret: session.userSecret,
+                accountId,
+                substring: symbol,
+            })
+            matches = Array.isArray(search.data) ? search.data : []
+        } catch {
+            return NextResponse.json(
+                {
+                    error: `This brokerage connection can't place trades yet. If you linked it before trading was enabled, disconnect and reconnect it to grant trading access. Some brokerages are also read-only through SnapTrade.`,
+                },
+                { status: 400 }
+            )
+        }
         // Prefer exact `symbol` matches; fall back to raw_symbol (SnapTrade
         // strips the exchange suffix there, e.g. "VAB.TO" → raw "VAB").
         const bySymbol = matches.filter((s: any) => s?.symbol?.toUpperCase() === symbol)

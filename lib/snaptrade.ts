@@ -44,13 +44,21 @@ export function clearLegacySnapTradeCookie(res: NextResponse): void {
 }
 
 export function snapTradeErrorMessage(err: any, fallback: string): string {
-    return (
-        err?.responseBody?.detail ||
-        err?.response?.data?.detail ||
-        err?.responseBody?.message ||
-        err?.message ||
-        fallback
-    )
+    const candidates = [
+        err?.responseBody?.detail,
+        err?.response?.data?.detail,
+        err?.responseBody?.message,
+        err?.message,
+    ]
+    for (const c of candidates) {
+        if (typeof c !== "string" || !c.trim()) continue
+        // SnapTrade sometimes returns a terse machine code/slug (e.g.
+        // "symbols_search") rather than user-facing text — a single snake_case
+        // token with no spaces. Skip those in favor of the friendly fallback.
+        if (!/\s/.test(c) && /_/.test(c)) continue
+        return c
+    }
+    return fallback
 }
 
 /** SnapTrade returns order quantities/prices as strings — parse defensively. */
