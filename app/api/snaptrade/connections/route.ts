@@ -30,6 +30,10 @@ export async function GET(req: NextRequest) {
             brokerage: c.brokerage?.name ?? c.name ?? "Brokerage",
             disabled: c.disabled ?? false,
             type: c.type ?? null, // "read" | "trade"
+            // Brokerage trading capabilities — the order ticket gates its order
+            // modes on these (dollar/notional orders need fractional support).
+            allowsTrading: c.brokerage?.allows_trading ?? null,
+            allowsFractionalUnits: c.brokerage?.allows_fractional_units ?? null,
         }))
         return NextResponse.json({ configured: true, connections })
     } catch (err: any) {

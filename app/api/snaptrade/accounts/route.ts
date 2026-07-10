@@ -12,6 +12,9 @@ export interface BrokerageAccount {
     /** Available cash in the account's currency (buying power for the order ticket). */
     cash: number | null
     currency: string
+    /** The connection this account belongs to — maps to a SnapTradeConnection's
+     *  id so the order ticket can read the brokerage's trading capabilities. */
+    connectionId: string | null
 }
 
 export interface BrokeragePosition {
@@ -103,6 +106,7 @@ export async function GET(req: NextRequest) {
             totalValue: a.balance?.total?.amount != null ? round2(a.balance.total.amount) : null,
             cash: cashByAccount.get(a.id ?? "") ?? null,
             currency: a.balance?.total?.currency ?? "USD",
+            connectionId: a.brokerage_authorization ?? null,
         }))
 
         const positions: BrokeragePosition[] = holdingsByAccount.flatMap(({ accountId, positions: accountPositions }) =>
