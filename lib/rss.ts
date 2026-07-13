@@ -31,18 +31,40 @@ export function faviconFor(articleUrl: string): string {
     }
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+    lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
+    laquo: "«", raquo: "»", lsaquo: "‹", rsaquo: "›",
+    mdash: "—", ndash: "–", hellip: "…", bull: "•",
+    trade: "™", copy: "©", reg: "®", deg: "°",
+    eacute: "é", egrave: "è",
+};
+
+// Decode HTML/XML entities: named (&amp; &rsquo; &mdash; …), decimal (&#8217;)
+// and hex (&#x2019;) numeric refs. RSS feeds (MarketWatch/Dow Jones especially)
+// encode apostrophes/quotes as &#x2019; etc.; without this they render raw
+// ("I&#x2019;m 67..."). Unknown/invalid refs are left untouched.
+export function decodeEntities(s: string): string {
+    return s.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, code) => {
+        if (code[0] === "#") {
+            const cp =
+                code[1] === "x" || code[1] === "X"
+                    ? parseInt(code.slice(2), 16)
+                    : parseInt(code.slice(1), 10);
+            return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : whole;
+        }
+        return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, code)
+            ? NAMED_ENTITIES[code]
+            : whole;
+    });
+}
+
 // Extract one tag's text from an <item> blob (CDATA-safe, entity-decoded).
 function pickTag(item: string, tag: string): string {
     const m = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
     if (!m) return "";
-    return m[1]
-        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&#0?39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .trim();
+    const cdataStripped = m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+    return decodeEntities(cdataStripped).trim();
 }
 
 // Minimal, tolerant RSS <item> extractor (title / link / pubDate; CDATA-safe).

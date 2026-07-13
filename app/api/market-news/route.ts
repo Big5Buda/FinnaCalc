@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { faviconFor, fetchRssFeed, interleaveBySource, type NewsArticle } from "@/lib/rss";
+import { decodeEntities, faviconFor, fetchRssFeed, interleaveBySource, type NewsArticle } from "@/lib/rss";
 
 // General market news for the discover landing's News row.
 //
@@ -34,12 +34,12 @@ async function fetchFinnhub(): Promise<NewsArticle[]> {
             .slice(0, 10)
             .map((a) => ({
                 id: String(a.id ?? a.url),
-                headline: a.headline,
+                headline: decodeEntities(a.headline),
                 source: a.source ?? "Finnhub",
                 url: a.url,
                 image: faviconFor(a.url) || (a.image ?? ""),
                 datetime: typeof a.datetime === "number" ? a.datetime : null,
-                summary: a.summary ?? "",
+                summary: decodeEntities(a.summary ?? ""),
             }));
     } catch {
         return [];
