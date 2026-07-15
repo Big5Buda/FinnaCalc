@@ -36,6 +36,16 @@ function epochSeconds(datetime: string, fallbackIndex: number): number {
 // Intraday interval overrides for the candlestick view.
 const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h", "1day", "1week"]);
 
+// Twelve Data quotes crypto as a pair ("BTC/USD"); the rest of the app uses the
+// provider-neutral "BTCUSD" that Finnhub/FMP expect, which TD returns nothing
+// for. Translate on the way out so the Home row's Bitcoin card charts.
+// (TD's free tier has no index data at all, so ^GSPC/^IXIC can't be mapped to
+// anything here — they legitimately have no chart.)
+const TD_SYMBOL_OVERRIDES: Record<string, string> = {
+    BTCUSD: "BTC/USD",
+    ETHUSD: "ETH/USD",
+};
+
 type Point = { t: number; c: number; o?: number; h?: number; l?: number };
 
 /// Twelve Data time-series for one symbol. Returns [] on any miss (unknown
@@ -44,8 +54,9 @@ type Point = { t: number; c: number; o?: number; h?: number; l?: number };
 /// symbol is retired.
 async function fetchPoints(symbol: string, interval: string, outputsize: number): Promise<Point[]> {
     try {
+        const tdSymbol = TD_SYMBOL_OVERRIDES[symbol] ?? symbol;
         const url =
-            `${TD_BASE}?symbol=${encodeURIComponent(symbol)}` +
+            `${TD_BASE}?symbol=${encodeURIComponent(tdSymbol)}` +
             `&interval=${interval}&outputsize=${outputsize}&order=ASC&apikey=${TD_KEY}`;
         const res = await fetch(url, { next: { revalidate } });
         if (!res.ok) return [];

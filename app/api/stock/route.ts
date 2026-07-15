@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRetiredSymbol } from "@/lib/symbol-resolver";
+import { fetchQuote } from "@/lib/quotes";
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
@@ -42,28 +43,6 @@ async function fmpProfile(symbol: string): Promise<any | null> {
     return null;
 }
 
-// FMP quote — fallback for symbols Finnhub's free tier can't quote (indices
-// like ^GSPC/^IXIC and crypto like BTCUSD). Best-effort.
-async function fmpQuote(symbol: string): Promise<any | null> {
-    if (!FMP_KEY) return null;
-    const urls = [
-        `https://financialmodelingprep.com/stable/quote?symbol=${encodeURIComponent(symbol)}&apikey=${FMP_KEY}`,
-        `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(symbol)}?apikey=${FMP_KEY}`,
-    ];
-    for (const url of urls) {
-        try {
-            const res = await fetch(url, { next: { revalidate: 60 } });
-            if (!res.ok) continue;
-            const arr = await res.json();
-            const q = Array.isArray(arr) ? arr[0] : arr;
-            if (q && typeof q.price === "number" && q.price > 0) return q;
-        } catch {
-            // try the next form
-        }
-    }
-    return null;
-}
-
 function num(v: any): number | null {
     return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
@@ -74,33 +53,16 @@ async function fetchSymbol(symbol: string) {
     // NB: /stock/candle is intentionally omitted — it's a paid-only Finnhub
     // endpoint (returns 403 on the free tier); the native chart pulls
     // /api/candles (Twelve Data) instead.
-    const [quoteData, profileData, metricsData, fmp] = await Promise.all([
-        fhSafe(`/quote?symbol=${symbol}`),
+    //
+    // fetchQuote handles the Finnhub → FMP fallback (Finnhub's free tier can't
+    // quote indices or crypto); see lib/quotes.ts.
+    const [priceSrc, profileData, metricsData, fmp] = await Promise.all([
+        fetchQuote(symbol),
         fhSafe(`/stock/profile2?symbol=${symbol}`),
         fhSafe(`/stock/metric?symbol=${symbol}&metric=all`),
         fmpProfile(symbol),
     ]);
 
-    // Finnhub's free tier can't quote indices (^GSPC/^IXIC) or crypto
-    // (BTCUSD) — fall back to FMP for those before giving up.
-    let priceSrc = quoteData && quoteData.c ? {
-        price: quoteData.c as number,
-        change: (quoteData.d ?? 0) as number,
-        changePct: (quoteData.dp ?? 0) as number,
-        name: null as string | null,
-    } : null;
-    if (!priceSrc) {
-        const fq = await fmpQuote(symbol);
-        if (fq) {
-            priceSrc = {
-                price: fq.price,
-                change: typeof fq.change === "number" ? fq.change : 0,
-                changePct: typeof fq.changePercentage === "number" ? fq.changePercentage
-                    : typeof fq.changesPercentage === "number" ? fq.changesPercentage : 0,
-                name: typeof fq.name === "string" ? fq.name : null,
-            };
-        }
-    }
     if (!priceSrc) return null;
     return { priceSrc, profileData, metricsData, fmp };
 }
