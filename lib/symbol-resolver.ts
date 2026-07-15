@@ -111,8 +111,11 @@ async function fetchFeed(): Promise<FeedMap> {
         return map;
     }
 
+    // Documented stable path first, then the legacy v4 form — which one the
+    // account is served depends on its plan, and FMP answers "Invalid API KEY"
+    // for unknown paths too, so both are tried rather than assumed.
     const urls = [
-        `https://financialmodelingprep.com/stable/symbol-change?apikey=${FMP_KEY}`,
+        `https://financialmodelingprep.com/stable/symbol-changes-list?apikey=${FMP_KEY}`,
         `https://financialmodelingprep.com/api/v4/symbol_change?apikey=${FMP_KEY}`,
     ];
     for (const url of urls) {
@@ -132,6 +135,17 @@ async function fetchFeed(): Promise<FeedMap> {
         } catch {
             // try the next form
         }
+    }
+    // This layer degrades silently by design (the curated map still answers),
+    // which is also how it would stay broken unnoticed — so say so in the logs.
+    // An empty map means every URL was rejected: wrong path, plan-gated key, or
+    // an outage. Only the self-updating half is lost; curated resolution is fine.
+    if (map.size === 0) {
+        console.warn(
+            "[symbol-resolver] symbol-change feed unavailable — retired-ticker " +
+            "resolution is running on the curated map only (new renames will " +
+            "not resolve until added there). Check FMP_API_KEY and its plan."
+        );
     }
     feedCache = { map, at: Date.now() };
     return map;
