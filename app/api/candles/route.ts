@@ -8,9 +8,15 @@ import { resolveRetiredSymbol } from "@/lib/symbol-resolver";
 // (free tier: 800 req/day, intraday + daily). Set TWELVE_DATA_API_KEY.
 //
 // Response shape (consumed by iOS MarketService.candles):
-//   { symbol, range, previousClose, points: [{ t: epochSeconds, c: close }] }
+//   { symbol, range, points: [{ t: epochSeconds, c: close }] }
 // `symbol` echoes the symbol actually charted, which differs from the request
 // when a retired ticker was resolved to its successor (see lib/symbol-resolver).
+//
+// No previousClose: this used to ship as a hard-coded null, and the app trusted
+// it as the 1D chart's up/down reference — so the line coloured against today's
+// first bar instead of yesterday's close and could disagree with the header's
+// "% today". The app now derives it from the quote it already has
+// (price − change), which costs no request here.
 
 export const revalidate = 60;
 
@@ -146,5 +152,5 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    return NextResponse.json({ symbol: charted, range: rangeKey, previousClose: null, points });
+    return NextResponse.json({ symbol: charted, range: rangeKey, points });
 }
