@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRetiredSymbol } from "@/lib/symbol-resolver";
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
@@ -67,51 +68,83 @@ function num(v: any): number | null {
     return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
+/// Everything one symbol needs, or null when the symbol has no live price
+/// anywhere (delisted, renamed, or simply unknown).
+async function fetchSymbol(symbol: string) {
+    // NB: /stock/candle is intentionally omitted — it's a paid-only Finnhub
+    // endpoint (returns 403 on the free tier); the native chart pulls
+    // /api/candles (Twelve Data) instead.
+    const [quoteData, profileData, metricsData, fmp] = await Promise.all([
+        fhSafe(`/quote?symbol=${symbol}`),
+        fhSafe(`/stock/profile2?symbol=${symbol}`),
+        fhSafe(`/stock/metric?symbol=${symbol}&metric=all`),
+        fmpProfile(symbol),
+    ]);
+
+    // Finnhub's free tier can't quote indices (^GSPC/^IXIC) or crypto
+    // (BTCUSD) — fall back to FMP for those before giving up.
+    let priceSrc = quoteData && quoteData.c ? {
+        price: quoteData.c as number,
+        change: (quoteData.d ?? 0) as number,
+        changePct: (quoteData.dp ?? 0) as number,
+        name: null as string | null,
+    } : null;
+    if (!priceSrc) {
+        const fq = await fmpQuote(symbol);
+        if (fq) {
+            priceSrc = {
+                price: fq.price,
+                change: typeof fq.change === "number" ? fq.change : 0,
+                changePct: typeof fq.changePercentage === "number" ? fq.changePercentage
+                    : typeof fq.changesPercentage === "number" ? fq.changesPercentage : 0,
+                name: typeof fq.name === "string" ? fq.name : null,
+            };
+        }
+    }
+    if (!priceSrc) return null;
+    return { priceSrc, profileData, metricsData, fmp };
+}
+
 export async function GET(request: NextRequest) {
     if (!FINNHUB_API_KEY) {
         return NextResponse.json({ error: "Finnhub API key not configured." }, { status: 500 });
     }
 
     const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get("symbol")?.toUpperCase();
-    if (!symbol) {
+    const requested = searchParams.get("symbol")?.toUpperCase();
+    if (!requested) {
         return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
     }
 
     try {
-        // NB: /stock/candle is intentionally omitted — it's a paid-only Finnhub
-        // endpoint (returns 403 on the free tier); the native chart pulls
-        // /api/candles (Twelve Data) instead.
-        const [quoteData, profileData, metricsData, fmp] = await Promise.all([
-            fhSafe(`/quote?symbol=${symbol}`),
-            fhSafe(`/stock/profile2?symbol=${symbol}`),
-            fhSafe(`/stock/metric?symbol=${symbol}&metric=all`),
-            fmpProfile(symbol),
-        ]);
+        let symbol = requested;
+        let fetched = await fetchSymbol(symbol);
 
-        // Finnhub's free tier can't quote indices (^GSPC/^IXIC) or crypto
-        // (BTCUSD) — fall back to FMP for those before giving up.
-        let priceSrc = quoteData && quoteData.c ? {
-            price: quoteData.c as number,
-            change: (quoteData.d ?? 0) as number,
-            changePct: (quoteData.dp ?? 0) as number,
-            name: null as string | null,
-        } : null;
-        if (!priceSrc) {
-            const fq = await fmpQuote(symbol);
-            if (fq) {
-                priceSrc = {
-                    price: fq.price,
-                    change: typeof fq.change === "number" ? fq.change : 0,
-                    changePct: typeof fq.changePercentage === "number" ? fq.changePercentage
-                        : typeof fq.changesPercentage === "number" ? fq.changesPercentage : 0,
-                    name: typeof fq.name === "string" ? fq.name : null,
-                };
+        // Nothing anywhere for this symbol — it may be a retired ticker whose
+        // company was renamed or acquired (PARA → PSKY). Resolving is only
+        // safe here, AFTER a live lookup came back empty: retired tickers get
+        // re-issued to unrelated companies, so a symbol that still trades must
+        // never be redirected.
+        let alias: Awaited<ReturnType<typeof resolveRetiredSymbol>> = null;
+        if (!fetched) {
+            alias = await resolveRetiredSymbol(symbol);
+            if (alias) {
+                const successor = await fetchSymbol(alias.to);
+                // Only adopt the successor if it actually has data; otherwise
+                // report the original miss rather than a second dead end.
+                if (successor) {
+                    symbol = alias.to;
+                    fetched = successor;
+                } else {
+                    alias = null;
+                }
             }
         }
-        if (!priceSrc) {
-            return NextResponse.json({ error: `No data found for symbol "${symbol}".` }, { status: 404 });
+
+        if (!fetched) {
+            return NextResponse.json({ error: `No data found for symbol "${requested}".` }, { status: 404 });
         }
+        const { priceSrc, profileData, metricsData, fmp } = fetched;
 
         const profile = profileData ?? {};
         const m = metricsData?.metric ?? {};
@@ -166,7 +199,9 @@ export async function GET(request: NextRequest) {
             country: profile.country ?? null,
         };
 
-        return NextResponse.json({ quote, overview, stats, company });
+        // `alias` is present only when the requested ticker was retired and
+        // this payload is its successor — the client shows it as a banner.
+        return NextResponse.json({ quote, overview, stats, company, alias });
     } catch (err: any) {
         return NextResponse.json({ error: err.message || "Failed to fetch stock data." }, { status: 500 });
     }
