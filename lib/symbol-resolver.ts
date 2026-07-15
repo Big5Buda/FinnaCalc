@@ -96,6 +96,12 @@ type FeedMap = Map<string, string>; // oldSymbol → newSymbol
 
 let feedCache: { map: FeedMap; at: number } | null = null;
 const FEED_TTL_MS = 24 * 60 * 60 * 1000; // renames are rare; refresh daily
+// A failed load must NOT be cached for a full day: FMP's free tier is 250
+// req/day, so a burst of traffic can exhaust the quota transiently and every
+// endpoint starts answering {"Error Message": "Limit Reach"}. Caching that
+// empty result for 24h would keep the feed dark long after the quota resets
+// at 00:00 UTC. Retry failures soon instead.
+const FEED_RETRY_MS = 10 * 60 * 1000;
 
 /**
  * old→new ticker changes from FMP. Best-effort: any failure (unset key,
@@ -104,7 +110,11 @@ const FEED_TTL_MS = 24 * 60 * 60 * 1000; // renames are rare; refresh daily
  * response forms since the account's plan decides which is served.
  */
 async function fetchFeed(): Promise<FeedMap> {
-    if (feedCache && Date.now() - feedCache.at < FEED_TTL_MS) return feedCache.map;
+    if (feedCache) {
+        // Successful loads hold for a day; failed ones are retried shortly.
+        const ttl = feedCache.map.size > 0 ? FEED_TTL_MS : FEED_RETRY_MS;
+        if (Date.now() - feedCache.at < ttl) return feedCache.map;
+    }
     const map: FeedMap = new Map();
     if (!FMP_KEY) {
         feedCache = { map, at: Date.now() };
@@ -118,12 +128,19 @@ async function fetchFeed(): Promise<FeedMap> {
         `https://financialmodelingprep.com/stable/symbol-changes-list?apikey=${FMP_KEY}`,
         `https://financialmodelingprep.com/api/v4/symbol_change?apikey=${FMP_KEY}`,
     ];
+    let lastError: string | null = null;
     for (const url of urls) {
         try {
             const res = await fetch(url, { next: { revalidate: 86400 } });
             if (!res.ok) continue;
             const rows = await res.json();
-            if (!Array.isArray(rows)) continue; // e.g. {"Error Message": ...}
+            if (!Array.isArray(rows)) {
+                // FMP reports quota exhaustion AND plan gating with the same
+                // {"Error Message": ...} shape, so keep the text for the log —
+                // "Limit Reach" is transient, anything else likely isn't.
+                if (typeof rows?.["Error Message"] === "string") lastError = rows["Error Message"];
+                continue;
+            }
             for (const row of rows) {
                 const from = String(row?.oldSymbol ?? "").toUpperCase().trim();
                 const to = String(row?.newSymbol ?? "").toUpperCase().trim();
@@ -144,7 +161,8 @@ async function fetchFeed(): Promise<FeedMap> {
         console.warn(
             "[symbol-resolver] symbol-change feed unavailable — retired-ticker " +
             "resolution is running on the curated map only (new renames will " +
-            "not resolve until added there). Check FMP_API_KEY and its plan."
+            "not resolve until added there). Check FMP_API_KEY and its plan." +
+            (lastError ? ` FMP said: ${lastError}` : "")
         );
     }
     feedCache = { map, at: Date.now() };
