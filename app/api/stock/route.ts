@@ -41,6 +41,28 @@ async function fmpProfile(symbol: string): Promise<any | null> {
     return null;
 }
 
+// FMP quote — fallback for symbols Finnhub's free tier can't quote (indices
+// like ^GSPC/^IXIC and crypto like BTCUSD). Best-effort.
+async function fmpQuote(symbol: string): Promise<any | null> {
+    if (!FMP_KEY) return null;
+    const urls = [
+        `https://financialmodelingprep.com/stable/quote?symbol=${encodeURIComponent(symbol)}&apikey=${FMP_KEY}`,
+        `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(symbol)}?apikey=${FMP_KEY}`,
+    ];
+    for (const url of urls) {
+        try {
+            const res = await fetch(url, { next: { revalidate: 60 } });
+            if (!res.ok) continue;
+            const arr = await res.json();
+            const q = Array.isArray(arr) ? arr[0] : arr;
+            if (q && typeof q.price === "number" && q.price > 0) return q;
+        } catch {
+            // try the next form
+        }
+    }
+    return null;
+}
+
 function num(v: any): number | null {
     return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
@@ -67,7 +89,27 @@ export async function GET(request: NextRequest) {
             fmpProfile(symbol),
         ]);
 
-        if (!quoteData || !quoteData.c || quoteData.c === 0) {
+        // Finnhub's free tier can't quote indices (^GSPC/^IXIC) or crypto
+        // (BTCUSD) — fall back to FMP for those before giving up.
+        let priceSrc = quoteData && quoteData.c ? {
+            price: quoteData.c as number,
+            change: (quoteData.d ?? 0) as number,
+            changePct: (quoteData.dp ?? 0) as number,
+            name: null as string | null,
+        } : null;
+        if (!priceSrc) {
+            const fq = await fmpQuote(symbol);
+            if (fq) {
+                priceSrc = {
+                    price: fq.price,
+                    change: typeof fq.change === "number" ? fq.change : 0,
+                    changePct: typeof fq.changePercentage === "number" ? fq.changePercentage
+                        : typeof fq.changesPercentage === "number" ? fq.changesPercentage : 0,
+                    name: typeof fq.name === "string" ? fq.name : null,
+                };
+            }
+        }
+        if (!priceSrc) {
             return NextResponse.json({ error: `No data found for symbol "${symbol}".` }, { status: 404 });
         }
 
@@ -76,9 +118,9 @@ export async function GET(request: NextRequest) {
 
         const quote = {
             "01. symbol": symbol,
-            "05. price": String(quoteData.c),
-            "09. change": String(quoteData.d ?? 0),
-            "10. change percent": `${quoteData.dp ?? 0}%`,
+            "05. price": String(priceSrc.price),
+            "09. change": String(priceSrc.change),
+            "10. change percent": `${priceSrc.changePct}%`,
         };
 
         // Prefer FMP's real business description over the synthesized line.
@@ -91,7 +133,7 @@ export async function GET(request: NextRequest) {
 
         const marketCapRaw = profile.marketCapitalization;
         const overview = {
-            Name: profile.name || fmp?.companyName || symbol,
+            Name: profile.name || fmp?.companyName || priceSrc.name || symbol,
             MarketCapitalization: marketCapRaw
                 ? String(Math.round(marketCapRaw * 1_000_000))
                 : "0",
