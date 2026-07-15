@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRetiredSymbol } from "@/lib/symbol-resolver";
 
 // Price-history (candles) for the native stock chart.
 //
@@ -8,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 //
 // Response shape (consumed by iOS MarketService.candles):
 //   { symbol, range, previousClose, points: [{ t: epochSeconds, c: close }] }
+// `symbol` echoes the symbol actually charted, which differs from the request
+// when a retired ticker was resolved to its successor (see lib/symbol-resolver).
 
 export const revalidate = 60;
 
@@ -33,15 +36,61 @@ function epochSeconds(datetime: string, fallbackIndex: number): number {
 // Intraday interval overrides for the candlestick view.
 const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h", "1day", "1week"]);
 
+type Point = { t: number; c: number; o?: number; h?: number; l?: number };
+
+/// Twelve Data time-series for one symbol. Returns [] on any miss (unknown
+/// symbol, rate limit, network) — the caller can't distinguish, which is why
+/// an empty result only *attempts* alias resolution rather than assuming the
+/// symbol is retired.
+async function fetchPoints(symbol: string, interval: string, outputsize: number): Promise<Point[]> {
+    try {
+        const url =
+            `${TD_BASE}?symbol=${encodeURIComponent(symbol)}` +
+            `&interval=${interval}&outputsize=${outputsize}&order=ASC&apikey=${TD_KEY}`;
+        const res = await fetch(url, { next: { revalidate } });
+        if (!res.ok) return [];
+
+        const json = (await res.json()) as any;
+        // Twelve Data signals errors/rate-limits with { status: "error", ... }.
+        const values: any[] = json?.status === "error" || !Array.isArray(json?.values)
+            ? []
+            : json.values;
+
+        // order=ASC gives oldest-first already; map + drop bad closes.
+        // Full OHLC rides along for the candlestick view (o/h/l optional
+        // client-side, so older app builds keep working).
+        const points: Point[] = [];
+        values.forEach((v, i) => {
+            const c = Number(v?.close);
+            if (Number.isFinite(c) && v?.datetime) {
+                const o = Number(v?.open);
+                const h = Number(v?.high);
+                const l = Number(v?.low);
+                points.push({
+                    t: epochSeconds(String(v.datetime), i),
+                    c,
+                    ...(Number.isFinite(o) ? { o } : {}),
+                    ...(Number.isFinite(h) ? { h } : {}),
+                    ...(Number.isFinite(l) ? { l } : {}),
+                });
+            }
+        });
+        return points;
+    } catch {
+        return [];
+    }
+}
+
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get("symbol")?.toUpperCase();
+    const requested = searchParams.get("symbol")?.toUpperCase();
     const rangeKey = (searchParams.get("range") || "1D").toUpperCase();
     const intervalOverride = searchParams.get("interval");
 
-    if (!symbol) {
+    if (!requested) {
         return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
     }
+    const symbol = requested;
     if (!TD_KEY) {
         return NextResponse.json({ error: "Chart data key not configured." }, { status: 500 });
     }
@@ -67,44 +116,24 @@ export async function GET(request: NextRequest) {
         outputsize = Math.min(Math.max(bars, 10), 500);
     }
 
-    try {
-        const url =
-            `${TD_BASE}?symbol=${encodeURIComponent(symbol)}` +
-            `&interval=${interval}&outputsize=${outputsize}&order=ASC&apikey=${TD_KEY}`;
-        const res = await fetch(url, { next: { revalidate } });
+    let charted = symbol;
+    let points = await fetchPoints(symbol, interval, outputsize);
 
-        if (!res.ok) {
-            return NextResponse.json({ symbol, range: rangeKey, previousClose: null, points: [] });
-        }
-
-        const json = (await res.json()) as any;
-        // Twelve Data signals errors/rate-limits with { status: "error", ... }.
-        const values: any[] = json?.status === "error" || !Array.isArray(json?.values)
-            ? []
-            : json.values;
-
-        // order=ASC gives oldest-first already; map + drop bad closes.
-        // Full OHLC rides along for the candlestick view (o/h/l optional
-        // client-side, so older app builds keep working).
-        const points: { t: number; c: number; o?: number; h?: number; l?: number }[] = [];
-        values.forEach((v, i) => {
-            const c = Number(v?.close);
-            if (Number.isFinite(c) && v?.datetime) {
-                const o = Number(v?.open);
-                const h = Number(v?.high);
-                const l = Number(v?.low);
-                points.push({
-                    t: epochSeconds(String(v.datetime), i),
-                    c,
-                    ...(Number.isFinite(o) ? { o } : {}),
-                    ...(Number.isFinite(h) ? { h } : {}),
-                    ...(Number.isFinite(l) ? { l } : {}),
-                });
+    // No bars: the symbol may be a retired ticker (PARA → PSKY). Resolving is
+    // only attempted after a live fetch came back empty, and the resolver
+    // answers null for any symbol that still trades, so a rate-limited real
+    // symbol can never be redirected to something else — it just charts empty
+    // as before.
+    if (points.length === 0) {
+        const alias = await resolveRetiredSymbol(symbol);
+        if (alias) {
+            const successorPoints = await fetchPoints(alias.to, interval, outputsize);
+            if (successorPoints.length > 0) {
+                charted = alias.to;
+                points = successorPoints;
             }
-        });
-
-        return NextResponse.json({ symbol, range: rangeKey, previousClose: null, points });
-    } catch (err: any) {
-        return NextResponse.json({ symbol, range: rangeKey, previousClose: null, points: [] });
+        }
     }
+
+    return NextResponse.json({ symbol: charted, range: rangeKey, previousClose: null, points });
 }
