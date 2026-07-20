@@ -130,7 +130,11 @@ export async function GET(request: NextRequest) {
         const bars = Math.round(
             (RANGE_MINUTES[rangeKey] ?? 390) / (INTERVAL_MINUTES[intervalOverride] ?? 5),
         );
-        outputsize = Math.min(Math.max(bars, 10), 500);
+        // Floor at 1, never pad: a 10-bar floor used to stretch coarse
+        // combos far past their pill — 1W + weekly candles fetched 10 weeks
+        // instead of the single candle the range implies (same for 1D+1day
+        // and 1M+1week). One candle is the honest answer there.
+        outputsize = Math.min(Math.max(bars, 1), 500);
     }
 
     let charted = symbol;
