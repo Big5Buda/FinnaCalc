@@ -30,12 +30,14 @@ export async function POST(req: NextRequest) {
         // (fix-broken-connections flow) instead of adding a new one.
         let platform: string | undefined
         let reconnect: string | undefined
+        let access: string | undefined
         try {
             const body = await req.json()
             platform = body?.platform
             reconnect = typeof body?.reconnect === "string" && body.reconnect.trim()
                 ? body.reconnect.trim()
                 : undefined
+            access = body?.access
         } catch {
             // No body (the web client posts none) — falls through to the web redirect.
         }
@@ -46,11 +48,14 @@ export async function POST(req: NextRequest) {
         const login = await st.authentication.loginSnapTradeUser({
             userId: session.userId,
             userSecret: session.userSecret,
-            // Trading is approved on this SnapTrade account: request a trading
-            // connection where the brokerage supports it, read-only otherwise.
-            // NOTE: connections made while this was "read" stay read-only —
-            // those users must disconnect and reconnect to grant trading.
-            connectionType: "trade-if-available",
+            // The user picks this on the way in: "read" links the account for
+            // viewing only, "trade-if-available" also asks the brokerage for
+            // permission to place and cancel orders. Anything unrecognised —
+            // including an older client that sends nothing — gets read-only,
+            // so trading authority is never granted by omission.
+            // NOTE: the level is fixed at connect time. Changing it means
+            // disconnecting and reconnecting.
+            connectionType: access === "trade" ? "trade-if-available" : "read",
             customRedirect,
             // Only set when repairing a disabled connection; the SDK ignores
             // an empty value for a fresh connect.
