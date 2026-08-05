@@ -73,6 +73,7 @@
     "resend": "^6.0.1",
     "snaptrade-typescript-sdk": "^10.0.17",
     "sonner": "^1.7.1",
+    "stripe": "^22.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
