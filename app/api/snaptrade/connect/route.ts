@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         let platform: string | undefined
         let reconnect: string | undefined
         let access: string | undefined
+        let broker: string | undefined
         try {
             const body = await req.json()
             platform = body?.platform
@@ -38,6 +39,14 @@ export async function POST(req: NextRequest) {
                 ? body.reconnect.trim()
                 : undefined
             access = body?.access
+            // Brokerage slug chosen in the app's own picker, so the portal
+            // opens on that brokerage's login instead of making the user
+            // find it a second time in SnapTrade's list. Uppercased because
+            // SnapTrade's slugs are (ROBINHOOD, WEALTHSIMPLE-TRADE); an
+            // unknown slug just falls back to the full list.
+            broker = typeof body?.broker === "string" && body.broker.trim()
+                ? body.broker.trim().toUpperCase()
+                : undefined
         } catch {
             // No body (the web client posts none) — falls through to the web redirect.
         }
@@ -60,6 +69,8 @@ export async function POST(req: NextRequest) {
             // Only set when repairing a disabled connection; the SDK ignores
             // an empty value for a fresh connect.
             ...(reconnect ? { reconnect } : {}),
+            // Skips the portal's brokerage list when the app already asked.
+            ...(broker ? { broker } : {}),
         })
 
         const redirectURI = (login.data as any)?.redirectURI
