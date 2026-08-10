@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         let platform: string | undefined
         let reconnect: string | undefined
         let access: string | undefined
+        let broker: string | undefined
         try {
             const body = await req.json()
             platform = body?.platform
@@ -38,6 +39,14 @@ export async function POST(req: NextRequest) {
                 ? body.reconnect.trim()
                 : undefined
             access = body?.access
+            // Brokerage slug chosen in the app's own picker, so the portal
+            // opens on that brokerage's login instead of making the user
+            // find it a second time in SnapTrade's list. Uppercased because
+            // SnapTrade's slugs are (ROBINHOOD, WEALTHSIMPLE-TRADE); an
+            // unknown slug just falls back to the full list.
+            broker = typeof body?.broker === "string" && body.broker.trim()
+                ? body.broker.trim().toUpperCase()
+                : undefined
         } catch {
             // No body (the web client posts none) — falls through to the web redirect.
         }
@@ -49,17 +58,22 @@ export async function POST(req: NextRequest) {
             userId: session.userId,
             userSecret: session.userSecret,
             // The user picks this on the way in: "read" links the account for
-            // viewing only, "trade-if-available" also asks the brokerage for
-            // permission to place and cancel orders. Anything unrecognised —
-            // including an older client that sends nothing — gets read-only,
-            // so trading authority is never granted by omission.
-            // NOTE: the level is fixed at connect time. Changing it means
-            // disconnecting and reconnecting.
-            connectionType: access === "trade" ? "trade-if-available" : "read",
+            // viewing only, "trade" also asks the brokerage for permission to
+            // place and cancel orders. SnapTrade accepts exactly "read" or
+            // "trade" here — the old "trade-if-available" was not a valid
+            // value, so SnapTrade silently fell back to its default and every
+            // connection landed read-only no matter what the user chose.
+            // Anything unrecognised — including an older client that sends
+            // nothing — gets read-only, so trading authority is never granted
+            // by omission. A read-only connection upgrades by re-authorising
+            // the SAME connection: this route with { reconnect } + "trade".
+            connectionType: access === "trade" ? "trade" : "read",
             customRedirect,
             // Only set when repairing a disabled connection; the SDK ignores
             // an empty value for a fresh connect.
             ...(reconnect ? { reconnect } : {}),
+            // Skips the portal's brokerage list when the app already asked.
+            ...(broker ? { broker } : {}),
         })
 
         const redirectURI = (login.data as any)?.redirectURI
