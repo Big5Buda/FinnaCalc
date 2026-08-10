@@ -58,13 +58,16 @@ export async function POST(req: NextRequest) {
             userId: session.userId,
             userSecret: session.userSecret,
             // The user picks this on the way in: "read" links the account for
-            // viewing only, "trade-if-available" also asks the brokerage for
-            // permission to place and cancel orders. Anything unrecognised —
-            // including an older client that sends nothing — gets read-only,
-            // so trading authority is never granted by omission.
-            // NOTE: the level is fixed at connect time. Changing it means
-            // disconnecting and reconnecting.
-            connectionType: access === "trade" ? "trade-if-available" : "read",
+            // viewing only, "trade" also asks the brokerage for permission to
+            // place and cancel orders. SnapTrade accepts exactly "read" or
+            // "trade" here — the old "trade-if-available" was not a valid
+            // value, so SnapTrade silently fell back to its default and every
+            // connection landed read-only no matter what the user chose.
+            // Anything unrecognised — including an older client that sends
+            // nothing — gets read-only, so trading authority is never granted
+            // by omission. A read-only connection upgrades by re-authorising
+            // the SAME connection: this route with { reconnect } + "trade".
+            connectionType: access === "trade" ? "trade" : "read",
             customRedirect,
             // Only set when repairing a disabled connection; the SDK ignores
             // an empty value for a fresh connect.
