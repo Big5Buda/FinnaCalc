@@ -17,7 +17,10 @@ import { NextRequest, NextResponse } from "next/server";
 export const revalidate = 86400;
 
 const SEC_HEADERS = {
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc support@finnacalc.com",
+    // The SEC blocks callers who don't identify themselves with a REACHABLE
+    // contact, so the fallback has to be an address that actually receives
+    // mail. Override it with SEC_CONTACT in the environment.
+    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
     Accept: "application/json",
 };
 
