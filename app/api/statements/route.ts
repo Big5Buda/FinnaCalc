@@ -166,7 +166,11 @@ async function cikFor(symbol: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const all = (await res.json()) as Record<string, { cik_str: number; ticker: string }>;
-    const hit = Object.values(all).find((c) => c.ticker === symbol);
+    // Class shares are written BRK.B by quote feeds and by people, but the
+    // SEC writes them BRK-B, so a dotted ticker found nothing at all. Try the
+    // symbol as given, then with dots swapped for dashes.
+    const candidates = [symbol, symbol.replace(/\./g, "-")];
+    const hit = Object.values(all).find((c) => candidates.includes(c.ticker));
     return hit ? String(hit.cik_str).padStart(10, "0") : null;
 }
 
