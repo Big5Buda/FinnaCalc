@@ -7,6 +7,7 @@ import { AppearanceProvider, APPEARANCE_KEY } from '@/components/providers/appea
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ChatProvider } from '@/components/providers/chat-provider'
 import { BudgetProvider } from '@/components/providers/budget-provider'
+import { WatchlistProvider } from '@/components/providers/watchlist-provider'
 import { SiteHeader } from '@/components/shell/site-header'
 import { SiteFooter } from '@/components/shell/site-footer'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <AppearanceProvider>
                     <AuthProvider>
                         <BudgetProvider>
+                          <WatchlistProvider>
                             <ChatProvider>
                                 <div className="flex min-h-screen flex-col">
                                     <SiteHeader />
@@ -80,6 +82,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                                 </div>
                                 <FinnaBotPanel />
                             </ChatProvider>
+                          </WatchlistProvider>
                         </BudgetProvider>
                     </AuthProvider>
                 </AppearanceProvider>

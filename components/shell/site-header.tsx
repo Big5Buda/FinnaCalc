@@ -12,12 +12,13 @@ import { Wordmark } from "@/components/shell/wordmark"
 
 /**
  * The site shell's header. The iOS app's five sections are tabs; on the web
- * they're this nav. Only what works today is listed — Budgeting and Investing
- * arrive with their own pass, and an empty tab reads as broken.
+ * they're this nav. Only what works today is listed — an empty tab reads as
+ * broken, so a section joins this list when its pages land.
  */
 const NAV = [
     { href: "/", label: "Home" },
     { href: "/budgeting", label: "Budgeting" },
+    { href: "/investing", label: "Investing" },
     { href: "/calculators", label: "Calculators" },
     { href: "/taxes", label: "Taxes" },
     { href: "/education", label: "Education" },
