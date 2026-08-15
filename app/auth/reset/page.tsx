@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react"
 import { Loader2 } from "lucide-react"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Button, Notice } from "@/components/ui/primitives"
-import { Wordmark } from "@/components/shell/wordmark"
+import { AuthSplit } from "@/components/auth/auth-split"
 
 /**
  * Where the password-reset email lands. Supabase signs the visitor in from the
@@ -34,11 +34,11 @@ export default function ResetPasswordPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-sm flex-col gap-4 px-5 py-16">
-            <div className="flex justify-center pb-2">
-                <Wordmark className="text-3xl" />
-            </div>
-            <h1 className="text-center text-lg font-bold text-foreground">Choose a new password</h1>
+        <AuthSplit>
+            <div className="flex flex-col gap-4">
+            <h1 className="text-center text-2xl font-bold tracking-tight text-foreground">
+                Choose a new password
+            </h1>
 
             <form onSubmit={onSubmit} className="flex flex-col gap-3">
                 <input
@@ -56,6 +56,7 @@ export default function ResetPasswordPage() {
                     Update password
                 </Button>
             </form>
-        </div>
+            </div>
+        </AuthSplit>
     )
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
+import { AuthSplit } from "@/components/auth/auth-split"
 
 /**
  * OAuth / email-confirmation landing. The Supabase client is configured with
@@ -45,7 +46,8 @@ export default function AuthCallbackPage() {
     }, [router])
 
     return (
-        <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 px-5 py-20 text-center">
+        <AuthSplit>
+            <div className="flex flex-col items-center gap-3 text-center">
             <p className="text-lg font-semibold text-foreground">
                 {error ? "Sign-in didn’t finish" : "Signing you in…"}
             </p>
@@ -55,6 +57,7 @@ export default function AuthCallbackPage() {
                     Back to sign in
                 </a>
             )}
-        </div>
+            </div>
+        </AuthSplit>
     )
 }

@@ -8,8 +8,7 @@ import { AuthProvider } from '@/components/providers/auth-provider'
 import { ChatProvider } from '@/components/providers/chat-provider'
 import { BudgetProvider } from '@/components/providers/budget-provider'
 import { WatchlistProvider } from '@/components/providers/watchlist-provider'
-import { SiteHeader } from '@/components/shell/site-header'
-import { SiteFooter } from '@/components/shell/site-footer'
+import { SiteChrome } from '@/components/shell/site-chrome'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -75,11 +74,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         <BudgetProvider>
                           <WatchlistProvider>
                             <ChatProvider>
-                                <div className="flex min-h-screen flex-col">
-                                    <SiteHeader />
-                                    <main className="flex-1">{children}</main>
-                                    <SiteFooter />
-                                </div>
+                                <SiteChrome>{children}</SiteChrome>
                                 <FinnaBotPanel />
                             </ChatProvider>
                           </WatchlistProvider>
