@@ -11,6 +11,7 @@ import { budgetTypeTitle, type BudgetType } from "@/lib/budget/types"
 import { computeFindings, findingsSummaryLine } from "@/lib/budget/findings"
 import { detectSubscriptions } from "@/lib/budget/subscriptions"
 import { SampleDonut } from "@/components/budget/charts"
+import { PageHeader } from "@/components/shell/page-header"
 import { Button, Notice } from "@/components/ui/primitives"
 
 /**
@@ -69,9 +70,14 @@ export default function BudgetingPage() {
         : "Snapshots and bank imports over time"
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Budgeting</h1>
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
+            <PageHeader
+                eyebrow="Budgeting"
+                title="Where the money goes."
+                lead="Build a budget by hand or connect your bank. Everything stays on this device."
+            />
+            <div className="flex items-center justify-between">
+                <span className="sr-only">Budget type</span>
                 <div className="flex items-center gap-2">
                     <div className="flex rounded-full bg-secondary p-[3px]">
                         {(["personal", "business"] as BudgetType[]).map((type) => {
@@ -103,7 +109,7 @@ export default function BudgetingPage() {
                         <MoreHorizontal className="h-4 w-4" />
                     </button>
                 </div>
-            </header>
+            </div>
 
             {clearing && <ClearDataPanel onDone={() => setClearing(false)} otherType={otherType} />}
 

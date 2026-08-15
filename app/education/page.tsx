@@ -14,6 +14,8 @@ import {
     youtubeThumbnail,
     type EduItem,
 } from "@/lib/education-content"
+import { LessonOfWeekCard } from "@/components/education/lesson-of-week"
+import { PageHeader } from "@/components/shell/page-header"
 import { SectionLabel } from "@/components/ui/primitives"
 
 /**
@@ -57,13 +59,12 @@ export default function EducationPage() {
     const quickReads = lookup(readingResources, QUICK_READS)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
-            <header className="flex flex-col gap-0.5">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Learn money</h1>
-                <p className="text-[13.5px] text-muted-foreground">
-                    Short lessons on money, in plain language. Watch or read, whichever suits you.
-                </p>
-            </header>
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
+            <PageHeader
+                eyebrow="Education"
+                title="Learn money."
+                lead="Short lessons on money, in plain language. Watch or read, whichever suits you."
+            />
 
             <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 shadow-sm">
                 <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -83,6 +84,10 @@ export default function EducationPage() {
 
             {trimmed === "" ? (
                 <>
+                    {/* Moved here when the app-style Home came off the web: it's
+                        the one place that features a single lesson. */}
+                    <LessonOfWeekCard />
+
                     <section className="flex flex-col gap-2.5">
                         <SectionLabel>Popular videos</SectionLabel>
                         <div className="-mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1">

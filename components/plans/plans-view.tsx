@@ -7,6 +7,7 @@ import { Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { useAuth } from "@/components/providers/auth-provider"
+import { PageHeader } from "@/components/shell/page-header"
 import { Badge, IconChip, Notice } from "@/components/ui/primitives"
 import {
     PLANS,
@@ -95,15 +96,12 @@ export function PlansView() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1.5">
-                <h1 className="text-[22px] font-bold tracking-tight text-foreground">
-                    Get more from FinnaCalc
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                    Pick the side of your money to level up, or take all of it.
-                </p>
-            </header>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+            <PageHeader
+                eyebrow="Plans"
+                title="Get more from FinnaCalc."
+                lead="Pick the side of your money to level up, or take all of it."
+            />
 
             <div className="flex rounded-full bg-secondary p-[3px]">
                 {(["monthly", "annual"] as BillingInterval[]).map((option) => {

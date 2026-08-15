@@ -18,6 +18,7 @@ import {
 } from "@/lib/investing/market"
 import { MARKET_INDEX_ETFS, SECTORS } from "@/lib/investing/catalog"
 import { CompanyLogo, NewsList } from "@/components/investing/pieces"
+import { PageHeader } from "@/components/shell/page-header"
 import { SectionLabel } from "@/components/ui/primitives"
 
 /**
@@ -94,13 +95,12 @@ export default function InvestingPage() {
     }, [overview, indexStats])
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Investing</h1>
-                <p className="text-sm text-muted-foreground">
-                    Live markets, your portfolio, and stock research in one place.
-                </p>
-            </header>
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
+            <PageHeader
+                eyebrow="Investing"
+                title="Markets, and your own money in them."
+                lead="Live markets, your portfolio, and stock research in one place."
+            />
 
             <SymbolSearch />
 
