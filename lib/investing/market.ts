@@ -90,18 +90,24 @@ export type NewsArticle = {
 
 export type SearchResult = { "1. symbol": string; "2. name": string; "4. region": string }
 
+/** Mirrors app/api/screener's row: measured numbers only, no fundamentals. */
 export type ScreenerRow = {
     symbol: string
     company: string
-    sector: string
-    industry: string
-    price: number
-    marketCap: number | null
-    beta: number | null
-    dividendYield: number | null
-    volume: number | null
     exchange: string
+    price: number
+    change: number | null
+    changePct: number | null
+    volume: number | null
+    avgVolume: number | null
+    /** Today's volume over the recent session average; 1.0 is a typical day. */
+    relVolume: number | null
+    dayHigh: number | null
+    dayLow: number | null
+    prevClose: number | null
 }
+
+export type ScreenerPreset = "actives" | "gainers" | "losers"
 
 export type FinancialPeriod = {
     year: number | null
@@ -142,7 +148,14 @@ export const symbolNews = (symbol: string) =>
     apiGet<{ symbol: string; articles: NewsArticle[] }>("/api/news", { symbol })
 
 export const screener = (query: Record<string, string> = {}) =>
-    apiGet<{ rows: ScreenerRow[]; unsupported?: string[]; error?: string }>("/api/screener", query)
+    apiGet<{
+        rows: ScreenerRow[]
+        preset?: ScreenerPreset
+        universeSize?: number
+        asOf?: string
+        unsupported?: string[]
+        error?: string
+    }>("/api/screener", query)
 
 export const financials = (symbol: string) =>
     apiGet<{ symbol: string; annual: FinancialPeriod[]; quarterly: FinancialPeriod[] }>(
