@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
-import { ArrowUp, Menu, User, X } from "lucide-react"
+import { ArrowUp, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useChat } from "@/components/providers/chat-provider"
@@ -92,17 +92,36 @@ export function SiteHeader() {
                         </span>
                     </button>
 
-                    <Link
-                        href="/account"
-                        aria-label={user ? "Your account" : "Sign in"}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-foreground transition hover:bg-secondary"
-                    >
-                        {user ? (
-                            <span className="text-sm font-bold">{user.displayName.charAt(0).toUpperCase()}</span>
-                        ) : (
-                            <User className="h-4 w-4" />
-                        )}
-                    </Link>
+                    {/* Signed out, the pair Wealthsimple leads with: a plain
+                        log-in link and a solid Get started pill. Signed in,
+                        both are gone — there is nothing left to start — and the
+                        account avatar takes the slot. */}
+                    {user ? (
+                        <Link
+                            href="/account"
+                            aria-label="Your account"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-foreground transition hover:bg-secondary"
+                        >
+                            <span className="text-sm font-bold">
+                                {user.displayName.charAt(0).toUpperCase()}
+                            </span>
+                        </Link>
+                    ) : (
+                        <>
+                            <Link
+                                href="/sign-in"
+                                className="hidden h-10 items-center px-3 text-sm font-semibold text-foreground transition hover:text-primary sm:inline-flex"
+                            >
+                                Log in
+                            </Link>
+                            <Link
+                                href="/sign-up"
+                                className="inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition hover:opacity-90"
+                            >
+                                Get started
+                            </Link>
+                        </>
+                    )}
 
                     <button
                         type="button"
@@ -142,6 +161,15 @@ export function SiteHeader() {
                         >
                             Ask FinnaBot
                         </button>
+                        {!user && (
+                            <Link
+                                href="/sign-in"
+                                onClick={() => setMenuOpen(false)}
+                                className="rounded-md px-2 py-3 text-lg font-semibold text-muted-foreground"
+                            >
+                                Log in
+                            </Link>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,16 +1,16 @@
 import type { Metadata } from "next"
-import { Suspense } from "react"
 import { AuthForm } from "@/components/auth/auth-form"
+import { AuthSplit } from "@/components/auth/auth-split"
 
 export const metadata: Metadata = {
-    title: "Create account",
+    title: "Sign up",
     description: "Create a free FinnaCalc account to save your progress across devices.",
 }
 
 export default function SignUpPage() {
     return (
-        <Suspense fallback={null}>
+        <AuthSplit>
             <AuthForm mode="signUp" />
-        </Suspense>
+        </AuthSplit>
     )
 }
