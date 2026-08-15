@@ -64,12 +64,12 @@ export function WaitlistForm({
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@email.com"
                     aria-label="Email address"
-                    className="h-12 flex-1 rounded-xl border border-input bg-white px-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+                    className="h-11 flex-1 rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                     type="submit"
                     disabled={status === "loading"}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-70"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-hover disabled:opacity-70"
                 >
                     {status === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
                     {status === "loading" ? "Joining…" : buttonLabel}

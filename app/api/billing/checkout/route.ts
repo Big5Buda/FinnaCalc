@@ -63,6 +63,11 @@ export async function POST(req: NextRequest) {
         }
 
         const origin = new URL(req.url).origin
+        // The app finishes checkout in a web session that only closes on the
+        // finnacalc:// scheme, so it asks /billing/done to bounce there. A web
+        // checkout must stay on the site, so the bridge only fires for
+        // platform: "ios".
+        const client = body.platform === "ios" ? "&client=ios" : ""
         const stripe = getStripe()
         const session = await stripe.checkout.sessions.create({
             mode: "subscription",
@@ -75,8 +80,8 @@ export async function POST(req: NextRequest) {
             // history and portal stay in one place.
             ...(existing?.stripe_customer_id ? { customer: existing.stripe_customer_id } : {}),
             allow_promotion_codes: true,
-            success_url: `${origin}/billing/done?status=success`,
-            cancel_url: `${origin}/billing/done?status=cancel`,
+            success_url: `${origin}/billing/done?status=success${client}`,
+            cancel_url: `${origin}/billing/done?status=cancel${client}`,
         })
         if (!session.url) throw new Error("Stripe didn't return a checkout link.")
         return NextResponse.json({ url: session.url })
