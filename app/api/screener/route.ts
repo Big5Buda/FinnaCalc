@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    activeAssets,
+    isAlpacaConfigured,
+    mostActives,
+    snapshotChange,
+    snapshotPrice,
+    stockSnapshots,
+} from "@/lib/alpaca";
 
-// Stock screener backed by Financial Modeling Prep's /stock-screener, which
-// filters the whole US market server-side (Finnhub has no free screener). Set
-// FMP_API_KEY. Fails soft to an empty list; surfaces a message when the key is
-// missing so the app can prompt for it.
+// Stock screener, on Alpaca.
 //
-// Response: { rows: ScreenerRow[], error?: string }
+// Alpaca screens by activity, not by fundamentals: its screener returns the
+// day's most-active symbols, and everything else here is derived from their
+// snapshots. That is a narrower tool than the market-wide fundamental screen
+// this route used to run, and the difference is reported rather than hidden —
+// `unsupported` lists the filters that no longer mean anything, and the fields
+// behind them come back null instead of zero.
+//
+// Supported: priceMoreThan, priceLowerThan, volumeMoreThan, volumeLowerThan,
+// changeMoreThan, changeLowerThan, limit.
+//
+// Response: { rows: ScreenerRow[], unsupported?: string[], error?: string }
 
 export const revalidate = 300;
 
-const FMP_KEY = process.env.FMP_API_KEY;
 export interface ScreenerRow {
     symbol: string;
     company: string;
@@ -23,81 +37,89 @@ export interface ScreenerRow {
     exchange: string;
 }
 
-// Stable first (new accounts), legacy second (grandfathered keys).
-const FMP_URLS = [
-    "https://financialmodelingprep.com/stable/company-screener",
-    "https://financialmodelingprep.com/api/v3/stock-screener",
-];
-
-// Filter params passed straight through to FMP (whitelisted).
-const PASSTHROUGH = [
+/** Filters that needed a fundamentals vendor and have no Alpaca equivalent. */
+const UNSUPPORTED = [
     "marketCapMoreThan",
     "marketCapLowerThan",
-    "priceMoreThan",
-    "priceLowerThan",
     "betaMoreThan",
     "betaLowerThan",
-    "volumeMoreThan",
-    "volumeLowerThan",
     "dividendMoreThan",
     "dividendLowerThan",
     "sector",
     "industry",
-    "exchange",
-    "country",
-    "isEtf",
-    "isActivelyTrading",
-    "limit",
 ];
 
+function num(params: URLSearchParams, key: string): number | null {
+    const raw = params.get(key);
+    if (raw === null || raw.trim() === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+}
+
 export async function GET(request: NextRequest) {
-    if (!FMP_KEY) {
-        return NextResponse.json({
-            rows: [],
-            error: "Screener not configured — add FMP_API_KEY.",
-        });
+    if (!isAlpacaConfigured) {
+        return NextResponse.json({ rows: [], error: "Screener not configured — add ALPACA_API_KEY_ID." });
     }
 
-    const incoming = new URL(request.url).searchParams;
-    const params = new URLSearchParams();
-    for (const key of PASSTHROUGH) {
-        const v = incoming.get(key);
-        if (v != null && v !== "") params.set(key, v);
-    }
-    if (!params.has("limit")) params.set("limit", "100");
-    if (!params.has("isActivelyTrading")) params.set("isActivelyTrading", "true");
-    params.set("apikey", FMP_KEY);
+    const params = request.nextUrl.searchParams;
+    const limit = Math.min(Math.max(num(params, "limit") ?? 50, 1), 100);
+    const priceMin = num(params, "priceMoreThan");
+    const priceMax = num(params, "priceLowerThan");
+    const volumeMin = num(params, "volumeMoreThan");
+    const volumeMax = num(params, "volumeLowerThan");
+    const changeMin = num(params, "changeMoreThan");
+    const changeMax = num(params, "changeLowerThan");
+
+    const asked = UNSUPPORTED.filter((key) => params.get(key));
 
     try {
-        let arr: any[] = [];
-        for (const base of FMP_URLS) {
-            const res = await fetch(`${base}?${params.toString()}`, { next: { revalidate } });
-            if (!res.ok) continue;
-            const raw = (await res.json()) as any;
-            if (Array.isArray(raw) && raw.length > 0) { arr = raw; break; }
+        const actives = await mostActives(100, "volume", revalidate);
+        if (actives.length === 0) {
+            return NextResponse.json({ rows: [], unsupported: asked });
         }
 
-        const rows = arr
-            .map((s) => {
-                const price = Number(s.price) || 0;
-                const div = Number(s.lastAnnualDividend) || 0;
-                return {
-                    symbol: s.symbol,
-                    company: s.companyName ?? s.symbol,
-                    sector: s.sector ?? "",
-                    industry: s.industry ?? "",
-                    price,
-                    marketCap: Number.isFinite(Number(s.marketCap)) ? Number(s.marketCap) : null,
-                    beta: s.beta != null && Number.isFinite(Number(s.beta)) ? Number(s.beta) : null,
-                    dividendYield: price > 0 ? (div / price) * 100 : null,
-                    volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : null,
-                    exchange: s.exchangeShortName ?? s.exchange ?? "",
-                };
-            })
-            .filter((r) => r.symbol);
+        const symbols = actives.map((entry) => entry.symbol);
+        const [snapshots, assets] = await Promise.all([
+            stockSnapshots(symbols, revalidate),
+            activeAssets(),
+        ]);
+        const names = new Map(assets.map((entry) => [entry.symbol, entry]));
 
-        return NextResponse.json({ rows });
-    } catch {
-        return NextResponse.json({ rows: [] });
+        const rows: ScreenerRow[] = [];
+        for (const active of actives) {
+            const snapshot = snapshots[active.symbol];
+            const price = snapshotPrice(snapshot);
+            if (price === null) continue;
+            const move = snapshotChange(snapshot);
+            const volume = snapshot?.dailyBar?.v ?? active.volume ?? null;
+
+            if (priceMin !== null && price < priceMin) continue;
+            if (priceMax !== null && price > priceMax) continue;
+            if (volumeMin !== null && (volume ?? 0) < volumeMin) continue;
+            if (volumeMax !== null && (volume ?? 0) > volumeMax) continue;
+            if (changeMin !== null && (move?.changePct ?? 0) < changeMin) continue;
+            if (changeMax !== null && (move?.changePct ?? 0) > changeMax) continue;
+
+            const info = names.get(active.symbol);
+            rows.push({
+                symbol: active.symbol,
+                company: info?.name ?? active.symbol,
+                // Alpaca classifies assets by exchange and class, not by GICS
+                // sector, so these stay empty rather than being invented.
+                sector: "",
+                industry: "",
+                price,
+                marketCap: null,
+                beta: null,
+                dividendYield: null,
+                volume,
+                exchange: info?.exchange ?? "",
+            });
+            if (rows.length >= limit) break;
+        }
+
+        return NextResponse.json(asked.length > 0 ? { rows, unsupported: asked } : { rows });
+    } catch (err: any) {
+        return NextResponse.json({ rows: [], error: err.message || "Screener failed." });
     }
 }

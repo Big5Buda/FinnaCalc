@@ -1,160 +1,81 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveRetiredSymbol } from "@/lib/symbol-resolver";
+import { bars, isAlpacaConfigured, type BarTimeframe } from "@/lib/alpaca";
 
-// Price-history (candles) for the native stock chart.
-//
-// Finnhub's /stock/candle is premium-gated, and Yahoo's public chart API now
-// hard-throttles server requests (HTTP 429), so candles come from Twelve Data
-// (free tier: 800 req/day, intraday + daily). Set TWELVE_DATA_API_KEY.
+// Price history for the native chart, from Alpaca's bars endpoint.
 //
 // Response shape (consumed by iOS MarketService.candles):
-//   { symbol, range, points: [{ t: epochSeconds, c: close }] }
-// `symbol` echoes the symbol actually charted, which differs from the request
-// when a retired ticker was resolved to its successor (see lib/symbol-resolver).
+//   { symbol, range, points: [{ t: epochSeconds, c: close, o, h, l }] }
 //
-// No previousClose: this used to ship as a hard-coded null, and the app trusted
-// it as the 1D chart's up/down reference — so the line coloured against today's
-// first bar instead of yesterday's close and could disagree with the header's
-// "% today". The app now derives it from the quote it already has
-// (price − change), which costs no request here.
+// No previousClose: the app derives the 1D chart's up/down reference from the
+// quote it already has (price − change), which costs no request here.
 
 export const revalidate = 60;
 
-const TD_KEY = process.env.TWELVE_DATA_API_KEY;
-const TD_BASE = "https://api.twelvedata.com/time_series";
-
-// Cash App range pills -> Twelve Data (interval, outputsize).
-const RANGES: Record<string, { interval: string; outputsize: number }> = {
-    "1D": { interval: "5min", outputsize: 78 },
-    "1W": { interval: "30min", outputsize: 66 },
-    "1M": { interval: "1day", outputsize: 23 },
-    "1Y": { interval: "1day", outputsize: 252 },
-    "ALL": { interval: "1week", outputsize: 1040 },
+// Range pill → (timeframe, how far back, how many bars to ask for).
+const RANGES: Record<string, { timeframe: BarTimeframe; days: number; limit: number }> = {
+    "1D": { timeframe: "5Min", days: 4, limit: 500 },
+    "1W": { timeframe: "30Min", days: 9, limit: 400 },
+    "1M": { timeframe: "1Day", days: 32, limit: 40 },
+    "1Y": { timeframe: "1Day", days: 370, limit: 400 },
+    ALL: { timeframe: "1Week", days: 365 * 20, limit: 1100 },
 };
 
-function epochSeconds(datetime: string, fallbackIndex: number): number {
-    // "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD". Exchange-local, but the tz offset is
-    // constant across a range so ordering (all the chart needs) is preserved.
-    const ms = Date.parse(datetime.replace(" ", "T") + "Z");
-    return Number.isFinite(ms) ? Math.round(ms / 1000) : fallbackIndex * 60;
-}
-
-// Intraday interval overrides for the candlestick view.
-const CANDLE_INTERVALS = new Set(["1min", "5min", "15min", "30min", "45min", "1h", "1day", "1week"]);
-
-// Twelve Data quotes crypto as a pair ("BTC/USD"); the rest of the app uses the
-// provider-neutral "BTCUSD" that Finnhub/FMP expect, which TD returns nothing
-// for. Translate on the way out so the Home row's Bitcoin card charts.
-// (TD's free tier has no index data at all, so ^GSPC/^IXIC can't be mapped to
-// anything here — they legitimately have no chart.)
-const TD_SYMBOL_OVERRIDES: Record<string, string> = {
-    BTCUSD: "BTC/USD",
-    ETHUSD: "ETH/USD",
+// The candlestick view can ask for its own interval.
+const INTERVALS: Record<string, BarTimeframe> = {
+    "1min": "1Min",
+    "5min": "5Min",
+    "15min": "15Min",
+    "30min": "30Min",
+    "1h": "1Hour",
+    "1day": "1Day",
+    "1week": "1Week",
 };
-
-type Point = { t: number; c: number; o?: number; h?: number; l?: number };
-
-/// Twelve Data time-series for one symbol. Returns [] on any miss (unknown
-/// symbol, rate limit, network) — the caller can't distinguish, which is why
-/// an empty result only *attempts* alias resolution rather than assuming the
-/// symbol is retired.
-async function fetchPoints(symbol: string, interval: string, outputsize: number): Promise<Point[]> {
-    try {
-        const tdSymbol = TD_SYMBOL_OVERRIDES[symbol] ?? symbol;
-        const url =
-            `${TD_BASE}?symbol=${encodeURIComponent(tdSymbol)}` +
-            `&interval=${interval}&outputsize=${outputsize}&order=ASC&apikey=${TD_KEY}`;
-        const res = await fetch(url, { next: { revalidate } });
-        if (!res.ok) return [];
-
-        const json = (await res.json()) as any;
-        // Twelve Data signals errors/rate-limits with { status: "error", ... }.
-        const values: any[] = json?.status === "error" || !Array.isArray(json?.values)
-            ? []
-            : json.values;
-
-        // order=ASC gives oldest-first already; map + drop bad closes.
-        // Full OHLC rides along for the candlestick view (o/h/l optional
-        // client-side, so older app builds keep working).
-        const points: Point[] = [];
-        values.forEach((v, i) => {
-            const c = Number(v?.close);
-            if (Number.isFinite(c) && v?.datetime) {
-                const o = Number(v?.open);
-                const h = Number(v?.high);
-                const l = Number(v?.low);
-                points.push({
-                    t: epochSeconds(String(v.datetime), i),
-                    c,
-                    ...(Number.isFinite(o) ? { o } : {}),
-                    ...(Number.isFinite(h) ? { h } : {}),
-                    ...(Number.isFinite(l) ? { l } : {}),
-                });
-            }
-        });
-        return points;
-    } catch {
-        return [];
-    }
-}
 
 export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const requested = searchParams.get("symbol")?.toUpperCase();
-    const rangeKey = (searchParams.get("range") || "1D").toUpperCase();
-    const intervalOverride = searchParams.get("interval");
-
-    if (!requested) {
-        return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
-    }
-    const symbol = requested;
-    if (!TD_KEY) {
-        return NextResponse.json({ error: "Chart data key not configured." }, { status: 500 });
+    if (!isAlpacaConfigured) {
+        return NextResponse.json({ error: "Market data is not configured." }, { status: 503 });
     }
 
-    // An explicit candle interval composes WITH the range: the range picks the
-    // window, the interval picks the bar size (bars ≈ window / bar duration).
-    const preset = RANGES[rangeKey] ?? RANGES["1D"];
-    let interval = preset.interval;
-    let outputsize = preset.outputsize;
-    if (intervalOverride && CANDLE_INTERVALS.has(intervalOverride)) {
-        interval = intervalOverride;
-        const INTERVAL_MINUTES: Record<string, number> = {
-            "1min": 1, "5min": 5, "15min": 15, "30min": 30, "45min": 45,
-            "1h": 60, "1day": 390, "1week": 1950,
-        };
-        // Trading minutes per range (390/day, ~21 trading days/month).
-        const RANGE_MINUTES: Record<string, number> = {
-            "1D": 390, "1W": 1950, "1M": 8190, "1Y": 98280, "ALL": 1965600,
-        };
-        const bars = Math.round(
-            (RANGE_MINUTES[rangeKey] ?? 390) / (INTERVAL_MINUTES[intervalOverride] ?? 5),
-        );
-        // Floor at 1, never pad: a 10-bar floor used to stretch coarse
-        // combos far past their pill — 1W + weekly candles fetched 10 weeks
-        // instead of the single candle the range implies (same for 1D+1day
-        // and 1M+1week). One candle is the honest answer there.
-        outputsize = Math.min(Math.max(bars, 1), 500);
+    const params = request.nextUrl.searchParams;
+    const symbol = params.get("symbol")?.toUpperCase().trim();
+    const range = (params.get("range") ?? "1M").toUpperCase();
+    const interval = params.get("interval");
+
+    if (!symbol) {
+        return NextResponse.json({ error: "symbol is required" }, { status: 400 });
     }
 
-    let charted = symbol;
-    let points = await fetchPoints(symbol, interval, outputsize);
+    const preset = RANGES[range] ?? RANGES["1M"];
+    const timeframe = interval && INTERVALS[interval] ? INTERVALS[interval] : preset.timeframe;
+    const start = new Date(Date.now() - preset.days * 24 * 60 * 60 * 1000);
 
-    // No bars: the symbol may be a retired ticker (PARA → PSKY). Resolving is
-    // only attempted after a live fetch came back empty, and the resolver
-    // answers null for any symbol that still trades, so a rate-limited real
-    // symbol can never be redirected to something else — it just charts empty
-    // as before.
-    if (points.length === 0) {
-        const alias = await resolveRetiredSymbol(symbol);
-        if (alias) {
-            const successorPoints = await fetchPoints(alias.to, interval, outputsize);
-            if (successorPoints.length > 0) {
-                charted = alias.to;
-                points = successorPoints;
-            }
-        }
+    try {
+        const series = await bars(symbol, timeframe, start, preset.limit, revalidate);
+
+        // 1D means the latest session, not the last four calendar days: markets
+        // close, and a Monday request must not draw Thursday and Friday too.
+        // The window above is deliberately wider than a day so a long weekend
+        // still returns something; here it's trimmed back to the final session.
+        const trimmed =
+            range === "1D" && series.length > 0
+                ? (() => {
+                      const lastDay = series[series.length - 1].t.slice(0, 10);
+                      return series.filter((bar) => bar.t.slice(0, 10) === lastDay);
+                  })()
+                : series;
+
+        const points = trimmed
+            .map((bar) => ({
+                t: Math.round(Date.parse(bar.t) / 1000),
+                c: bar.c,
+                o: bar.o,
+                h: bar.h,
+                l: bar.l,
+            }))
+            .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.c));
+
+        return NextResponse.json({ symbol, range, points });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message || "Failed to fetch candles." }, { status: 500 });
     }
-
-    return NextResponse.json({ symbol: charted, range: rangeKey, points });
 }

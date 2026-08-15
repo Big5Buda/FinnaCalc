@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { isAlpacaConfigured, snapshotChange, snapshotPrice, stockSnapshots } from "@/lib/alpaca";
+
+// Sector overview: one batched Alpaca snapshot call for the whole universe.
+// Symbols Alpaca has no snapshot for are dropped rather than shown at zero, so
+// a sector's average only ever averages real quotes.
 
 export const revalidate = 60;
-
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const BASE_URL = "https://finnhub.io/api/v1";
 
 const SECTORS = [
     {
@@ -123,8 +125,8 @@ export interface SectorSummary {
 }
 
 export async function GET() {
-    if (!FINNHUB_API_KEY) {
-        return NextResponse.json({ error: "Finnhub API key not configured." }, { status: 500 });
+    if (!isAlpacaConfigured) {
+        return NextResponse.json({ error: "Market data is not configured." }, { status: 503 });
     }
 
     try {
@@ -136,149 +138,33 @@ export async function GET() {
             }))
         );
 
-        // 105 symbols would blow Finnhub's 60-calls/min free limit as
-        // individual quotes, so quotes come from one real batch call —
-        // Alpaca's free-tier snapshot endpoint (no per-symbol credit cost,
-        // unlike FMP/Twelve Data), falling back to FMP (batch-quote is a
-        // paid-plan-only endpoint there, so this only helps on a paid key),
-        // then to Finnhub individual quotes trimmed to 6/sector.
-        let stocks: StockQuote[] = [];
+        // One batched snapshot call covers all 105 symbols; individual quotes
+        // per symbol would be 105 requests for one page.
+        const snapshots = await stockSnapshots(allSymbols.map((s) => s.symbol), 120);
 
-        const ALPACA_KEY_ID = process.env.ALPACA_API_KEY_ID;
-        const ALPACA_SECRET_KEY = process.env.ALPACA_API_SECRET_KEY;
-        if (ALPACA_KEY_ID && ALPACA_SECRET_KEY) {
-            try {
-                const symbolsCsv = allSymbols.map(s => s.symbol).join(",");
-                const res = await fetch(
-                    `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbolsCsv}&feed=iex`,
-                    {
-                        headers: {
-                            "APCA-API-KEY-ID": ALPACA_KEY_ID,
-                            "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
-                        },
-                        next: { revalidate: 120 },
-                    }
-                );
-                if (res.ok) {
-                    const snapshots: Record<string, any> = await res.json();
-                    stocks = allSymbols.flatMap(({ symbol, name, sector, sectorColor }) => {
-                        const snap = snapshots[symbol];
-                        const price = Number(snap?.latestTrade?.p ?? snap?.dailyBar?.c);
-                        if (!snap || !Number.isFinite(price) || price === 0) return [];
-                        const prevClose = Number(snap.prevDailyBar?.c);
-                        const hasPrevClose = Number.isFinite(prevClose) && prevClose !== 0;
-                        const change = hasPrevClose ? price - prevClose : 0;
-                        const changesPercentage = hasPrevClose ? (change / prevClose) * 100 : 0;
-                        return [{
-                            symbol,
-                            name,
-                            sector,
-                            sectorColor,
-                            price,
-                            change,
-                            changesPercentage,
-                            high: Number(snap.dailyBar?.h) || price,
-                            low: Number(snap.dailyBar?.l) || price,
-                            open: Number(snap.dailyBar?.o) || price,
-                            previousClose: hasPrevClose ? prevClose : price,
-                            logo: `https://financialmodelingprep.com/image-stock/${symbol}.png`,
-                        } as StockQuote];
-                    });
-                }
-            } catch {
-                stocks = [];
-            }
-        }
-
-        const FMP_KEY = process.env.FMP_API_KEY;
-        if (stocks.length < allSymbols.length / 2 && FMP_KEY) {
-            try {
-                const symbolsCsv = allSymbols.map(s => s.symbol).join(",");
-                // New FMP accounts can only use the /stable API (legacy /api/v3
-                // returns 403 for them); older keys are the reverse. Try both.
-                const batchUrls = [
-                    `https://financialmodelingprep.com/stable/batch-quote?symbols=${symbolsCsv}&apikey=${FMP_KEY}`,
-                    `https://financialmodelingprep.com/stable/batch-quote-short?symbols=${symbolsCsv}&apikey=${FMP_KEY}`,
-                    `https://financialmodelingprep.com/api/v3/quote/${symbolsCsv}?apikey=${FMP_KEY}`,
-                ];
-                let arr: any[] = [];
-                for (const url of batchUrls) {
-                    const res = await fetch(url, { next: { revalidate: 120 } });
-                    if (!res.ok) continue;
-                    const json = await res.json();
-                    if (Array.isArray(json) && json.length > 0) { arr = json; break; }
-                }
-                if (arr.length > 0) {
-                    const bySymbol = new Map<string, any>(arr.map(q => [q.symbol, q]));
-                    stocks = allSymbols.flatMap(({ symbol, name, sector, sectorColor }) => {
-                        const q = bySymbol.get(symbol);
-                        const price = Number(q?.price);
-                        if (!q || !Number.isFinite(price) || price === 0) return [];
-                        return [{
-                            symbol,
-                            name,
-                            sector,
-                            sectorColor,
-                            price,
-                            change: Number(q.change) || 0,
-                            changesPercentage: Number(q.changesPercentage)
-                                || (Number(q.change) && price !== Number(q.change)
-                                    ? (Number(q.change) / (price - Number(q.change))) * 100
-                                    : 0),
-                            high: Number(q.dayHigh) || price,
-                            low: Number(q.dayLow) || price,
-                            open: Number(q.open) || price,
-                            previousClose: Number(q.previousClose) || price,
-                            logo: `https://financialmodelingprep.com/image-stock/${symbol}.png`,
-                        } as StockQuote];
-                    });
-                }
-            } catch {
-                stocks = [];
-            }
-        }
-
-        // Fallback: Finnhub individual quotes, trimmed to stay under the
-        // free-tier rate limit (6 per sector = the pre-expansion universe).
-        if (stocks.length < allSymbols.length / 2) {
-            const trimmed = SECTORS.flatMap(sector =>
-                sector.stocks.slice(0, 6).map(stock => ({
-                    ...stock,
-                    sector: sector.name,
-                    sectorColor: sector.color,
-                }))
-            );
-            const results = await Promise.all(
-                trimmed.map(async ({ symbol, name, sector, sectorColor }) => {
-                    try {
-                        const res = await fetch(
-                            `${BASE_URL}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`,
-                            { next: { revalidate: 60 } }
-                        );
-                        if (!res.ok) return null;
-                        const d = await res.json();
-                        if (!d.c || d.c === 0) return null;
-                        return {
-                            symbol,
-                            name,
-                            sector,
-                            sectorColor,
-                            price: d.c,
-                            change: d.d ?? 0,
-                            changesPercentage: d.dp ?? 0,
-                            high: d.h ?? d.c,
-                            low: d.l ?? d.c,
-                            open: d.o ?? d.c,
-                            previousClose: d.pc ?? d.c,
-                            logo: `https://financialmodelingprep.com/image-stock/${symbol}.png`,
-                        } as StockQuote;
-                    } catch {
-                        return null;
-                    }
-                })
-            );
-            stocks = results.filter(Boolean) as StockQuote[];
-        }
+        const stocks: StockQuote[] = allSymbols.flatMap(({ symbol, name, sector, sectorColor }) => {
+            const snapshot = snapshots[symbol];
+            const price = snapshotPrice(snapshot);
+            if (price === null) return [];
+            const move = snapshotChange(snapshot);
+            const previousClose = snapshot?.prevDailyBar?.c;
+            return [{
+                symbol,
+                name,
+                sector,
+                sectorColor,
+                price,
+                change: move?.change ?? 0,
+                changesPercentage: move?.changePct ?? 0,
+                high: snapshot?.dailyBar?.h ?? price,
+                low: snapshot?.dailyBar?.l ?? price,
+                open: snapshot?.dailyBar?.o ?? price,
+                previousClose: typeof previousClose === "number" && previousClose > 0 ? previousClose : price,
+                // Logos came from a vendor image CDN that went with the rest of
+                // them; the client falls back to its own mark on an empty string.
+                logo: "",
+            } as StockQuote];
+        });
 
         const gainers = [...stocks]
             .filter(s => s.changesPercentage > 0)
