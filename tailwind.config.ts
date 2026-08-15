@@ -1,7 +1,10 @@
 import type { Config } from "tailwindcss";
 
-// all in fixtures is set to tailwind v3 as interims solutions
-
+/*
+ * Colors resolve from the CSS custom properties in app/globals.css, which are
+ * the iOS app's Theme tokens (Core/DesignSystem/Theme.swift). Channels are
+ * space-separated RGB so `/alpha` modifiers keep working.
+ */
 const config: Config = {
 	darkMode: ["class"],
 	content: [
@@ -17,83 +20,82 @@ const config: Config = {
 				mono: ['var(--font-ibm-plex-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
 			},
 			colors: {
-				background: 'hsl(var(--background))',
-				foreground: 'hsl(var(--foreground))',
+				background: 'rgb(var(--background) / <alpha-value>)',
+				sunken: 'rgb(var(--surface-sunken) / <alpha-value>)',
+				foreground: 'rgb(var(--foreground) / <alpha-value>)',
+				body: 'rgb(var(--text-body) / <alpha-value>)',
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
+					DEFAULT: 'rgb(var(--card) / <alpha-value>)',
+					foreground: 'rgb(var(--card-foreground) / <alpha-value>)'
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))'
+					DEFAULT: 'rgb(var(--popover) / <alpha-value>)',
+					foreground: 'rgb(var(--popover-foreground) / <alpha-value>)'
 				},
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+					foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
+					hover: 'rgb(var(--brand-hover) / <alpha-value>)',
+					press: 'rgb(var(--brand-press) / <alpha-value>)',
+					soft: 'rgb(var(--primary-soft) / <alpha-value>)'
 				},
+				brand: 'rgb(var(--brand-blue) / <alpha-value>)',
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
+					foreground: 'rgb(var(--secondary-foreground) / <alpha-value>)'
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))'
+					DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
+					foreground: 'rgb(var(--muted-foreground) / <alpha-value>)'
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+					foreground: 'rgb(var(--accent-foreground) / <alpha-value>)',
+					purple: 'rgb(var(--accent-purple) / <alpha-value>)',
+					orange: 'rgb(var(--accent-orange) / <alpha-value>)'
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))'
+					DEFAULT: 'rgb(var(--destructive) / <alpha-value>)',
+					foreground: 'rgb(var(--destructive-foreground) / <alpha-value>)'
 				},
-				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
-				chart: {
-					'1': 'hsl(var(--chart-1))',
-					'2': 'hsl(var(--chart-2))',
-					'3': 'hsl(var(--chart-3))',
-					'4': 'hsl(var(--chart-4))',
-					'5': 'hsl(var(--chart-5))'
+				positive: 'rgb(var(--positive) / <alpha-value>)',
+				negative: 'rgb(var(--negative) / <alpha-value>)',
+				caution: 'rgb(var(--caution) / <alpha-value>)',
+				border: {
+					DEFAULT: 'rgb(var(--border) / <alpha-value>)',
+					strong: 'rgb(var(--border-strong) / <alpha-value>)'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				}
+				input: 'rgb(var(--input) / <alpha-value>)',
+				ring: 'rgb(var(--ring) / <alpha-value>)'
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				// Theme.Radius — sm 8, md 10, lg 12, xl 16, 2xl 20; the big Home
+				// cards use 22 (rounded-card).
+				sm: '8px',
+				md: '10px',
+				lg: '12px',
+				xl: '16px',
+				'2xl': '20px',
+				card: '22px'
 			},
 			keyframes: {
 				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
 				},
 				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
+				},
+				'fade-up': {
+					from: { opacity: '0', transform: 'translateY(6px)' },
+					to: { opacity: '1', transform: 'translateY(0)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-up': 'fade-up 0.25s ease-out both'
 			}
 		}
 	},

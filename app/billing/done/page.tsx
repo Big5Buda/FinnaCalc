@@ -1,38 +1,65 @@
 "use client"
 
+import Link from "next/link"
 import { Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { CheckCircle2, CircleSlash } from "lucide-react"
 
 /**
- * Bridge page for the iOS checkout round-trip.
+ * Where Stripe Checkout and the customer portal come back to.
  *
- * Stripe Checkout and the customer portal only accept http(s) redirect URLs,
- * but the app's ASWebAuthenticationSession closes on the finnacalc:// scheme.
- * This page immediately bounces the browser to
- * finnacalc://billing-callback?status=… so the in-app session dismisses
- * itself; the static copy below is the fallback when the redirect can't fire
- * (or someone lands here on the web).
+ * On the web this is just a confirmation page. The iOS app finishes checkout
+ * in an ASWebAuthenticationSession that only closes on the finnacalc:// scheme,
+ * so its checkout links carry `client=ios` and this page bounces there; a web
+ * checkout never does, and stays on the site.
  */
 function BillingDoneInner() {
     const params = useSearchParams()
     const status = params.get("status") ?? "done"
+    const isApp = params.get("client") === "ios"
 
     useEffect(() => {
-        window.location.replace(`finnacalc://billing-callback?status=${encodeURIComponent(status)}`)
-    }, [status])
+        if (isApp) {
+            window.location.replace(`finnacalc://billing-callback?status=${encodeURIComponent(status)}`)
+        }
+    }, [isApp, status])
 
-    const headline =
-        status === "success"
-            ? "You're all set"
-            : status === "cancel"
-              ? "Checkout canceled"
-              : "Done"
+    const success = status === "success"
+    const headline = success ? "You're all set" : status === "cancel" ? "Checkout canceled" : "Done"
+    const detail = isApp
+        ? "You can close this window and return to the FinnaCalc app."
+        : success
+          ? "Your plan is active. It can take a few seconds to show up while Stripe confirms the payment."
+          : status === "cancel"
+            ? "Nothing was charged. You can pick a plan whenever you're ready."
+            : "Your billing settings are up to date."
 
     return (
-        <main style={{ fontFamily: "system-ui, sans-serif", padding: "4rem 1.5rem", textAlign: "center" }}>
-            <h1 style={{ fontSize: "1.5rem", marginBottom: "0.75rem" }}>{headline}</h1>
-            <p style={{ color: "#555" }}>You can close this window and return to the FinnaCalc app.</p>
-        </main>
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 px-5 py-20 text-center">
+            {success ? (
+                <CheckCircle2 className="h-10 w-10 text-positive" />
+            ) : (
+                <CircleSlash className="h-10 w-10 text-muted-foreground" />
+            )}
+            <h1 className="text-xl font-bold text-foreground">{headline}</h1>
+            <p className="text-sm text-muted-foreground">{detail}</p>
+            {!isApp && (
+                <div className="flex gap-3 pt-2">
+                    <Link
+                        href="/account"
+                        className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                    >
+                        Go to your account
+                    </Link>
+                    <Link
+                        href="/plans"
+                        className="rounded-md border border-border px-4 py-2.5 text-sm font-semibold text-foreground"
+                    >
+                        See plans
+                    </Link>
+                </div>
+            )}
+        </div>
     )
 }
 
