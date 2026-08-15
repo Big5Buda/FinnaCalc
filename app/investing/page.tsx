@@ -106,7 +106,10 @@ export default function InvestingPage() {
 
             <nav className="flex flex-wrap gap-2">
                 {[
+                    { href: "/investing/portfolio", label: "Portfolio" },
                     { href: "/investing/watchlist", label: "Watchlist" },
+                    { href: "/investing/goals", label: "Goals" },
+                    { href: "/investing/tracker", label: "Trade Tracker" },
                     { href: "/investing/screener", label: "Screener" },
                     { href: "/investing/etfs", label: "ETFs & index funds" },
                     { href: "/investing/safe-investments", label: "Safe investments" },
