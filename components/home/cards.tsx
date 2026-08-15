@@ -6,19 +6,20 @@ import { useEffect, useState } from "react"
 import { ArrowRight, ArrowUp, ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react"
 import * as Icons from "lucide-react"
 import { cn } from "@/lib/utils"
-import { fixed } from "@/lib/format"
+import { compactMoney, fixed } from "@/lib/format"
 import { apiGet } from "@/lib/api-client"
 import { CALCULATORS } from "@/lib/calculators/catalog"
 import { useChat } from "@/components/providers/chat-provider"
+import { useBudget } from "@/components/providers/budget-provider"
+import { goalIsOver, goalRingColor, measureGoal, resolveGoalEmoji } from "@/lib/budget/goals"
+import { goalProgressVerb } from "@/lib/budget/types"
+import { Donut, DonutLegend, GoalRing, SampleDonut } from "@/components/budget/charts"
 import { SectionLabel } from "@/components/ui/primitives"
 
 /**
  * The Home cards, ported from Features/Home/PaperHome.swift. Geometry follows
  * the design's big-card spec: 22px radius, 18/18/16/18 insets, a 153px floor,
  * a weighted border and the static ambient halo.
- *
- * Expenses and Goals are budgeting-driven and ship with the budgeting pass —
- * a permanently empty card with a dead link would be worse than no card.
  */
 
 const BIG_CARD =
@@ -51,6 +52,132 @@ export function PromptCard() {
                 <ArrowUp className="h-3.5 w-3.5" strokeWidth={3} />
             </span>
         </button>
+    )
+}
+
+/**
+ * Expenses as a full-width card: this month's total in a donut broken down by
+ * category, with the top categories legended beside it. Empty, it shows a
+ * sample donut carrying no figures at all — it previews the shape the card will
+ * take and can't be mistaken for the user's own numbers.
+ */
+export function ExpensesCard() {
+    const { expenseByCategory, monthlyExpenses } = useBudget()
+
+    // Top 3 categories + an "Other" rollup, so the legend never leaves a wedge
+    // unlabelled.
+    const slices = (() => {
+        const top = expenseByCategory.slice(0, 3).filter((slice) => slice.value > 0)
+        const rest = expenseByCategory.slice(3).reduce((sum, slice) => sum + slice.value, 0)
+        return rest > 0 ? [...top, { name: "Other", value: rest }] : top
+    })()
+
+    return (
+        <Link href="/budgeting/budget" className={cn(BIG_CARD, "transition hover:brightness-[0.99]")}>
+            <BigCardHeader>EXPENSES</BigCardHeader>
+            {slices.length === 0 ? (
+                <div className="flex items-center gap-4">
+                    <SampleDonut />
+                    <div className="flex flex-col gap-0.5">
+                        <p className="text-sm font-semibold text-foreground">Add your first expense</p>
+                        <p className="text-xs text-muted-foreground">See where your money goes each month</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-center gap-4">
+                    <Donut slices={slices} centerLabel={compactMoney(monthlyExpenses)} />
+                    <DonutLegend slices={slices} />
+                </div>
+            )}
+        </Link>
+    )
+}
+
+/**
+ * Goals as a full-width card: the top two by completion, emoji rings. One goal
+ * (or none) gets the Expenses card's shape — a big ring on the left, text
+ * beside it; two fall back to the compact stack, which is the only way both fit.
+ */
+export function GoalsCard() {
+    const { currentGoals, currentItems } = useBudget()
+
+    const ranked = [...currentGoals]
+        .filter((goal) => goal.targetAmount > 0)
+        .map((goal) => ({ goal, measure: measureGoal(goal, currentItems) }))
+        .sort((a, b) => b.measure.fraction - a.measure.fraction)
+        .slice(0, 2)
+
+    return (
+        <Link href="/budgeting/goals" className={cn(BIG_CARD, "transition hover:brightness-[0.99]")}>
+            <BigCardHeader>GOALS</BigCardHeader>
+            {ranked.length === 0 ? (
+                <div className="flex flex-1 items-center gap-4">
+                    <GoalRing fraction={0} color="rgb(var(--positive))" size={69}>
+                        🎯
+                    </GoalRing>
+                    <div className="flex flex-col gap-0.5">
+                        <p className="text-sm font-semibold text-foreground">Set your first savings goal</p>
+                        <p className="text-xs text-muted-foreground">Track progress right here</p>
+                    </div>
+                </div>
+            ) : ranked.length === 1 ? (
+                <div className="flex flex-1 items-center gap-4">
+                    <GoalRing
+                        fraction={ranked[0].measure.fraction}
+                        color={
+                            goalIsOver(ranked[0].goal, ranked[0].measure)
+                                ? "rgb(var(--negative))"
+                                : (goalRingColor(ranked[0].goal.ringColorHex) ?? "rgb(var(--positive))")
+                        }
+                        size={69}
+                    >
+                        {resolveGoalEmoji(ranked[0].goal)}
+                    </GoalRing>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                        <p className="truncate text-sm font-semibold text-foreground">{ranked[0].goal.name}</p>
+                        <p className="figure text-[11px] font-normal text-muted-foreground">
+                            {compactMoney(ranked[0].measure.current)} / {compactMoney(ranked[0].measure.target)}
+                        </p>
+                        <p
+                            className={cn(
+                                "figure text-[11px] font-normal",
+                                goalIsOver(ranked[0].goal, ranked[0].measure) ? "text-negative" : "text-positive"
+                            )}
+                        >
+                            {Math.round(ranked[0].measure.fraction * 100)}%{" "}
+                            {goalProgressVerb(ranked[0].goal.kind)}
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-3">
+                    {ranked.map(({ goal, measure }) => (
+                        <div key={goal.id} className="flex items-center gap-3">
+                            <GoalRing
+                                fraction={measure.fraction}
+                                color={
+                                    goalIsOver(goal, measure)
+                                        ? "rgb(var(--negative))"
+                                        : (goalRingColor(goal.ringColorHex) ?? "rgb(var(--positive))")
+                                }
+                                size={40}
+                            >
+                                {resolveGoalEmoji(goal)}
+                            </GoalRing>
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <p className="truncate text-sm font-semibold text-foreground">{goal.name}</p>
+                                <p className="figure text-[11px] font-normal text-muted-foreground">
+                                    {compactMoney(measure.current)} / {compactMoney(measure.target)}
+                                </p>
+                            </div>
+                            <p className="figure shrink-0 text-xs font-normal text-muted-foreground">
+                                {Math.round(measure.fraction * 100)}%
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </Link>
     )
 }
 

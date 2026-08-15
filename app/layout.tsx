@@ -6,6 +6,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { AppearanceProvider, APPEARANCE_KEY } from '@/components/providers/appearance-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ChatProvider } from '@/components/providers/chat-provider'
+import { BudgetProvider } from '@/components/providers/budget-provider'
 import { SiteHeader } from '@/components/shell/site-header'
 import { SiteFooter } from '@/components/shell/site-footer'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
@@ -70,14 +71,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <body className="font-sans antialiased bg-background text-foreground">
                 <AppearanceProvider>
                     <AuthProvider>
-                        <ChatProvider>
-                            <div className="flex min-h-screen flex-col">
-                                <SiteHeader />
-                                <main className="flex-1">{children}</main>
-                                <SiteFooter />
-                            </div>
-                            <FinnaBotPanel />
-                        </ChatProvider>
+                        <BudgetProvider>
+                            <ChatProvider>
+                                <div className="flex min-h-screen flex-col">
+                                    <SiteHeader />
+                                    <main className="flex-1">{children}</main>
+                                    <SiteFooter />
+                                </div>
+                                <FinnaBotPanel />
+                            </ChatProvider>
+                        </BudgetProvider>
                     </AuthProvider>
                 </AppearanceProvider>
                 <Analytics />

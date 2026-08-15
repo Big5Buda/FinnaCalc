@@ -3,6 +3,8 @@
 import { useAuth } from "@/components/providers/auth-provider"
 import {
     CalculatorsSection,
+    ExpensesCard,
+    GoalsCard,
     InvestingCard,
     LessonOfWeekCard,
     PromptCard,
@@ -14,10 +16,8 @@ import { Wordmark } from "@/components/shell/wordmark"
  * Home — the web counterpart of the app's Home tab (HomeSignedOutView /
  * HomeDashboardView, which are deliberately the same page so nothing
  * rearranges itself the moment someone signs in). Header → FinnaBot prompt →
- * Investing → Lesson of the week → every calculator.
- *
- * The app's Expenses and Goals cards are budgeting-driven; they land on the
- * web with the budgeting pass rather than sitting here permanently empty.
+ * Expenses → Investing → Goals → Lesson of the week → every calculator, in the
+ * app's own order.
  */
 export default function HomePage() {
     const { user } = useAuth()
@@ -36,7 +36,9 @@ export default function HomePage() {
             </header>
 
             <PromptCard />
+            <ExpensesCard />
             <InvestingCard />
+            <GoalsCard />
             <LessonOfWeekCard />
             <CalculatorsSection />
             <AppStoreStrip />

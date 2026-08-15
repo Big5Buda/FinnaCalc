@@ -17,6 +17,7 @@ import { Wordmark } from "@/components/shell/wordmark"
  */
 const NAV = [
     { href: "/", label: "Home" },
+    { href: "/budgeting", label: "Budgeting" },
     { href: "/calculators", label: "Calculators" },
     { href: "/taxes", label: "Taxes" },
     { href: "/education", label: "Education" },
