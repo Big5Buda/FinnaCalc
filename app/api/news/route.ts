@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { news as alpacaNews } from "@/lib/alpaca";
 import {
     BROWSER_UA,
     decodeEntities,
@@ -9,48 +10,32 @@ import {
     type NewsArticle,
 } from "@/lib/rss";
 
-// Per-symbol company news (Cash App "News" row on the stock detail).
+// Per-symbol company news.
 //
-// Finnhub /company-news skews heavily Reuters, so it's blended with Google
-// News' per-ticker RSS (per-item real outlet names — Barron's, Insider,
-// GuruFocus, etc.) and Yahoo Finance's symbol RSS, interleaved by feed. All
-// sources are best-effort — a blocked feed just drops out.
+// Alpaca's news API (Benzinga-sourced) replaces the Finnhub feed this used to
+// blend. It's still blended with Google News' per-ticker RSS and Yahoo
+// Finance's symbol RSS — public feeds, no vendor key — because any single
+// source skews toward its own wire, and interleaving keeps one outlet from
+// saturating the row. Every source is best-effort: a blocked feed just drops
+// out.
 
 export const revalidate = 900;
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const FINNHUB = "https://finnhub.io/api/v1";
-
-function ymd(d: Date): string {
-    return d.toISOString().slice(0, 10);
-}
-
-async function fetchFinnhubCompanyNews(symbol: string): Promise<NewsArticle[]> {
-    if (!FINNHUB_API_KEY) return [];
-    const to = new Date();
-    const from = new Date(to.getTime() - 14 * 24 * 60 * 60 * 1000);
-    try {
-        const res = await fetch(
-            `${FINNHUB}/company-news?symbol=${symbol}&from=${ymd(from)}&to=${ymd(to)}&token=${FINNHUB_API_KEY}`,
-            { next: { revalidate } },
-        );
-        if (!res.ok) return [];
-        const raw = (await res.json()) as any[];
-        return (Array.isArray(raw) ? raw : [])
-            .filter((a) => a && a.headline && a.url)
-            .slice(0, 8)
-            .map((a) => ({
-                id: String(a.id ?? a.url),
-                headline: decodeEntities(a.headline),
-                source: a.source ?? "Finnhub",
-                url: a.url,
-                image: faviconFor(a.url) || (a.image ?? ""),
-                datetime: typeof a.datetime === "number" ? a.datetime : null,
-                summary: decodeEntities(a.summary ?? ""),
-            }));
-    } catch {
-        return [];
-    }
+async function fetchAlpaca(symbol: string): Promise<NewsArticle[]> {
+    const items = await alpacaNews({ symbols: [symbol], limit: 10 }, revalidate);
+    return items
+        .filter((item) => item.headline && item.url)
+        .map((item) => ({
+            id: String(item.id ?? item.url),
+            headline: decodeEntities(item.headline),
+            source: item.source || "Alpaca",
+            url: item.url,
+            image: faviconFor(item.url) || (item.images?.[0]?.url ?? ""),
+            datetime: Number.isFinite(Date.parse(item.created_at))
+                ? Math.round(Date.parse(item.created_at) / 1000)
+                : null,
+            summary: decodeEntities(item.summary ?? ""),
+        }));
 }
 
 async function fetchGoogleNews(symbol: string): Promise<NewsArticle[]> {
@@ -76,8 +61,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Symbol is required." }, { status: 400 });
     }
 
-    const [finnhub, google, yahoo] = await Promise.all([
-        fetchFinnhubCompanyNews(symbol),
+    const [alpaca, google, yahoo] = await Promise.all([
+        fetchAlpaca(symbol),
         fetchGoogleNews(symbol),
         fetchRssFeed(
             "Yahoo Finance",
@@ -86,6 +71,6 @@ export async function GET(request: NextRequest) {
         ),
     ]);
 
-    const articles = interleaveBySource([google, yahoo, finnhub], 12);
+    const articles = interleaveBySource([alpaca, google, yahoo], 12);
     return NextResponse.json({ symbol, articles });
 }

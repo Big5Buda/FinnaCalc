@@ -1,82 +1,74 @@
-// Shared live-quote lookup: Finnhub first, FMP as the fallback.
+// Shared live-quote lookup. Alpaca is the only provider: equities come from
+// the stock snapshots endpoint, crypto pairs from the crypto one.
 //
-// Finnhub's free tier covers US equities but NOT indices (^GSPC, ^IXIC) or
-// crypto (BTCUSD), so those fall through to FMP. That fallback matters for the
-// quota: FMP's free tier allows only 250 requests/DAY, while Finnhub's is
-// per-minute — so every FMP call is scarce and every Finnhub call is not.
-// Callers should cache accordingly (see /api/market-stats).
+// A quote is only returned when Alpaca actually has one. Callers render "—"
+// otherwise rather than showing a figure nobody can stand behind.
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const FINNHUB_BASE = "https://finnhub.io/api/v1";
-const FMP_KEY = process.env.FMP_API_KEY;
+import {
+    asset,
+    cryptoSnapshots,
+    isCryptoSymbol,
+    snapshotChange,
+    snapshotPrice,
+    stockSnapshots,
+} from "@/lib/alpaca"
 
 export type LiveQuote = {
-    price: number;
-    change: number;
-    changePct: number;
-    /// Instrument name, when the provider supplies one (FMP does; Finnhub's
-    /// /quote does not).
-    name: string | null;
-};
-
-/// Returns parsed JSON, or null on any failure (network, non-OK, premium-gated).
-async function fhSafe(path: string, revalidate: number): Promise<any | null> {
-    if (!FINNHUB_API_KEY) return null;
-    try {
-        const res = await fetch(`${FINNHUB_BASE}${path}&token=${FINNHUB_API_KEY}`, {
-            next: { revalidate },
-        });
-        if (!res.ok) return null;
-        return await res.json();
-    } catch {
-        return null;
-    }
+    price: number
+    change: number
+    changePct: number
+    /** Instrument name, when the assets endpoint knows it. */
+    name: string | null
 }
 
-/// FMP quote — the only free source here for indices and crypto. Tries the
-/// `stable` then legacy `v3` form, since which one is served depends on plan.
-export async function fmpQuote(symbol: string, revalidate = 60): Promise<any | null> {
-    if (!FMP_KEY) return null;
-    const urls = [
-        `https://financialmodelingprep.com/stable/quote?symbol=${encodeURIComponent(symbol)}&apikey=${FMP_KEY}`,
-        `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(symbol)}?apikey=${FMP_KEY}`,
-    ];
-    for (const url of urls) {
-        try {
-            const res = await fetch(url, { next: { revalidate } });
-            if (!res.ok) continue;
-            const arr = await res.json();
-            const q = Array.isArray(arr) ? arr[0] : arr;
-            if (q && typeof q.price === "number" && q.price > 0) return q;
-        } catch {
-            // try the next form
+/**
+ * Live quotes for a batch of symbols, keyed by the caller's own symbol form.
+ * Equities and crypto are fetched in one request each rather than one per
+ * symbol.
+ */
+export async function fetchQuotes(
+    symbols: string[],
+    revalidate = 60
+): Promise<Record<string, LiveQuote>> {
+    const wanted = symbols.map((symbol) => symbol.toUpperCase().trim()).filter(Boolean)
+    if (wanted.length === 0) return {}
+
+    const equities = wanted.filter((symbol) => !isCryptoSymbol(symbol))
+    const cryptos = wanted.filter(isCryptoSymbol)
+
+    const [equitySnapshots, cryptoSnaps] = await Promise.all([
+        stockSnapshots(equities, revalidate),
+        cryptoSnapshots(cryptos, revalidate),
+    ])
+    const snapshots = { ...equitySnapshots, ...cryptoSnaps }
+
+    const out: Record<string, LiveQuote> = {}
+    for (const symbol of wanted) {
+        const snapshot = snapshots[symbol]
+        const price = snapshotPrice(snapshot)
+        if (price === null) continue
+        const move = snapshotChange(snapshot)
+        out[symbol] = {
+            price,
+            change: move?.change ?? 0,
+            changePct: move?.changePct ?? 0,
+            name: null,
         }
     }
-    return null;
+    return out
 }
 
-/// A live price for any instrument, or null when no provider has one.
-/// `revalidate` is forwarded to both providers so callers can trade freshness
-/// against the FMP daily quota.
+/**
+ * A live price for one instrument, or null when Alpaca has none. The name costs
+ * a second (day-cached) call, so it's only looked up for equities, which is
+ * where Alpaca has one.
+ */
 export async function fetchQuote(symbol: string, revalidate = 60): Promise<LiveQuote | null> {
-    const fh = await fhSafe(`/quote?symbol=${encodeURIComponent(symbol)}`, revalidate);
-    if (fh && typeof fh.c === "number" && fh.c > 0) {
-        return {
-            price: fh.c,
-            change: typeof fh.d === "number" ? fh.d : 0,
-            changePct: typeof fh.dp === "number" ? fh.dp : 0,
-            name: null,
-        };
-    }
-    const fq = await fmpQuote(symbol, revalidate);
-    if (fq) {
-        return {
-            price: fq.price,
-            change: typeof fq.change === "number" ? fq.change : 0,
-            changePct: typeof fq.changePercentage === "number" ? fq.changePercentage
-                : typeof fq.changesPercentage === "number" ? fq.changesPercentage : 0,
-            name: typeof fq.name === "string" ? fq.name : null,
-        };
-    }
-    return null;
+    const upper = symbol.toUpperCase().trim()
+    const quotes = await fetchQuotes([upper], revalidate)
+    const quote = quotes[upper]
+    if (!quote) return null
+    if (isCryptoSymbol(upper)) return quote
+    const info = await asset(upper)
+    return { ...quote, name: info?.name ?? null }
 }
