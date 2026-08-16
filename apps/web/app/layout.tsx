@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
 import "./globals.css"
 import { SiteFooter, SiteNav } from "@/components/site"
+import { DataHandoffBanner } from "@/components/data-handoff"
 import { SITE_ORIGIN } from "@/lib/app-url"
 
 /*
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`}>
             <body className="font-sans antialiased">
                 <div className="flex min-h-screen flex-col">
+                    <DataHandoffBanner />
                     <SiteNav />
                     <main className="flex-1">{children}</main>
                     <SiteFooter />
