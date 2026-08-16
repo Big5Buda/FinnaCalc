@@ -31,3 +31,10 @@ next-env.d.ts
 
 # graphify knowledge graph output
 /graphify-out/
+
+# monorepo
+.turbo/
+apps/*/.next/
+packages/*/dist/
+apps/*/node_modules/
+node_modules/
