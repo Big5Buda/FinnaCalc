@@ -87,7 +87,16 @@ function averageVolume(series: AlpacaBar[] | undefined): number | null {
 
 export async function GET(request: NextRequest) {
     if (!isAlpacaConfigured) {
-        return NextResponse.json({ rows: [], error: "Screener not configured — add ALPACA_API_KEY_ID." });
+        // 503, like every sibling route. The status is load-bearing: Next
+        // prerenders a cacheable 200 at build time, where the credentials are
+        // not visible, and then serves that frozen "not configured" body for
+        // as long as the deployment lives — which is exactly what happened.
+        // A non-200 is never cached, so a misconfiguration can report itself
+        // instead of outliving the fix.
+        return NextResponse.json(
+            { rows: [], error: "Screener not configured — add ALPACA_API_KEY_ID." },
+            { status: 503 },
+        );
     }
 
     const params = request.nextUrl.searchParams;
