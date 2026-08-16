@@ -12,6 +12,11 @@
  * So www keeps answering /api/* by forwarding it to the app origin. A future
  * iOS build should point at app.finnacalc.com directly, but this has to keep
  * working for as long as old builds are in the wild.
+ *
+ * NOTE: rewrites are resolved when the site is BUILT, not per request, so
+ * NEXT_PUBLIC_APP_ORIGIN has to be present in the build environment. Changing
+ * it afterwards does nothing until the site is rebuilt — which is easy to
+ * mistake for the proxy being broken.
  */
 
 const PRODUCTION_DEFAULT = "https://app.finnacalc.com"
