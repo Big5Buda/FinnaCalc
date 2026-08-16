@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * The token layer arrives through the shared Tailwind preset
+ * (@finnacalc/shared/tailwind-preset), so this file only carries what the
+ * marketing site adds on top.
+ */
+
+@layer base {
+  /* Body copy sits at 16–20px with a 1.6–1.8 line height, per the brief. */
+  body {
+    font-size: 17px;
+    line-height: 1.65;
+  }
+}

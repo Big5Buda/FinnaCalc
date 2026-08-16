@@ -1,0 +1,115 @@
+/**
+ * FinnaCalc design tokens — the iOS app's Theme.swift values, shared by the
+ * marketing site and the application so one brand ships from two origins.
+ *
+ * Channels are space-separated RGB so Tailwind's `/alpha` modifiers work.
+ * Light is the default layer; `.dark` on <html> carries the dark values.
+ */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 255 255 255;
+    --surface-sunken: 248 250 252;
+    --card: 255 255 255;
+    --card-foreground: 2 8 23;
+    --popover: 255 255 255;
+    --popover-foreground: 2 8 23;
+
+    /* Text */
+    --foreground: 2 8 23;
+    --text-body: 51 65 85;
+    --muted-foreground: 100 116 139;
+
+    /* Brand */
+    --primary: 37 99 235;
+    --primary-foreground: 248 250 252;
+    --brand-blue: 0 94 255;
+    --brand-hover: 29 78 216;
+    --brand-press: 30 64 175;
+
+    /* Neutrals */
+    --secondary: 241 245 249;
+    --secondary-foreground: 2 8 23;
+    --muted: 241 245 249;
+    --accent: 241 245 249;
+    --accent-foreground: 2 8 23;
+
+    /* Status */
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --positive: 22 163 74;
+    --negative: 220 38 38;
+    --caution: 245 158 11;
+
+    /* Result accents (CalcSupport.swift) */
+    --accent-purple: 147 51 234;
+    --accent-orange: 234 88 12;
+    --primary-soft: 232 241 254;
+
+    /* Lines */
+    --border: 226 232 240;
+    --border-strong: 203 213 225;
+    --input: 226 232 240;
+    --ring: 37 99 235;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* The dark page is pure black — the ink/sunken navies read blue on OLED. */
+    --background: 0 0 0;
+    --surface-sunken: 0 0 0;
+    --card: 15 23 42;
+    --card-foreground: 248 250 252;
+    --popover: 15 23 42;
+    --popover-foreground: 248 250 252;
+
+    --foreground: 248 250 252;
+    --text-body: 203 213 225;
+    --muted-foreground: 148 163 184;
+
+    --primary: 59 130 246;
+    --primary-foreground: 2 8 23;
+    --brand-blue: 46 125 255;
+    --brand-hover: 37 99 235;
+    --brand-press: 29 78 216;
+
+    --secondary: 30 41 59;
+    --secondary-foreground: 248 250 252;
+    --muted: 30 41 59;
+    --accent: 30 41 59;
+    --accent-foreground: 248 250 252;
+
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --positive: 74 222 128;
+    --negative: 239 68 68;
+    --caution: 245 158 11;
+
+    --accent-purple: 192 132 252;
+    --accent-orange: 251 146 60;
+    --primary-soft: 24 38 58;
+
+    --border: 30 41 59;
+    --border-strong: 51 65 85;
+    --input: 30 41 59;
+    --ring: 59 130 246;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Figures use the sans face at semibold, matching Theme.figure(...). */
+  .figure {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+

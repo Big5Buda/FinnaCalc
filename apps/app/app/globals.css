@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * The token layer lives in @finnacalc/shared (tokens.css) so the marketing
+ * site at the root domain and this app on its subdomain render the same brand.
+ * What stays here is what only the app needs: the base element rules and the
+ * component classes below.
+ */
+
+@layer components {
+  /*
+   * The shared Home card surface (PaperHome.paperCardSurface): fill, a
+   * weighted grey border — the page is white too, so a hairline barely reads —
+   * and a static ambient halo. Deliberately not animated: the drifting glow is
+   * the AI cards' signature.
+   */
+  .paper-card {
+    background-color: rgb(var(--card));
+    border: 1.5px solid rgb(var(--border));
+    box-shadow:
+      0 6px 18px rgb(var(--primary) / 0.13),
+      0 2px 5px rgb(2 8 23 / 0.05);
+  }
+
+  .paper-card-flat {
+    background-color: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
+    box-shadow: 0 2px 8px rgb(2 8 23 / 0.05);
+  }
+
+  /*
+   * The Gemini-style ambient glow shared by the FinnaBot entry points: a
+   * slowly drifting brand gradient as a blurred halo plus a matching border.
+   */
+  .ambient-glow {
+    position: relative;
+    background-color: rgb(var(--card));
+  }
+
+  .ambient-glow::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    background: linear-gradient(120deg, #2563eb, #7c3aed, #06b6d4, #2563eb);
+    background-size: 300% 300%;
+    filter: blur(15px);
+    opacity: 0.22;
+    animation: ambient-drift 9s linear infinite;
+    z-index: -1;
+  }
+
+  .ambient-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(120deg, #2563eb, #7c3aed, #06b6d4, #2563eb);
+    background-size: 300% 300%;
+    animation: ambient-drift 9s linear infinite;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  @keyframes ambient-drift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ambient-glow::before,
+    .ambient-glow::after {
+      animation: none;
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

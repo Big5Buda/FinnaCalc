@@ -6,7 +6,7 @@
  * instead of rendering NaN.
  */
 
-import { count, currency, percent } from "@/lib/format"
+import { count, currency, percent } from "./format"
 
 export type CalcAccent = "green" | "blue" | "red" | "purple" | "orange"
 
