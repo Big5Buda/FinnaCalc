@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
 import "./globals.css"
 import { SiteFooter, SiteNav } from "@/components/site"
+import { SITE_ORIGIN } from "@/lib/app-url"
 
 /*
  * The marketing site: un-gated, public, and the only origin a visitor meets
@@ -19,10 +20,8 @@ const ibmPlexMono = IBM_Plex_Mono({
     weight: ["400", "500", "600"],
 })
 
-const siteUrl = "https://www.finnacalc.com"
-
 export const metadata: Metadata = {
-    metadataBase: new URL(siteUrl),
+    metadataBase: new URL(SITE_ORIGIN),
     title: {
         default: "FinnaCalc — Real-time financial modelling and calculation",
         template: "%s — FinnaCalc",
@@ -33,7 +32,7 @@ export const metadata: Metadata = {
         title: "FinnaCalc — Real-time financial modelling and calculation",
         description:
             "Model savings, loans and retirement in real time. Free to use, no account needed to start.",
-        url: siteUrl,
+        url: SITE_ORIGIN,
         siteName: "FinnaCalc",
         type: "website",
     },
