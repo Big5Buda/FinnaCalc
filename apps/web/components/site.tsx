@@ -96,12 +96,17 @@ export function SectionLockup({ suffix, onColor = false }: { suffix: string; onC
     )
 }
 
+/*
+ * Nav items scroll to that product's section on this page. Nothing in the
+ * chrome deep-links into the app: the app is for signed-in users, and the only
+ * doors are Log in and Get started.
+ */
 const NAV = [
-    { href: appUrl("/calculators"), label: "Calculators" },
-    { href: appUrl("/budgeting"), label: "Budgeting" },
-    { href: appUrl("/investing"), label: "Investing" },
-    { href: appUrl("/taxes"), label: "Taxes" },
-    { href: appUrl("/education"), label: "Education" },
+    { href: "/#calculators", label: "Calculators" },
+    { href: "/#budgeting", label: "Budgeting" },
+    { href: "/#investing", label: "Investing" },
+    { href: "/#taxes", label: "Taxes" },
+    { href: "/#education", label: "Education" },
 ]
 
 export function SiteNav() {
@@ -185,26 +190,28 @@ export function SiteNav() {
 }
 
 /*
- * Footer columns. Every link is a route that exists today — nothing here is
- * aspirational. No Social column because FinnaCalc has no social accounts to
- * link; inventing them would be decoration pretending to be presence.
+ * Footer columns. Product links scroll to this page's sections — the app
+ * itself is behind sign-in, so the only app URLs left in the chrome are the
+ * ones that must be readable without an account: the legal pages (a person
+ * has to read terms BEFORE accepting them), About, and /migrate (a visitor
+ * arrives there with data but no account yet). No Social column because
+ * FinnaCalc has no social accounts to link.
  */
 const FOOTER_COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
     {
         title: "Products",
         links: [
-            { href: appUrl("/calculators"), label: "Calculators" },
-            { href: appUrl("/budgeting"), label: "Budgeting" },
-            { href: appUrl("/investing"), label: "Investing" },
-            { href: appUrl("/taxes"), label: "Taxes" },
-            { href: appUrl("/education"), label: "Education" },
+            { href: "/#calculators", label: "Calculators" },
+            { href: "/#budgeting", label: "Budgeting" },
+            { href: "/#investing", label: "Investing" },
+            { href: "/#taxes", label: "Taxes" },
+            { href: "/#education", label: "Education" },
         ],
     },
     {
         title: "Company",
         links: [
             { href: appUrl("/about"), label: "About" },
-            { href: appUrl("/plans"), label: "Plans" },
             { href: appUrl("/privacy"), label: "Privacy policy" },
             { href: appUrl("/terms"), label: "Terms of use" },
         ],
@@ -214,7 +221,6 @@ const FOOTER_COLUMNS: { title: string; links: { href: string; label: string }[] 
         links: [
             { href: "mailto:helpfinnacalc@gmail.com", label: "Contact us" },
             { href: appUrl("/migrate"), label: "Move your data" },
-            { href: appUrl("/account"), label: "Your account" },
         ],
     },
 ]

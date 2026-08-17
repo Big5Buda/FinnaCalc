@@ -5,7 +5,7 @@ import { CALCULATORS } from "@finnacalc/shared/calculators-catalog"
 import { Rise, Stagger } from "@/components/motion"
 import { CalculatorWidget } from "@/components/calculator-widget"
 import { CircleArrow, Pill, SectionLockup } from "@/components/site"
-import { appUrl, signUpUrl } from "@/lib/app-url"
+import { signUpUrl } from "@/lib/app-url"
 import { cn } from "@/lib/utils"
 
 /*
@@ -116,7 +116,7 @@ export function CalculatorsSection() {
                 </Rise>
 
                 <Rise>
-                    <CircleArrow href={appUrl("/calculators")} label="Open all calculators" />
+                    <CircleArrow href={signUpUrl()} label="Get started with the calculators" />
                 </Rise>
             </Stagger>
         </section>
@@ -134,8 +134,8 @@ export function BudgetingSection() {
             lockupSuffix="Budgeting"
             headline="A budget that lives on your device, not our servers."
             copy="Connect a bank through Plaid or type it in by hand. Category caps, recurring charges, savings goals — stored in your browser, where clearing your data really deletes it."
-            href={appUrl("/budgeting")}
-            ctaLabel="Open Budgeting"
+            href={signUpUrl()}
+            ctaLabel="Get started with Budgeting"
         >
             <PhoneMockup />
         </ProductSection>
@@ -235,8 +235,8 @@ export function InvestingSection() {
             lockupSuffix="Investing"
             headline="Live quotes, your real holdings, and ten years of filings."
             copy="Follow markets, dig into SEC statements, and track your actual portfolio with its real cost basis. Orders execute at your own brokerage — FinnaCalc never holds your money."
-            href={appUrl("/investing")}
-            ctaLabel="Open Investing"
+            href={signUpUrl()}
+            ctaLabel="Get started with Investing"
             flip
         >
             <MarketLines />
@@ -303,8 +303,8 @@ export function TaxesSection() {
             lockupSuffix="Taxes"
             headline={`A full-return estimator, checked by ${TAX_TEST_COUNT} automated tests.`}
             copy="Federal and state, filing status, dependents, capital gains, self-employment — a real 1040 engine, not a bracket lookup. An estimate, clearly labelled, never filed for you."
-            href={appUrl("/taxes")}
-            ctaLabel="Open Taxes"
+            href={signUpUrl()}
+            ctaLabel="Get started with Taxes"
         >
             <TaxCard />
         </ProductSection>
@@ -360,8 +360,8 @@ export function EducationSection() {
                                 Short lessons on credit, investing, retirement and tax — plain language,
                                 no jargon, and no product pitch hiding in paragraph three.
                             </p>
-                            <Pill href={appUrl("/education")} tone="outline" className="px-6">
-                                Start a lesson
+                            <Pill href={signUpUrl()} tone="outline" className="px-6">
+                                Get started
                             </Pill>
                         </div>
                     </div>

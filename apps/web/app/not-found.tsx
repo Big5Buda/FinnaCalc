@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { appUrl } from "@/lib/app-url"
+import { loginUrl } from "@/lib/app-url"
 import { Pill } from "@/components/site"
 
 /**
@@ -19,8 +19,8 @@ export default function NotFound() {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
                 <Pill href="/">Back to the homepage</Pill>
-                <Pill href={appUrl("/")} tone="outline">
-                    Open the app
+                <Pill href={loginUrl()} tone="outline">
+                    Log in
                 </Pill>
             </div>
         </section>
