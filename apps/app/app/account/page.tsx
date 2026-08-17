@@ -9,6 +9,7 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { useAppearance, type Appearance } from "@/components/providers/appearance-provider"
 import { Badge, Button, IconChip, Notice, SectionLabel } from "@/components/ui/primitives"
 import { planFor, type BillingInterval, type PlanTier } from "@/lib/plans"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Account — the web port of Features/Auth/AccountView.swift: sign-in hero or
@@ -60,8 +61,9 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-5 py-6">
-            <h1 className="text-[15.5px] font-bold text-foreground">Account</h1>
+        <>
+            <PageBar title="Account" />
+            <PageBody className="flex w-full max-w-2xl flex-col gap-6">
 
             {loading ? (
                 <div className="rounded-2xl border border-border bg-card p-[18px] text-sm text-muted-foreground">
@@ -199,7 +201,8 @@ export default function AccountPage() {
                     </button>
                 </div>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }
 
