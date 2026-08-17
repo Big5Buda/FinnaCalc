@@ -11,6 +11,7 @@ import { accounts as fetchAccounts, orders as fetchOrders, type Order } from "@/
 import { holdings, provisionalPositions, type Holding } from "@/lib/investing/analytics"
 import { GoalRing } from "@/components/budget/charts"
 import { Button, Notice } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Investing goals — ported from Features/Investing/InvestingGoals.swift, in the
@@ -129,12 +130,20 @@ export default function InvestingGoalsPage() {
     }, [])
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Investing goals
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-1">
-                <Link href="/investing" className="text-sm font-semibold text-primary">
-                    ← Investing
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Investing goals</h1>
                 <p className="text-sm text-muted-foreground">
                     A target for the portfolio, or for the part of it you choose. Measured against your live
                     holdings.
@@ -235,7 +244,8 @@ export default function InvestingGoalsPage() {
                     })}
                 </ul>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }
 
@@ -367,4 +377,4 @@ function GoalForm({
 }
 
 const FIELD =
-    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground outline-none transition focus:border-primary"
+    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"

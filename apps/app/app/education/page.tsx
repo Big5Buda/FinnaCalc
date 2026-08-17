@@ -71,7 +71,7 @@ export default function EducationPage() {
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search lessons"
                     aria-label="Search lessons"
-                    className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                    className="w-full bg-transparent text-sm text-foreground  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
                 {query !== "" && (
                     <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
@@ -226,7 +226,7 @@ function VideoRailCard({ topicId, item }: { topicId: string; item: EduItem }) {
             rel="noopener noreferrer"
             className="paper-card-flat flex w-[200px] shrink-0 flex-col overflow-hidden rounded-xl transition hover:border-border-strong"
         >
-            <span className="relative flex h-[86px] w-full items-center justify-center bg-gradient-to-br from-[#23335C] to-[#16130E]">
+            <span className="relative flex h-[86px] w-full items-center justify-center bg-secondary">
                 {thumbnail && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />

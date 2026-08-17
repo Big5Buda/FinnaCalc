@@ -606,4 +606,4 @@ function ItemForm({
 }
 
 const FIELD =
-    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground outline-none transition focus:border-primary"
+    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"

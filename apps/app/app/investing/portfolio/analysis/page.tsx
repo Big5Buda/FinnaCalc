@@ -21,6 +21,7 @@ import {
 } from "@/lib/investing/analytics"
 import { Donut } from "@/components/budget/charts"
 import { Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Portfolio analysis — what the money is spread across, how concentrated it is,
@@ -90,12 +91,23 @@ export default function PortfolioAnalysisPage() {
     const totalUnrealized = lots.reduce((sum, lot) => sum + lot.unrealized, 0)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Portfolio analysis
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-1">
                 <Link href="/investing/portfolio" className="text-sm font-semibold text-primary">
                     ← Portfolio
                 </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Portfolio analysis</h1>
                 <p className="text-sm text-muted-foreground">
                     Where the money sits, and how much of it rides on one name.
                 </p>
@@ -218,6 +230,7 @@ export default function PortfolioAnalysisPage() {
                     </Notice>
                 </>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }

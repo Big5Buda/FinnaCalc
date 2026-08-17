@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowUpRight, ShieldCheck } from "lucide-react"
 import { SAFE_INVESTMENTS } from "@/lib/investing/catalog"
 import { Notice } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Safe investment options",
@@ -16,13 +17,21 @@ export const metadata: Metadata = {
  */
 export default function SafeInvestmentsPage() {
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <Link href="/investing" className="text-sm font-semibold text-primary">
-                ← Investing
-            </Link>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Safe Investment Options
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-4xl flex-col gap-5">
 
             <header className="flex flex-col gap-1">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Safe Investment Options</h1>
                 <p className="text-sm text-muted-foreground">
                     Top safest investments with consistent returns
                 </p>
@@ -67,6 +76,7 @@ export default function SafeInvestmentsPage() {
                     </li>
                 ))}
             </ul>
-        </div>
+            </PageBody>
+        </>
     )
 }

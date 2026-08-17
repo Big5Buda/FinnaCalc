@@ -19,7 +19,7 @@ import {
 } from "@/lib/budget/findings"
 import { monthlyAmount } from "@/lib/budget/types"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
-import { PageBar, PageBody } from "@/components/shell/surface"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * Budget Analysis — the local findings (deterministic, computed here, no model)
@@ -211,23 +211,16 @@ export default function BudgetAnalysisPage() {
 
                     <section className="flex flex-col gap-3 rounded-card border-[1.5px] border-border bg-card p-4">
                         <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex rounded-full bg-secondary p-[3px]">
-                                {(["quick", "deep"] as const).map((option) => (
-                                    <button
-                                        key={option}
-                                        type="button"
-                                        onClick={() => setDepth(option)}
-                                        className={cn(
-                                            "rounded-full px-3.5 py-1.5 text-xs transition",
-                                            depth === option
-                                                ? "bg-card font-bold text-foreground shadow-sm"
-                                                : "font-semibold text-muted-foreground"
-                                        )}
-                                    >
-                                        {option === "quick" ? "Quick read" : "Deep dive"}
-                                    </button>
-                                ))}
-                            </div>
+                            <SegmentedControl
+                                label="Report depth"
+                                size="sm"
+                                value={depth}
+                                onChange={setDepth}
+                                options={[
+                                    { value: "quick" as const, label: "Quick read" },
+                                    { value: "deep" as const, label: "Deep dive" },
+                                ]}
+                            />
                             <Button onClick={runReport} disabled={running}>
                                 {running ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />

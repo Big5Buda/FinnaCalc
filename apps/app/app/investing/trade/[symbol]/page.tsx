@@ -21,6 +21,7 @@ import {
 } from "@/lib/investing/snaptrade"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Button, Notice } from "@/components/ui/primitives"
+import { SegmentedControl } from "@/components/shell/surface"
 
 /**
  * The order ticket, ported from OrderTicketView.swift.
@@ -208,52 +209,36 @@ export default function TradePage({ params }: { params: Promise<{ symbol: string
                     </select>
                 </label>
 
-                <div className="flex rounded-full bg-secondary p-[3px]">
-                    {(["BUY", "SELL"] as const).map((option) => (
-                        <button
-                            key={option}
-                            type="button"
-                            onClick={() => {
-                                setSide(option)
-                                setImpact(null)
-                            }}
-                            className={cn(
-                                "flex-1 rounded-full py-2 text-xs transition",
-                                side === option
-                                    ? "bg-card font-bold text-foreground shadow-sm"
-                                    : "font-semibold text-muted-foreground"
-                            )}
-                        >
-                            {option === "BUY" ? "Buy" : "Sell"}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl
+                    label="Order side"
+                    className="w-full [&>button]:flex-1"
+                    size="sm"
+                    value={side}
+                    onChange={(next) => {
+                        setSide(next)
+                        // Any change to the order invalidates the quoted impact.
+                        setImpact(null)
+                    }}
+                    options={[
+                        { value: "BUY" as const, label: "Buy" },
+                        { value: "SELL" as const, label: "Sell" },
+                    ]}
+                />
 
-                <div className="flex rounded-full bg-secondary p-[3px]">
-                    {(
-                        [
-                            { value: "shares", label: "Shares" },
-                            { value: "dollars", label: "Dollars" },
-                        ] as const
-                    ).map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                                setAmountMode(option.value)
-                                setImpact(null)
-                            }}
-                            className={cn(
-                                "flex-1 rounded-full py-2 text-xs transition",
-                                amountMode === option.value
-                                    ? "bg-card font-bold text-foreground shadow-sm"
-                                    : "font-semibold text-muted-foreground"
-                            )}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl
+                    label="Amount in"
+                    className="w-full [&>button]:flex-1"
+                    size="sm"
+                    value={amountMode}
+                    onChange={(next) => {
+                        setAmountMode(next)
+                        setImpact(null)
+                    }}
+                    options={[
+                        { value: "shares" as const, label: "Shares" },
+                        { value: "dollars" as const, label: "Dollars" },
+                    ]}
+                />
 
                 {amountMode === "shares" ? (
                     <div className="grid grid-cols-2 gap-3">
@@ -378,7 +363,7 @@ export default function TradePage({ params }: { params: Promise<{ symbol: string
 
 function Shell({ symbol, children }: { symbol: string; children: React.ReactNode }) {
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <div className="flex w-full max-w-3xl flex-col gap-5 px-6 py-6 lg:px-10">
             <header className="flex flex-col gap-1">
                 <Link href={`/investing/stocks/${symbol}`} className="text-sm font-semibold text-primary">
                     ← {symbol}
@@ -404,4 +389,4 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const FIELD =
-    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground outline-none transition focus:border-primary"
+    "h-10 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"

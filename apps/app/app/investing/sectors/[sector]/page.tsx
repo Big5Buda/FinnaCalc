@@ -32,7 +32,7 @@ export default function SectorPage({ params }: { params: Promise<{ sector: strin
 
     if (!meta) {
         return (
-            <div className="mx-auto w-full max-w-2xl px-5 py-10">
+            <div className="w-full max-w-6xl px-6 py-10 lg:px-10">
                 <p className="text-sm text-muted-foreground">No such sector.</p>
                 <Link href="/investing" className="mt-3 inline-block text-sm font-semibold text-primary">
                     ← Investing
@@ -48,7 +48,7 @@ export default function SectorPage({ params }: { params: Promise<{ sector: strin
     const summary = overview?.sectorSummary.find((entry) => entry.id === meta.id)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <div className="flex w-full max-w-6xl flex-col gap-5 px-6 py-6 lg:px-10">
             <Link href="/investing" className="text-sm font-semibold text-primary">
                 ← Investing
             </Link>

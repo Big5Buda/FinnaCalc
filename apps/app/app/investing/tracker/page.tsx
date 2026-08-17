@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { TRACKER_CATEGORIES, peopleIn, type TrackedPerson } from "@/lib/investing/tracker"
 import { SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Trade Tracker",
@@ -16,12 +17,20 @@ export const metadata: Metadata = {
  */
 export default function TrackerPage() {
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Trade Tracker
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-1">
-                <Link href="/investing" className="text-sm font-semibold text-primary">
-                    ← Investing
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Tracker</h1>
                 <p className="text-sm text-muted-foreground">
                     People whose trades are public record. Everything shown comes from their own SEC filings —
                     Form 4 for insiders, 13F for funds, House disclosures for politicians.
@@ -46,7 +55,8 @@ export default function TrackerPage() {
                 describes a quarter that has already ended, and a House disclosure can be filed up to 45 days
                 after the transaction.
             </p>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

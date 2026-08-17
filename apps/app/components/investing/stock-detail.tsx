@@ -26,6 +26,7 @@ import {
     type ChartStyle,
 } from "@/components/investing/price-chart"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+import { SegmentedControl } from "@/components/shell/surface"
 
 /**
  * What we say when a source didn't answer and gave no reason of its own.
@@ -118,7 +119,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
 
     if (error) {
         return (
-            <div className="mx-auto w-full max-w-2xl px-5 py-10">
+            <div className="w-full max-w-6xl px-6 py-10 lg:px-10">
                 <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
                     {error}
                 </p>
@@ -131,7 +132,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
 
     if (!stock || price === null) {
         return (
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-6">
+            <div className="flex w-full max-w-6xl flex-col gap-4 px-6 py-6 lg:px-10">
                 <div className="h-24 animate-pulse rounded-xl bg-card" />
                 <div className="h-56 animate-pulse rounded-xl bg-card" />
             </div>
@@ -141,7 +142,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
     const isUp = (changePct ?? 0) >= 0
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
+        <div className="flex w-full max-w-6xl flex-col gap-6 px-6 py-6 lg:px-10">
             <Link href="/investing" className="text-sm font-semibold text-primary">
                 ← Investing
             </Link>
@@ -399,23 +400,16 @@ function FinancialsSection({ symbol }: { symbol: string }) {
         <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-foreground">Financials</h2>
-                <div className="flex rounded-full bg-secondary p-[3px]">
-                    {(["annual", "quarterly"] as const).map((option) => (
-                        <button
-                            key={option}
-                            type="button"
-                            onClick={() => setFreq(option)}
-                            className={cn(
-                                "rounded-full px-3 py-1 text-[11px] transition",
-                                freq === option
-                                    ? "bg-card font-bold text-foreground shadow-sm"
-                                    : "font-semibold text-muted-foreground"
-                            )}
-                        >
-                            {option === "annual" ? "Annual" : "Quarterly"}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl
+                    label="Statement frequency"
+                    size="sm"
+                    value={freq}
+                    onChange={setFreq}
+                    options={[
+                        { value: "annual" as const, label: "Annual" },
+                        { value: "quarterly" as const, label: "Quarterly" },
+                    ]}
+                />
             </div>
 
             <ul className="flex flex-col gap-2">

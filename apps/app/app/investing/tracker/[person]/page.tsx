@@ -133,7 +133,7 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
 
     if (!person) {
         return (
-            <div className="mx-auto w-full max-w-2xl px-5 py-10">
+            <div className="w-full max-w-4xl px-6 py-10 lg:px-10">
                 <p className="text-sm text-muted-foreground">No such person in the tracker.</p>
                 <Link href="/investing/tracker" className="mt-3 inline-block text-sm font-semibold text-primary">
                     ← Trade Tracker
@@ -149,7 +149,7 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
         .join("")
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <div className="flex w-full max-w-4xl flex-col gap-5 px-6 py-6 lg:px-10">
             <Link href="/investing/tracker" className="text-sm font-semibold text-primary">
                 ← Trade Tracker
             </Link>

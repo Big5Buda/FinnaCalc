@@ -284,7 +284,7 @@ function MoneyInput({
                         const cleaned = event.target.value.replace(/[^0-9.]/g, "")
                         onChange(cleaned === "" ? 0 : Number(cleaned))
                     }}
-                    className="figure w-full bg-transparent text-[15px] text-foreground outline-none"
+                    className="figure w-full bg-transparent text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
             </span>
             {hint && <span className="text-xs text-muted-foreground">{hint}</span>}

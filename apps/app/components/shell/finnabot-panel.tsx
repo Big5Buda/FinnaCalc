@@ -102,7 +102,7 @@ export function FinnaBotPanel() {
                         placeholder="Ask FinnaBot a question…"
                         aria-label="Message FinnaBot"
                         disabled={isLoading}
-                        className="max-h-28 flex-1 resize-none rounded-2xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition focus:border-primary"
+                        className="max-h-28 flex-1 resize-none rounded-2xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                     />
                     <button
                         type="submit"
