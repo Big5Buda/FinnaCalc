@@ -30,6 +30,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
         title: "Tools",
         links: [
             { href: "/calculators", label: "All calculators" },
+            { href: "/calculator", label: "Modelling workspace" },
             { href: "/calculators/loan", label: "Loan calculator" },
             { href: "/calculators/retirement", label: "Retirement" },
             { href: "/taxes", label: "Taxes" },
