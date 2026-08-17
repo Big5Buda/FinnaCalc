@@ -26,10 +26,10 @@ export default function LandingPage() {
     return (
         <>
             {/* ── Hero ─────────────────────────────────────────────────── */}
-            <section className="border-b border-line bg-surface/30">
+            <section className="bg-mesh-atmosphere">
                 <Stagger className="mx-auto flex max-w-4xl flex-col items-center gap-7 px-6 py-24 text-center lg:py-32">
                     <Rise>
-                        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-muted">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-elevated px-3.5 py-1.5 text-xs font-medium text-ink-muted">
                             <Sparkles className="h-3.5 w-3.5 text-mint" />
                             Budgeting · Investing · Taxes · Eleven free calculators
                         </span>
@@ -73,6 +73,7 @@ export default function LandingPage() {
                         </ul>
                     </Rise>
                 </Stagger>
+                <div className="divider-fade" aria-hidden="true" />
             </section>
 
             {/* ── Un-gated calculator ──────────────────────────────────── */}
@@ -96,7 +97,7 @@ export default function LandingPage() {
             </section>
 
             {/* ── What's in it ─────────────────────────────────────────── */}
-            <section id="features" className="border-b border-line bg-surface/30">
+            <section id="features" className="border-b border-line bg-mesh-surface">
                 <Stagger className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
                     <Rise className="flex max-w-2xl flex-col gap-3">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-mint">The platform</p>
@@ -156,8 +157,8 @@ export default function LandingPage() {
                                 <div
                                     className={
                                         plan.recommended
-                                            ? "flex h-full flex-col gap-4 rounded-2xl border border-mint/40 bg-surface p-6 shadow-[0_0_40px_-12px_rgb(var(--mint)/0.35)]"
-                                            : "flex h-full flex-col gap-4 rounded-2xl border border-line bg-surface p-6"
+                                            ? "flex h-full flex-col gap-4 rounded-2xl border border-mint/40 bg-surface-elevated p-6 shadow-[0_0_40px_-12px_rgb(var(--mint)/0.35)]"
+                                            : "flex h-full flex-col gap-4 rounded-2xl border border-line bg-surface-elevated p-6"
                                     }
                                 >
                                     <div className="flex flex-col gap-1">
@@ -202,7 +203,7 @@ export default function LandingPage() {
             </section>
 
             {/* ── Close ────────────────────────────────────────────────── */}
-            <section className="bg-surface">
+            <section className="bg-mesh-surface">
                 <Stagger className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-24 text-center">
                     <Rise>
                         <h2 className="font-display text-[clamp(1.85rem,4.6vw,3.25rem)] leading-[1.04] tracking-[-0.02em] text-ink">
@@ -245,7 +246,7 @@ function Feature({
         <Rise className="h-full">
             <a
                 href={href}
-                className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-surface p-6 transition-colors hover:border-mint/40"
+                className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-surface-elevated p-6 transition-colors hover:border-mint/40"
             >
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-mint/12 text-mint">
                     <Icon className="h-5 w-5" />

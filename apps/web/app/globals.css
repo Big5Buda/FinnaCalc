@@ -8,53 +8,73 @@
  * iOS app and is deliberately not this.
  *
  * Two layers of naming:
- *   - the brand tokens (canvas, surface, mint, vermilion), which is how the
- *     design system is written down and how components should refer to colour;
+ *   - the brand tokens (canvas, surface, surface-elevated, mint, vermilion),
+ *     which is how the design system is written down and how components should
+ *     refer to colour;
  *   - the shadcn token names (background, primary, destructive…), mapped onto
  *     the same values so registry components drop in unmodified.
  *
  * Channels are space-separated RGB so Tailwind's /alpha modifiers work.
+ *
+ * Typefaces are loaded in app/layout.tsx with next/font/google rather than an
+ * @import here. Same Google source, but self-hosted at build: no render-blocking
+ * request to fonts.googleapis.com, no visitor IP handed to Google on page load,
+ * and a generated fallback with matching metrics so swapping in the real face
+ * doesn't shift the layout. An @import would fetch them a second time.
  */
 
 @layer base {
   :root {
-    /* Brand */
-    --canvas: 9 10 15; /* #090A0F — Deep Obsidian */
-    --surface: 30 34 48; /* #1E2230 — Slate Zinc */
-    --mint: 0 255 135; /* #00FF87 — Electric Mint */
-    --vermilion: 255 71 87; /* #FF4757 — Vermilion */
+    /* ── Depth ladder ──────────────────────────────────────────────────
+       Three steps, not two: the page, a section that lifts off it, and a
+       card that lifts off that. A single surface value forced cards and
+       section bands to share a tone, which flattened exactly the places
+       the eye uses to tell one from the other. */
+    --background: 9 10 15; /* #090A0F — Deep Obsidian, the canvas */
+    --surface: 20 23 34; /* #141722 — sections lifted off the canvas */
+    --surface-elevated: 30 34 48; /* #1E2230 — Slate Zinc, cards and popovers */
+    --border-subtle: 31 36 56; /* #1F2438 — hairlines between them */
 
-    /* Text. Off-white rather than pure white: #FFF on obsidian glares at
-       display sizes. 16.8:1 against the canvas. */
+    /* ── Accents ───────────────────────────────────────────────────── */
+    --accent-mint: 0 255 135; /* #00FF87 — primary metrics, growth, CTAs */
+    --accent-vermilion: 255 71 87; /* #FF4757 — negative alerts and errors ONLY */
+
+    /* ── Text ──────────────────────────────────────────────────────────
+       Off-white rather than pure white: #FFF on obsidian glares at display
+       sizes. 16.8:1 on the canvas. */
     --ink: 240 242 247;
-    /* Supporting copy — 7.4:1 on canvas, comfortably past the 4.5:1 floor. */
+    /* Supporting copy — 7.4:1 on canvas, past the 4.5:1 floor. */
     --ink-muted: 158 165 184;
-    /* Lines. Visible against both canvas and surface without drawing the eye. */
-    --line: 44 49 66;
     --line-strong: 63 70 92;
 
-    /* shadcn aliases over the same values, so registry components work as
-       shipped. Mint is the primary action, and its foreground is the canvas —
-       black-on-mint is the only readable pairing at 4.5:1. */
-    --background: var(--canvas);
+    /* Aliases kept so existing markup and the shadcn registry keep working.
+       --canvas, --mint, --vermilion and --line are the older names for the
+       four tokens above; they resolve to the same values. */
+    --canvas: var(--background);
+    --mint: var(--accent-mint);
+    --vermilion: var(--accent-vermilion);
+    --line: var(--border-subtle);
+
     --foreground: var(--ink);
-    --card: var(--surface);
+    --card: var(--surface-elevated);
     --card-foreground: var(--ink);
-    --popover: var(--surface);
+    --popover: var(--surface-elevated);
     --popover-foreground: var(--ink);
-    --primary: var(--mint);
-    --primary-foreground: var(--canvas);
-    --secondary: var(--surface);
+    /* Mint's foreground is the canvas: black-on-mint is the only pairing here
+       that clears 4.5:1. */
+    --primary: var(--accent-mint);
+    --primary-foreground: var(--background);
+    --secondary: var(--surface-elevated);
     --secondary-foreground: var(--ink);
-    --muted: var(--surface);
+    --muted: var(--surface-elevated);
     --muted-foreground: var(--ink-muted);
-    --accent: var(--surface);
+    --accent: var(--surface-elevated);
     --accent-foreground: var(--ink);
-    --destructive: var(--vermilion);
+    --destructive: var(--accent-vermilion);
     --destructive-foreground: var(--ink);
-    --border: var(--line);
+    --border: var(--border-subtle);
     --input: var(--line-strong);
-    --ring: var(--mint);
+    --ring: var(--accent-mint);
 
     --radius: 0.75rem;
   }
@@ -71,23 +91,117 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Display type is Fraunces, and it is the only thing that is. The utility
-     class comes from the theme; this just makes headings default to it. */
+  /* Headlines take Fraunces automatically, so a heading can't accidentally
+     ship in the body face. Every level, not just h1/h2 — an h3 in the body
+     face beside an h2 in Fraunces reads as a mistake. */
   h1,
-  h2 {
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-fraunces), Georgia, serif;
+  }
+
+  /*
+   * Numbers default to JetBrains Mono wherever the element's whole job is to
+   * be a number: a <output>, a <data>, and any cell in a table marked
+   * data-numeric. Prose is never mono, so this deliberately does not apply to
+   * paragraphs that merely contain a figure — those use .figure on the span
+   * around the number.
+   */
+  output,
+  data,
+  [data-numeric],
+  td[data-numeric],
+  th[data-numeric] {
+    font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }
 
 @layer components {
   /*
    * Every figure a reader might compare, scan or check: money, percentages,
-   * table dates, calculator output. JetBrains Mono with tabular figures, so
-   * columns of numbers line up and a changing value doesn't reflow its row.
+   * table dates, calculator output. Tabular figures so columns line up and a
+   * changing value doesn't reflow its row.
    */
   .figure {
     font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+  }
+}
+
+@layer utilities {
+  /*
+   * Atmosphere.
+   *
+   * A flat #090A0F reads as an unlit void; large dark surfaces need some
+   * suggestion of where the light is. The obvious move — one big radial glow
+   * centred behind the hero — is the default every dark SaaS page ships, so
+   * these are deliberately off-axis and asymmetric instead: the light appears
+   * to come from beyond the page edges rather than from behind the headline.
+   *
+   * Alpha stays under 6%. Mint is the colour that carries real figures on this
+   * site, and an ambient wash bright enough to notice would compete with the
+   * numbers it's meant to sit behind.
+   */
+  .bg-mesh-atmosphere {
+    background-color: rgb(var(--background));
+    background-image:
+      radial-gradient(
+        ellipse 90% 60% at 28% 12%,
+        rgb(var(--accent-mint) / 0.055),
+        transparent 60%
+      ),
+      radial-gradient(ellipse 70% 50% at 78% 68%, rgb(124 58 237 / 0.05), transparent 65%),
+      radial-gradient(ellipse 120% 80% at 50% 120%, rgb(var(--surface-elevated) / 0.85), transparent 70%);
+    background-repeat: no-repeat;
+  }
+
+  /* The same treatment for a lifted section: the ladder's middle step, with
+     the light arriving from the opposite edge so consecutive sections don't
+     read as one repeating tile. */
+  .bg-mesh-surface {
+    background-color: rgb(var(--surface));
+    background-image:
+      radial-gradient(ellipse 80% 55% at 82% 8%, rgb(var(--accent-mint) / 0.04), transparent 62%),
+      radial-gradient(ellipse 90% 60% at 12% 90%, rgb(56 89 255 / 0.045), transparent 68%);
+    background-repeat: no-repeat;
+  }
+
+  /*
+   * Glass for anything that floats above the atmosphere — the sticky header,
+   * dialogs. backdrop-filter is the point: it samples the gradient underneath
+   * instead of painting a flat panel over it.
+   */
+  .glass-panel {
+    background-color: rgb(var(--surface-elevated) / 0.72);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  /* A hairline that fades at both ends, for section boundaries that shouldn't
+     read as a hard rule across the full width. */
+  .divider-fade {
+    height: 1px;
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      rgb(var(--border-subtle)),
+      rgb(var(--line-strong) / 0.6),
+      rgb(var(--border-subtle)),
+      transparent
+    );
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-panel {
+      background-color: rgb(var(--surface-elevated));
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
   }
 }

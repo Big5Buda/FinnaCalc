@@ -30,16 +30,19 @@ const config: Config = {
             },
             colors: {
                 // Brand names — how the design system is written down.
-                canvas: "rgb(var(--canvas) / <alpha-value>)",
-                surface: "rgb(var(--surface) / <alpha-value>)",
-                mint: "rgb(var(--mint) / <alpha-value>)",
-                vermilion: "rgb(var(--vermilion) / <alpha-value>)",
+                canvas: "rgb(var(--background) / <alpha-value>)",
+                surface: {
+                    DEFAULT: "rgb(var(--surface) / <alpha-value>)",
+                    elevated: "rgb(var(--surface-elevated) / <alpha-value>)",
+                },
+                mint: "rgb(var(--accent-mint) / <alpha-value>)",
+                vermilion: "rgb(var(--accent-vermilion) / <alpha-value>)",
                 ink: {
                     DEFAULT: "rgb(var(--ink) / <alpha-value>)",
                     muted: "rgb(var(--ink-muted) / <alpha-value>)",
                 },
                 line: {
-                    DEFAULT: "rgb(var(--line) / <alpha-value>)",
+                    DEFAULT: "rgb(var(--border-subtle) / <alpha-value>)",
                     strong: "rgb(var(--line-strong) / <alpha-value>)",
                 },
 

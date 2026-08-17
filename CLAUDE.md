@@ -57,10 +57,24 @@ Tailwind tokens. Never hard-code a hex in a component.
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--canvas` | `#090A0F` | Deep Obsidian. The page. |
-| `--surface` | `#1E2230` | Slate Zinc. Cards, elevated panels. |
-| `--mint` | `#00FF87` | Electric Mint. Primary metrics, growth, primary CTA. |
-| `--vermilion` | `#FF4757` | Vermilion. Negative alerts and errors **only**. |
+| `--background` | `#090A0F` | Deep Obsidian. The page. |
+| `--surface` | `#141722` | A section lifted off the canvas. |
+| `--surface-elevated` | `#1E2230` | Slate Zinc. Cards, popovers, dialogs. |
+| `--border-subtle` | `#1F2438` | Hairlines between the three. |
+| `--accent-mint` | `#00FF87` | Electric Mint. Primary metrics, growth, primary CTA. |
+| `--accent-vermilion` | `#FF4757` | Vermilion. Negative alerts and errors **only**. |
+
+Three steps of depth, not two: page → section → card. `--canvas`, `--mint`,
+`--vermilion` and `--line` remain as aliases so older markup keeps working.
+
+Dark surfaces need some suggestion of where the light is, so sections use the
+atmospheric utilities rather than a flat fill: `.bg-mesh-atmosphere` (hero),
+`.bg-mesh-surface` (lifted sections), `.glass-panel` (anything floating above
+them — it samples the gradient beneath instead of painting over it), and
+`.divider-fade` for a boundary that shouldn't read as a hard rule. Ambient mint
+stays under 6% alpha: it must never compete with the mint that carries a real
+figure. Tailwind purges unused utilities, so one of these only exists in the
+build once something uses it.
 
 Vermilion never appears on a CTA, a neutral figure, or anything that isn't
 genuinely wrong. Mint carries the number that matters; using it everywhere
