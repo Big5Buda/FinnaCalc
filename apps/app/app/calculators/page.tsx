@@ -21,6 +21,27 @@ export default function CalculatorsPage() {
                 lead={`${CALCULATORS.length} free tools. Nothing to sign up for, and nothing leaves your browser.`}
             />
 
+            {/* The calculators below each answer one question. This one holds a
+                whole model open, so it sits above the list rather than in it. */}
+            <Link
+                href="/calculator"
+                className="flex items-center gap-3.5 rounded-lg border border-border bg-primary/[0.06] p-4 transition hover:border-primary"
+            >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+                    <Icons.SlidersHorizontal className="h-4 w-4" strokeWidth={2.2} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-base font-semibold text-foreground">
+                        Modelling workspace
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        Contributions, inflation and tax in one live model, with the year-by-year
+                        working and a CSV export.
+                    </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+
             <div className="flex flex-col gap-2.5">
                 {CALCULATORS.map((entry) => {
                     const Icon =

@@ -16,7 +16,14 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.13",
+    "@finnacalc/shared": "*",
+    "@hookform/resolvers": "^5.9.0",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-slider": "^1.4.7",
+    "@radix-ui/react-tabs": "^1.1.21",
     "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-table": "^9.1.2",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "ai": "^5.0.40",
@@ -28,14 +35,16 @@
     "plaid": "^42.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.85.0",
     "react-plaid-link": "^4.1.1",
+    "recharts": "^2.15.4",
     "resend": "^6.0.1",
     "snaptrade-typescript-sdk": "^10.0.17",
     "stripe": "^22.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.1",
-    "@finnacalc/shared": "*"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/node": "^22",
