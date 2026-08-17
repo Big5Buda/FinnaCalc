@@ -22,33 +22,43 @@ the phone app read as one product. Changing them there is a separate decision
 about iOS parity, not a styling choice — do not "fix" `apps/app` to match this
 section.
 
+**Provenance.** This system was measured off wealthsimple.com in August 2026
+(stylesheets, computed styles, full-page renders) and adopted deliberately, at
+the user's direction, replacing the earlier Deep Obsidian dark system. The brief
+names this direction; it wins outright.
+
 ### Banned
 
-- **Inter, Roboto, Arial, or a system font stack** (`system-ui`, `-apple-system`,
-  `ui-sans-serif` as the visible face). They are the default of everything and
-  read as an unfinished template. System fonts may appear only at the tail of a
-  fallback chain, never as the intended face.
-- **White card grids over purple/blue gradients.** The single most templated
-  layout on the web.
-- **Hand-rolling a component that `@/components/ui` already provides.** If a
-  primitive exists, use it. If it nearly fits, extend it there rather than
-  building a parallel one beside it.
+- **Inter, Roboto, Arial, or a system font stack** as the visible face. System
+  fonts appear only at the tail of a fallback chain.
+- **Pure black or pure grey neutrals.** Every neutral here is warm — `#1C1B1B`,
+  not `#000`; the page is cream, never white.
+- **Fabricated set dressing.** The reference decorates with a fake $308,926.53
+  balance; this site never does. A number on the page is computed, counted, or
+  absent (see house rules).
+- **Hand-rolling a component that `@/components/ui` already provides.**
 
 ### Typography
 
-| Role | Face | Tailwind |
+Two faces, two voices. The variables are named by **role** so the planned
+licensed faces (Tiempos Text for serif, The Future for sans — purchase pending)
+drop in by editing `app/layout.tsx` alone.
+
+| Role | Face today | Tailwind |
 | --- | --- | --- |
-| Display, hero headlines | **Fraunces** | `font-display` |
-| UI, body, labels, buttons | **Bricolage Grotesque** | `font-sans` |
-| Math, KPI figures, data tables | **JetBrains Mono** | `font-mono` / `.figure` |
+| Brand moments: hero line, manifesto, footer wordmark | **Source Serif 4** | `font-serif` / `.headline-serif` |
+| Everything else, product headlines included | **DM Sans** | `font-sans` / `.headline-sans` |
 
-Every number a reader might compare, scan or check — money, percentages, dates
-in tables, calculator output — is set in JetBrains Mono. Prose is never mono.
+Measured rules, applied everywhere:
 
-**Weight contrast is mandatory.** A block that runs entirely at 400–600 reads as
-default. Pair `font-extralight` (200) against `font-black` (800): light for
-supporting lines and large display text, black for the figure or word carrying
-the meaning. Do not solve emphasis with colour alone.
+- Line-height **1.16** on all headlines, hero to manifesto.
+- Tracking **negative on the serif** (−0.01em), **positive on the sans**
+  (+0.005em). Never the other way.
+- The serif is weight 400 — size does the work. Sans headlines are 500.
+- Serif and sans are never mixed inside one headline.
+- Product headlines are full sentences carrying the benefit ("A budget that
+  lives on your device, not our servers."), not labels with subtitles.
+- Figures use `.figure` (tabular numerals); there is no mono face on this site.
 
 ### Colour
 
@@ -57,43 +67,46 @@ Tailwind tokens. Never hard-code a hex in a component.
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--background` | `#090A0F` | Deep Obsidian. The page. |
-| `--surface` | `#141722` | A section lifted off the canvas. |
-| `--surface-elevated` | `#1E2230` | Slate Zinc. Cards, popovers, dialogs. |
-| `--border-subtle` | `#1F2438` | Hairlines between the three. |
-| `--accent-mint` | `#00FF87` | Electric Mint. Primary metrics, growth, primary CTA. |
-| `--accent-vermilion` | `#FF4757` | Vermilion. Negative alerts and errors **only**. |
+| `--paper` | `#F5F3EF` | Cream. The page, and the breath between colour blocks. |
+| `--chip` | `#FCFCFC` | The nav pill, cards, phones — anything lifted off a ground. |
+| `--ink` | `#1C1B1B` | Text, primary buttons. Warm black, never `#000`. |
+| `--ink-soft` / `--ink-muted` | `#494645` / `#686664` | Secondary text, captions. |
+| `--line` / `--line-strong` | `#E4E2E1` / `#C9C6C4` | Hairlines. |
+| `--sec-budgeting` | `#5F5974` | Budgeting's ground. Muted purple. |
+| `--sec-investing` | `#0C330D` | Investing's ground. Near-black green. |
+| `--sec-taxes` | `#564C47` | Taxes' ground. Warm brown. |
+| `--sec-education` | `#EEE3B1` | Education's inset panel. Pale yellow. |
+| `--celery` | `#486635` | Success and growth. |
+| `--terracotta` | `#A43D12` | Errors **only**. Never a CTA, never a neutral figure. |
 
-Three steps of depth, not two: page → section → card. `--canvas`, `--mint`,
-`--vermilion` and `--line` remain as aliases so older markup keeps working.
+One product, one hue: each section owns its ground, saturated grounds may run
+back-to-back (the reference pairs purple into brown), and cream returns between
+runs. Text on a saturated ground is `--chip` via the `.on-color` helper, and
+every text/background pair clears **4.5:1**.
 
-Dark surfaces need some suggestion of where the light is, so sections use the
-atmospheric utilities rather than a flat fill: `.bg-mesh-atmosphere` (hero),
-`.bg-mesh-surface` (lifted sections), `.glass-panel` (anything floating above
-them — it samples the gradient beneath instead of painting over it), and
-`.divider-fade` for a boundary that shouldn't read as a hard rule. Ambient mint
-stays under 6% alpha: it must never compete with the mint that carries a real
-figure. Tailwind purges unused utilities, so one of these only exists in the
-build once something uses it.
+The site is **light only** — no dark theme, no switcher. `apps/app` keeps its
+System/Light/Dark switcher; that is not an inconsistency to resolve.
 
-Vermilion never appears on a CTA, a neutral figure, or anything that isn't
-genuinely wrong. Mint carries the number that matters; using it everywhere
-makes it carry nothing.
+### Shape and layout
 
-The marketing site is **dark only** — there is no light theme and no theme
-switcher. `apps/app` keeps its System/Light/Dark switcher; that is not an
-inconsistency to resolve.
-
-Body copy is 16–20px with 1.6–1.8 line height, and every text/background pair
-clears **4.5:1**.
+- **Buttons are fully pill** (`rounded-pill`), 14px/500, 12×16 padding. Primary
+  is ink-on-chip; outline carries a hairline. The section CTA is the 56px
+  outlined **arrow circle** (`CircleArrow`) — the headline talks, the circle
+  says "go".
+- Radii: 4 / 12 / 24 / pill. The nav is a floating `--chip` pill, radius 12,
+  inset from the viewport, always white.
+- Container is `max-w-site` (1264px). Sections run tall (`min-h-[80vh]`) with
+  one product each.
+- The footer ends with the serif wordmark at container width, then a hairline,
+  then the legal line.
 
 ### Motion
 
 - **framer-motion** for anything animated in React. No hand-rolled
   IntersectionObserver reveals, no `requestAnimationFrame` counters.
-- **One orchestrated page-load reveal** per view — a single stagger that brings
-  the page in — rather than a dozen independent micro-interactions firing as the
-  reader scrolls past each element.
+- **One easing:** `cubic-bezier(0.241, 0.969, 0.635, 0.997)` at 0.35s
+  (`ease-ws`) for interactions; reveals are a single orchestrated stagger
+  (opacity + 24–28px rise, ~1s ease-out), not per-element scroll effects.
 - Everything respects `prefers-reduced-motion`, rendering the finished state
   immediately. Motion is decoration; nothing may depend on it to become legible.
 
@@ -103,6 +116,8 @@ clears **4.5:1**.
   `apps/web/components/ui/`.
 - Compose from those primitives. A new one goes in `components/ui/` and follows
   the same pattern (Radix behaviour, local markup, `cva` variants, `cn` merging).
+- Site-specific primitives (`Pill`, `CircleArrow`, `SectionLockup`, `Wordmark`)
+  live in `components/site.tsx`.
 - `lucide-react` for icons.
 
 ### shadcn configuration — verified with `shadcn info`
@@ -144,7 +159,7 @@ import { cn } from "@/lib/utils"
 
 `Button` variants are `default | destructive | outline | secondary | ghost |
 link`, sizes `default | sm | lg | icon`. There is no `primary` or `inverse`
-variant — `default` is the mint CTA. Use `asChild` to wrap a link rather than
+variant — `default` is the ink pill CTA. Use `asChild` to wrap a link rather than
 nesting a `Button` inside an `<a>`.
 
 `Slider` is Radix: it takes `value={[n]}` and `onValueChange={([n]) => …}`, not
@@ -206,10 +221,12 @@ justification rather than assumption:
 3. Broadsheet layout — hairline rules, zero radius, dense newspaper columns.
 
 **A brief that names a direction wins outright.** The skill is explicit about
-this, and it applies here: `apps/web` runs Deep Obsidian with Electric Mint and
-Vermilion, which is look 2 above. That was specified hex by hex, so it stands.
-The critique pass exists for the axes a brief leaves free — spend that freedom
-on something specific to FinnaCalc, not on a default.
+this, and it applies here: `apps/web` runs the warm-light system measured off
+wealthsimple.com — cream ground, warm neutrals, per-product section colours —
+adopted at the user's explicit direction (Aug 2026). Warm cream with a serif
+display is look 1's territory, but it is specified here, so it stands. The
+critique pass exists for the axes the brief leaves free — spend that freedom on
+something specific to FinnaCalc, not on a default.
 
 ### Then build
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Bricolage_Grotesque, Fraunces, JetBrains_Mono } from "next/font/google"
+import { DM_Sans, Source_Serif_4 } from "next/font/google"
 import "./globals.css"
 import { SiteFooter, SiteNav } from "@/components/site"
 import { MotionProvider } from "@/components/motion"
@@ -8,46 +8,38 @@ import { SITE_ORIGIN } from "@/lib/app-url"
 
 /*
  * The marketing site: un-gated, public, and the only origin a visitor meets
- * before they have an account. It shares the app's typefaces and tokens so the
- * handoff to app.finnacalc.com doesn't feel like a different product.
+ * before they have an account.
+ *
+ * Two faces, two jobs (see CLAUDE.md). The serif speaks for the brand — the
+ * hero line, the manifesto, the footer wordmark. The sans is everything else,
+ * product headlines included. Both are stand-ins for licensed faces the user
+ * intends to buy (Tiempos Text for the serif, The Future for the sans); the
+ * variables are named by ROLE, not by family, so the swap is: load the licensed
+ * font here, keep the variable name, touch nothing else.
  */
-/*
- * Three faces, three jobs (see CLAUDE.md). Fraunces carries display type,
- * Bricolage Grotesque everything read as interface or prose, JetBrains Mono
- * every figure. All three ship the full weight range the system leans on:
- * extralight (200) against black (800) is how emphasis is made here, not
- * colour.
- */
-const fraunces = Fraunces({
-    variable: "--font-fraunces",
-    subsets: ["latin"],
-    // Variable font: the whole 100–900 range, which is what lets extralight sit
-    // against black in the same headline.
-    weight: "variable",
-})
-const bricolage = Bricolage_Grotesque({
-    variable: "--font-bricolage",
+const serif = Source_Serif_4({
+    variable: "--font-serif",
     subsets: ["latin"],
     weight: "variable",
 })
-const jetbrainsMono = JetBrains_Mono({
-    variable: "--font-jetbrains-mono",
+const sans = DM_Sans({
+    variable: "--font-sans",
     subsets: ["latin"],
-    weight: ["300", "400", "500", "700"],
+    weight: "variable",
 })
 
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_ORIGIN),
     title: {
-        default: "FinnaCalc — Real-time financial modelling and calculation",
+        default: "FinnaCalc — Money, with the math shown",
         template: "%s — FinnaCalc",
     },
     description:
-        "Model savings, loans and retirement in real time, budget with your bank connected, and follow your own portfolio. Free to use, no account needed to start.",
+        "Budgeting, investing, taxes and financial calculators — with the arithmetic shown on every number. Free to use, no account needed to start.",
     openGraph: {
-        title: "FinnaCalc — Real-time financial modelling and calculation",
+        title: "FinnaCalc — Money, with the math shown",
         description:
-            "Model savings, loans and retirement in real time. Free to use, no account needed to start.",
+            "Budgeting, investing, taxes and financial calculators — with the arithmetic shown on every number.",
         url: SITE_ORIGIN,
         siteName: "FinnaCalc",
         type: "website",
@@ -56,7 +48,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en" className={`${fraunces.variable} ${bricolage.variable} ${jetbrainsMono.variable}`}>
+        <html lang="en" className={`${serif.variable} ${sans.variable}`}>
             <body className="font-sans antialiased">
                 <MotionProvider>
                     <div className="flex min-h-screen flex-col">
