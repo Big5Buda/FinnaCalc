@@ -144,12 +144,13 @@ Supporting libraries in `apps/web`: framer-motion 11, lucide-react 0.454,
 class-variance-authority 0.7, tailwind-merge 2.6, clsx 2.1, and four Radix
 packages (dialog, slot, slider, label) pulled in by the primitives above.
 
-**`apps/app` is not a shadcn project**, despite carrying a stale
-`components.json` from the original 2024 scaffold. It has zero Radix packages
-(pruned in #99) and its UI lives in one hand-rolled file,
-`components/ui/primitives.tsx`. Running `shadcn add` there would install Radix
-into the workspace this design system explicitly exempts. Don't. That
-`components.json` is a leftover and can be deleted.
+**`apps/app` is not a shadcn project.** It has no `components.json` — the one
+left by the original 2024 scaffold was deleted, because `shadcn info` read it
+and reported the workspace as configured when it has zero Radix packages
+(pruned in #99) and a single hand-rolled `components/ui/primitives.tsx`.
+Running `shadcn add` there would install Radix into the workspace this design
+system explicitly exempts. If that workspace is ever meant to adopt shadcn,
+that's a deliberate decision about iOS parity, not a missing config file.
 
 ---
 
