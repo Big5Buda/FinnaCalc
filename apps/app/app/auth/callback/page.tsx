@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
+import { setSessionHint } from "@/lib/session-hint"
 import { AuthSplit } from "@/components/auth/auth-split"
 
 /**
@@ -33,8 +34,14 @@ export default function AuthCallbackPage() {
             .auth.getSession()
             .then(({ data }) => {
                 if (cancelled) return
-                if (data.session) router.replace("/")
-                else setError("That sign-in link has expired. Please try again.")
+                if (data.session) {
+                    // Arm the gate's cookie before navigating, or middleware
+                    // bounces this straight back to /sign-in.
+                    setSessionHint()
+                    router.replace("/")
+                } else {
+                    setError("That sign-in link has expired. Please try again.")
+                }
             })
             .catch(() => {
                 if (!cancelled) setError("Couldn’t complete sign-in. Please try again.")
