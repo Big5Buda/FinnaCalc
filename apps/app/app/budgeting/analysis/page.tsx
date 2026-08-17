@@ -19,6 +19,7 @@ import {
 } from "@/lib/budget/findings"
 import { monthlyAmount } from "@/lib/budget/types"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Budget Analysis — the local findings (deterministic, computed here, no model)
@@ -161,16 +162,22 @@ export default function BudgetAnalysisPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <Link href="/budgeting" className="text-sm font-semibold text-primary">
-                    ← Budgeting
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Budget Analysis</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
+                            Budgeting
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Budget Analysis
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
                     {findingsSummaryLine(findings) ?? "Add income and expenses to get an analysis."}
                 </p>
-            </header>
 
             {!hasData ? (
                 <Notice tone="info">
@@ -253,7 +260,8 @@ export default function BudgetAnalysisPage() {
                     </section>
                 </>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }
 

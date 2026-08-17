@@ -27,6 +27,7 @@ import {
 import { Donut, DonutLegend } from "@/components/budget/charts"
 import { PlaidConnect } from "@/components/budget/plaid-connect"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * My Budget — the editor, ported from Features/Budgeting/BudgetTabView.swift:
@@ -119,17 +120,23 @@ export default function MyBudgetPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <Link href="/budgeting" className="text-sm font-semibold text-primary">
-                    ← Budgeting
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">My Budget</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
+                            Budgeting
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        My Budget
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
                     {budgetTypeTitle(budget.budgetType)} ·{" "}
                     {isDatedMonth(budget.slot) ? monthDisplayName(budget.slot) : "no date set"}
                 </p>
-            </header>
 
             {/* Which budget is open: the working one, or a month it was saved to. */}
             <section className="flex flex-wrap items-center gap-2">
@@ -269,7 +276,8 @@ export default function MyBudgetPage() {
                     }}
                 />
             </section>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

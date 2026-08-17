@@ -18,8 +18,8 @@ import {
 } from "@/lib/investing/market"
 import { MARKET_INDEX_ETFS, SECTORS } from "@/lib/investing/catalog"
 import { CompanyLogo, NewsList } from "@/components/investing/pieces"
-import { PageHeader } from "@/components/shell/page-header"
 import { SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Investing — the Discover landing, ported from StocksDiscoverView.swift: a
@@ -95,12 +95,10 @@ export default function InvestingPage() {
     }, [overview, indexStats])
 
     return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
-            <PageHeader
-                eyebrow="Investing"
-                title="Markets, and your own money in them."
-                lead="Live markets, your portfolio, and stock research in one place."
-            />
+        <>
+            <PageBar title="Investing" />
+            <PageBody className="flex w-full max-w-6xl flex-col gap-6">
+                <div className="contents">
 
             <SymbolSearch />
 
@@ -224,7 +222,9 @@ export default function InvestingPage() {
                     })}
                 </div>
             </section>
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }
 

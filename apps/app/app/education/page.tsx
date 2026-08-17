@@ -15,8 +15,8 @@ import {
     type EduItem,
 } from "@/lib/education-content"
 import { LessonOfWeekCard } from "@/components/education/lesson-of-week"
-import { PageHeader } from "@/components/shell/page-header"
 import { SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Education — the "video rail library" layout from the app's Education tab:
@@ -59,12 +59,10 @@ export default function EducationPage() {
     const quickReads = lookup(readingResources, QUICK_READS)
 
     return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
-            <PageHeader
-                eyebrow="Education"
-                title="Learn money."
-                lead="Short lessons on money, in plain language. Watch or read, whichever suits you."
-            />
+        <>
+            <PageBar title="Learn" />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-6">
+                <div className="contents">
 
             <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 shadow-sm">
                 <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -213,7 +211,9 @@ export default function EducationPage() {
                     </div>
                 </div>
             )}
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }
 

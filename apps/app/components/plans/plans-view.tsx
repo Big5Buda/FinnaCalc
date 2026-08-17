@@ -7,7 +7,7 @@ import { Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { useAuth } from "@/components/providers/auth-provider"
-import { PageHeader } from "@/components/shell/page-header"
+import { PageBar, PageBody } from "@/components/shell/surface"
 import { Badge, IconChip, Notice } from "@/components/ui/primitives"
 import {
     PLANS,
@@ -96,12 +96,10 @@ export function PlansView() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
-            <PageHeader
-                eyebrow="Plans"
-                title="Get more from FinnaCalc."
-                lead="Pick the side of your money to level up, or take all of it."
-            />
+        <>
+            <PageBar title="Plans" />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-6">
+                <div className="contents">
 
             <div className="flex rounded-full bg-secondary p-[3px]">
                 {(["monthly", "annual"] as BillingInterval[]).map((option) => {
@@ -174,7 +172,9 @@ export function PlansView() {
                     </Link>
                 </div>
             </footer>
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }
 
