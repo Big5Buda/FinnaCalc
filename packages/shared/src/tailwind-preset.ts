@@ -2,86 +2,91 @@ import type { Config } from "tailwindcss"
 import plugin from "tailwindcss/plugin"
 
 /**
- * The shared Tailwind preset: the FinnaCalc design tokens (the iOS app's
- * Theme.swift values) plus the colour, radius and font mappings that read them.
+ * The web application's Tailwind preset — the warm-light system measured off
+ * wealthsimple.com, matching the marketing site so the walk from finnacalc.com
+ * to app.finnacalc.com is one continuous product.
  *
- * Both apps extend this rather than restating the palette, so the marketing
- * site on the root domain and the application on its subdomain are the same
- * brand by construction. Tokens are injected as base styles instead of being
- * imported as CSS across package boundaries, which Next's pipeline resolves
- * inconsistently.
+ * This replaced the Paper & Cobalt palette (the iOS app's Theme.swift values)
+ * in August 2026 at the user's direction. The iPhone app deliberately keeps its
+ * blue theme, so web and phone now read as siblings rather than twins; see
+ * CLAUDE.md. `apps/app` is this preset's only consumer — `apps/web` defines the
+ * same tokens directly in its own config.
+ *
+ * Semantic names are kept (`primary`, `card`, `muted`) so ~35 existing screens
+ * inherit the new system without touching their markup. What changed is what
+ * each name resolves to.
  *
  * Channels are space-separated RGB so Tailwind's `/alpha` modifiers work
  * (`bg-primary/10`). Light is the default; `.dark` on <html> swaps the values.
  */
 
 const LIGHT: Record<string, string> = {
-    "--background": "255 255 255",
-    "--surface-sunken": "248 250 252",
-    "--card": "255 255 255",
-    "--card-foreground": "2 8 23",
-    "--popover": "255 255 255",
-    "--popover-foreground": "2 8 23",
-    "--foreground": "2 8 23",
-    "--text-body": "51 65 85",
-    "--muted-foreground": "100 116 139",
-    "--primary": "37 99 235",
-    "--primary-foreground": "248 250 252",
-    "--brand-blue": "0 94 255",
-    "--brand-hover": "29 78 216",
-    "--brand-press": "30 64 175",
-    "--secondary": "241 245 249",
-    "--secondary-foreground": "2 8 23",
-    "--muted": "241 245 249",
-    "--accent": "241 245 249",
-    "--accent-foreground": "2 8 23",
-    "--destructive": "220 38 38",
-    "--destructive-foreground": "255 255 255",
-    "--positive": "22 163 74",
-    "--negative": "220 38 38",
-    "--caution": "245 158 11",
-    "--accent-purple": "147 51 234",
-    "--accent-orange": "234 88 12",
-    "--primary-soft": "232 241 254",
-    "--border": "226 232 240",
-    "--border-strong": "203 213 225",
-    "--input": "226 232 240",
-    "--ring": "37 99 235",
+    "--background": "245 243 239",      // #F5F3EF cream — the page
+    "--surface-sunken": "241 240 240",  // #F1F0F0 a well below the page
+    "--card": "252 252 252",            // #FCFCFC warm white — every surface
+    "--card-foreground": "28 27 27",
+    "--popover": "252 252 252",
+    "--popover-foreground": "28 27 27",
+    "--foreground": "28 27 27",         // #1C1B1B warm black, never #000
+    "--text-body": "73 70 69",          // #494645
+    "--muted-foreground": "104 102 100",// #686664
+    "--primary": "28 27 27",            // the ink pill CTA
+    "--primary-foreground": "252 252 252",
+    "--brand-blue": "28 27 27",
+    "--brand-hover": "73 70 69",
+    "--brand-press": "50 48 47",
+    "--secondary": "241 240 240",
+    "--secondary-foreground": "28 27 27",
+    "--muted": "241 240 240",
+    "--accent": "241 240 240",
+    "--accent-foreground": "28 27 27",
+    "--destructive": "164 61 18",       // terracotta
+    "--destructive-foreground": "252 252 252",
+    "--positive": "72 102 53",          // celery
+    "--negative": "164 61 18",
+    "--caution": "238 227 177",
+    "--accent-purple": "95 89 116",     // the section hues, kept for charts
+    "--accent-orange": "86 76 71",
+    "--primary-soft": "241 240 240",
+    "--border": "228 226 225",          // #E4E2E1
+    "--border-strong": "201 198 196",   // #C9C6C4
+    "--input": "228 226 225",
+    "--ring": "28 27 27",
     "--radius": "0.75rem",
 }
 
 const DARK: Record<string, string> = {
-    "--background": "0 0 0",
-    "--surface-sunken": "0 0 0",
-    "--card": "15 23 42",
-    "--card-foreground": "248 250 252",
-    "--popover": "15 23 42",
-    "--popover-foreground": "248 250 252",
-    "--foreground": "248 250 252",
-    "--text-body": "203 213 225",
-    "--muted-foreground": "148 163 184",
-    "--primary": "59 130 246",
-    "--primary-foreground": "2 8 23",
-    "--brand-blue": "46 125 255",
-    "--brand-hover": "37 99 235",
-    "--brand-press": "29 78 216",
-    "--secondary": "30 41 59",
-    "--secondary-foreground": "248 250 252",
-    "--muted": "30 41 59",
-    "--accent": "30 41 59",
-    "--accent-foreground": "248 250 252",
-    "--destructive": "239 68 68",
-    "--destructive-foreground": "255 255 255",
-    "--positive": "74 222 128",
-    "--negative": "239 68 68",
-    "--caution": "245 158 11",
-    "--accent-purple": "192 132 252",
-    "--accent-orange": "251 146 60",
-    "--primary-soft": "24 38 58",
-    "--border": "30 41 59",
-    "--border-strong": "51 65 85",
-    "--input": "30 41 59",
-    "--ring": "59 130 246",
+    "--background": "28 27 27",
+    "--surface-sunken": "20 19 19",
+    "--card": "50 48 47",
+    "--card-foreground": "252 252 252",
+    "--popover": "50 48 47",
+    "--popover-foreground": "252 252 252",
+    "--foreground": "252 252 252",
+    "--text-body": "201 198 196",
+    "--muted-foreground": "175 170 167",
+    "--primary": "252 252 252",
+    "--primary-foreground": "28 27 27",
+    "--brand-blue": "252 252 252",
+    "--brand-hover": "228 226 225",
+    "--brand-press": "201 198 196",
+    "--secondary": "73 70 69",
+    "--secondary-foreground": "252 252 252",
+    "--muted": "73 70 69",
+    "--accent": "73 70 69",
+    "--accent-foreground": "252 252 252",
+    "--destructive": "255 138 113",
+    "--destructive-foreground": "28 27 27",
+    "--positive": "153 179 131",
+    "--negative": "255 138 113",
+    "--caution": "238 227 177",
+    "--accent-purple": "179 171 188",
+    "--accent-orange": "201 198 196",
+    "--primary-soft": "73 70 69",
+    "--border": "73 70 69",
+    "--border-strong": "104 102 100",
+    "--input": "73 70 69",
+    "--ring": "252 252 252",
 }
 
 export const tokensPlugin = plugin(({ addBase }) => {
@@ -94,8 +99,9 @@ export const tokensPlugin = plugin(({ addBase }) => {
             color: "rgb(var(--foreground))",
             WebkitFontSmoothing: "antialiased",
         },
-        // Figures are tabular and semibold everywhere, matching Theme.figure.
-        ".figure": { fontVariantNumeric: "tabular-nums", fontWeight: "600" },
+        // Figures are tabular so columns of money line up; weight comes from
+        // the element, not the class, since this system carries no mono face.
+        ".figure": { fontVariantNumeric: "tabular-nums" },
     })
 })
 
@@ -104,8 +110,11 @@ export const sharedPreset: Partial<Config> = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ["var(--font-ibm-plex-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-                mono: ["var(--font-ibm-plex-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+                sans: ["var(--font-sans)", "system-ui", "Helvetica Neue", "sans-serif"],
+                serif: ["var(--font-serif)", "Lucida", "Georgia", "serif"],
+                // Figures are tabular in the body face now; there is no mono
+                // face in this system (see .figure below).
+                mono: ["var(--font-sans)", "system-ui", "sans-serif"],
             },
             colors: {
                 background: "rgb(var(--background) / <alpha-value>)",
@@ -157,12 +166,13 @@ export const sharedPreset: Partial<Config> = {
                 ring: "rgb(var(--ring) / <alpha-value>)",
             },
             borderRadius: {
-                sm: "8px",
-                md: "10px",
-                lg: "12px",
-                xl: "16px",
-                "2xl": "20px",
-                card: "22px",
+                sm: "4px",
+                md: "12px",
+                lg: "16px",
+                xl: "20px",
+                "2xl": "24px",
+                card: "24px",
+                pill: "100rem",
             },
         },
     },
