@@ -1,5 +1,6 @@
 "use client"
 
+import { useReducedMotion } from "framer-motion"
 import { CALCULATORS } from "@finnacalc/shared/calculators-catalog"
 import { Rise, Stagger } from "@/components/motion"
 import { CalculatorWidget } from "@/components/calculator-widget"
@@ -242,55 +243,53 @@ export function InvestingSection() {
             ctaLabel="Get started with Investing"
             flip
         >
-            <MarketLines />
+            <InvestingDemo />
         </ProductSection>
     )
 }
 
-/** Market lines with no invented prices — the shape of the product, no fiction. */
-function MarketLines() {
+/**
+ * The Investing tab, actually being used: a screen recording of a real session
+ * on the deployed app — live index prices, a stock page with its chart and SEC
+ * stats, the news feed. Nothing in the frame is staged; the prices were the
+ * prices when it was recorded, and the caption dates it for exactly that
+ * reason.
+ *
+ * Reduced-motion readers get the poster frame. The video is muted, looped,
+ * inline, ~300KB — decoration that happens to be true, not a page cost.
+ */
+function InvestingDemo() {
+    const reduceMotion = useReducedMotion()
+
     return (
-        <div className="rounded-lg bg-chip/[0.06] p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between pb-4">
-                <div className="flex gap-2">
-                    {["1D", "1W", "1M", "1Y", "All"].map((range, index) => (
-                        <span
-                            key={range}
-                            className={cn(
-                                "rounded-pill px-2.5 py-1 text-[11px] font-medium",
-                                index === 3 ? "bg-chip text-ink" : "text-chip/60"
-                            )}
-                        >
-                            {range}
-                        </span>
-                    ))}
-                </div>
-            </div>
-            <svg viewBox="0 0 520 220" className="w-full" aria-hidden="true">
-                <path
-                    d="M0 190 C 60 178, 90 150, 140 155 C 190 160, 210 120, 260 110 C 300 102, 320 128, 360 112 C 410 92, 450 55, 520 30"
-                    fill="none"
-                    stroke="#99B383"
-                    strokeWidth={2.5}
-                />
-                <path
-                    d="M0 200 C 70 195, 110 180, 160 182 C 220 184, 260 165, 310 160 C 360 155, 420 140, 520 128"
-                    fill="none"
-                    stroke="rgb(252 252 252 / 0.35)"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                />
-            </svg>
-            <div className="flex flex-wrap gap-2 pt-4">
-                {["AAPL", "MSFT", "VOO", "BRK.B", "NVDA"].map((symbol) => (
-                    <span
-                        key={symbol}
-                        className="figure rounded-pill bg-chip/10 px-3 py-1 text-xs font-medium text-chip"
+        <div className="flex flex-col gap-3">
+            <div className="overflow-hidden rounded-lg border border-chip/20 shadow-[0_32px_80px_rgb(0_0_0/0.4)]">
+                {reduceMotion ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                        src="/investing-poster.jpg"
+                        alt="The FinnaCalc Investing tab: market overview with live index prices"
+                        className="block w-full"
+                    />
+                ) : (
+                    <video
+                        className="block w-full"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        poster="/investing-poster.jpg"
+                        aria-label="A recorded session of the FinnaCalc Investing tab: browsing the market overview, opening a stock page, switching chart ranges, and scrolling its stats and news"
                     >
-                        {symbol}
-                    </span>
-                ))}
+                        <source src="/investing-demo.webm" type="video/webm" />
+                        <source src="/investing-demo.mp4" type="video/mp4" />
+                    </video>
+                )}
             </div>
+            <p className="text-xs muted-on-color">
+                A real session in the app, recorded August 2026. Prices are from that day.
+            </p>
         </div>
     )
 }
