@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { appUrl } from "@/lib/app-url"
-import { Button } from "@/components/ui"
+import { Button } from "@/components/ui/button"
 
 /**
  * The 404. Worth having explicitly: app paths moved to the subdomain, so the
@@ -10,11 +10,12 @@ import { Button } from "@/components/ui"
 export default function NotFound() {
     return (
         <section className="mx-auto flex max-w-2xl flex-col items-center gap-6 px-6 py-24 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">404</p>
-            <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.02em] text-foreground">
-                That page isn&rsquo;t here.
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">404</p>
+            <h1 className="font-display text-[clamp(2rem,5vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-ink">
+                <span className="font-extralight">That page</span>{" "}
+                <span className="font-black">isn&rsquo;t here.</span>
             </h1>
-            <p className="max-w-md text-lg text-muted-foreground">
+            <p className="max-w-md text-lg font-extralight text-ink-muted">
                 It may have moved to the app, where your budget, portfolio and calculators live.
             </p>
             <div className="flex flex-wrap justify-center gap-3">

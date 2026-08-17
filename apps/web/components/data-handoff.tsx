@@ -10,7 +10,7 @@ import {
     readLocalData,
 } from "@finnacalc/shared/storage"
 import { appUrl } from "@/lib/app-url"
-import { Button } from "@/components/ui"
+import { Button } from "@/components/ui/button"
 
 /**
  * Moves data stranded by the domain split.
@@ -96,7 +96,7 @@ export function DataHandoffBanner() {
     if (state === "done") {
         return (
             <Banner tone="done" onDismiss={() => setState("hidden")}>
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-positive" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
                 <p className="text-sm">
                     Your data is in the app now, and the copy left on this site has been cleared.
                 </p>
@@ -125,7 +125,7 @@ export function DataHandoffBanner() {
                 )}
             </div>
             {state === "too-big" && (
-                <p className="w-full text-xs text-muted-foreground">
+                <p className="w-full text-xs text-ink-muted">
                     It&rsquo;s too large to carry in a link, so download the file and upload it at{" "}
                     <a href={appUrl("/migrate")} className="font-semibold underline underline-offset-2">
                         app.finnacalc.com/migrate
@@ -150,8 +150,8 @@ function Banner({
         <div
             className={
                 tone === "done"
-                    ? "border-b border-border bg-positive/10"
-                    : "border-b border-border bg-primary/10"
+                    ? "border-b border-line bg-mint/10"
+                    : "border-b border-line bg-mint/10"
             }
         >
             <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-3 px-6 py-3.5">
@@ -160,7 +160,7 @@ function Banner({
                     type="button"
                     onClick={onDismiss}
                     aria-label="Dismiss"
-                    className="ml-auto shrink-0 text-muted-foreground transition hover:text-foreground"
+                    className="ml-auto shrink-0 text-ink-muted transition hover:text-ink"
                 >
                     <X className="h-4 w-4" />
                 </button>

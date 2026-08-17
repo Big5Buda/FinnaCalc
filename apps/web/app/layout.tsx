@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
+import { Bricolage_Grotesque, Fraunces, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { SiteFooter, SiteNav } from "@/components/site"
+import { MotionProvider } from "@/components/motion"
 import { DataHandoffBanner } from "@/components/data-handoff"
 import { SITE_ORIGIN } from "@/lib/app-url"
 
@@ -10,15 +11,29 @@ import { SITE_ORIGIN } from "@/lib/app-url"
  * before they have an account. It shares the app's typefaces and tokens so the
  * handoff to app.finnacalc.com doesn't feel like a different product.
  */
-const ibmPlexSans = IBM_Plex_Sans({
-    variable: "--font-ibm-plex-sans",
+/*
+ * Three faces, three jobs (see CLAUDE.md). Fraunces carries display type,
+ * Bricolage Grotesque everything read as interface or prose, JetBrains Mono
+ * every figure. All three ship the full weight range the system leans on:
+ * extralight (200) against black (800) is how emphasis is made here, not
+ * colour.
+ */
+const fraunces = Fraunces({
+    variable: "--font-fraunces",
     subsets: ["latin"],
-    weight: ["400", "500", "600", "700"],
+    // Variable font: the whole 100–900 range, which is what lets extralight sit
+    // against black in the same headline.
+    weight: "variable",
 })
-const ibmPlexMono = IBM_Plex_Mono({
-    variable: "--font-ibm-plex-mono",
+const bricolage = Bricolage_Grotesque({
+    variable: "--font-bricolage",
     subsets: ["latin"],
-    weight: ["400", "500", "600"],
+    weight: "variable",
+})
+const jetbrainsMono = JetBrains_Mono({
+    variable: "--font-jetbrains-mono",
+    subsets: ["latin"],
+    weight: ["300", "400", "500", "700"],
 })
 
 export const metadata: Metadata = {
@@ -41,14 +56,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`}>
+        <html lang="en" className={`${fraunces.variable} ${bricolage.variable} ${jetbrainsMono.variable}`}>
             <body className="font-sans antialiased">
-                <div className="flex min-h-screen flex-col">
-                    <DataHandoffBanner />
-                    <SiteNav />
-                    <main className="flex-1">{children}</main>
-                    <SiteFooter />
-                </div>
+                <MotionProvider>
+                    <div className="flex min-h-screen flex-col">
+                        <DataHandoffBanner />
+                        <SiteNav />
+                        <main className="flex-1">{children}</main>
+                        <SiteFooter />
+                    </div>
+                </MotionProvider>
             </body>
         </html>
     )
