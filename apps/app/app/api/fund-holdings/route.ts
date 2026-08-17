@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { OK, reportOf, secJson, secText, type SourceReport } from "@/lib/sec"
 
 /**
  * A fund's reported holdings, from its latest SEC Form 13F-HR.
@@ -18,14 +19,14 @@ import { NextRequest, NextResponse } from "next/server"
  *
  * Positions are aggregated by CUSIP because a filer with several managers
  * reports the same company on multiple rows (Berkshire files Apple twice).
+ *
+ * Reading a 13F takes three hops — submissions, the filing index, then the
+ * information table — and any of them can be refused. Each hop reports which
+ * happened, because "this fund has filed no 13F" and "we couldn't fetch the
+ * table" are different sentences and only one of them is true at a time.
  */
 
 export const revalidate = 21600
-
-const SEC_HEADERS = {
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
-    Accept: "application/json",
-}
 
 function tagText(block: string, tag: string): string | null {
     // 13F tables are sometimes namespaced (ns1:nameOfIssuer), sometimes not.
@@ -45,36 +46,47 @@ export async function GET(req: NextRequest) {
     if (!cik) return NextResponse.json({ error: "Pass a cik." }, { status: 400 })
     const padded = cik.padStart(10, "0")
 
-    const subsRes = await fetch(`https://data.sec.gov/submissions/CIK${padded}.json`, {
-        headers: SEC_HEADERS,
-        next: { revalidate },
-    }).catch(() => null)
-    if (!subsRes?.ok) return NextResponse.json({ cik: padded, name: null, holdings: [] })
-    const subs = await subsRes.json()
+    /** Keys unchanged for callers that only read `holdings`; report is additive. */
+    const empty = (name: string | null, report: SourceReport) =>
+        NextResponse.json({ cik: padded, name, holdings: [], ...report })
+
+    const submissions = await secJson<any>(
+        `https://data.sec.gov/submissions/CIK${padded}.json`,
+        revalidate
+    )
+    if (submissions.status !== "ok") return empty(null, reportOf(submissions))
+    const subs = submissions.data
+    const name = subs.name ?? null
 
     const recent = subs.filings?.recent
     const forms: string[] = recent?.form ?? []
     const i = forms.findIndex((f) => f === "13F-HR")
     if (i < 0) {
-        return NextResponse.json({ cik: padded, name: subs.name ?? null, holdings: [] })
+        return empty(name, {
+            status: "no-data",
+            reason: "No 13F-HR on record — funds under $100M don't have to file one.",
+        })
     }
 
     const accession = String(recent.accessionNumber[i]).replace(/-/g, "")
     const base = `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${accession}`
 
     // The information table's filename varies per filer, so read the index.
-    const idxRes = await fetch(`${base}/index.json`, { headers: SEC_HEADERS, next: { revalidate } })
-        .catch(() => null)
-    if (!idxRes?.ok) return NextResponse.json({ cik: padded, name: subs.name ?? null, holdings: [] })
-    const idx = await idxRes.json()
-    const names: string[] = (idx.directory?.item ?? []).map((it: any) => String(it.name))
-    const table = names.find((n) => n.endsWith(".xml") && n !== "primary_doc.xml")
-    if (!table) return NextResponse.json({ cik: padded, name: subs.name ?? null, holdings: [] })
+    const index = await secJson<any>(`${base}/index.json`, revalidate)
+    if (index.status !== "ok") return empty(name, reportOf(index))
 
-    const xmlRes = await fetch(`${base}/${table}`, { headers: SEC_HEADERS, next: { revalidate } })
-        .catch(() => null)
-    if (!xmlRes?.ok) return NextResponse.json({ cik: padded, name: subs.name ?? null, holdings: [] })
-    const xml = await xmlRes.text()
+    const names: string[] = (index.data.directory?.item ?? []).map((it: any) => String(it.name))
+    const table = names.find((n) => n.endsWith(".xml") && n !== "primary_doc.xml")
+    if (!table) {
+        return empty(name, {
+            status: "unavailable",
+            reason: "The 13F filing has no information table we can read.",
+        })
+    }
+
+    const document = await secText(`${base}/${table}`, revalidate)
+    if (document.status !== "ok") return empty(name, reportOf(document))
+    const xml = document.data
 
     const blocks = xml.match(/<(?:[\w-]+:)?infoTable>[\s\S]*?<\/(?:[\w-]+:)?infoTable>/g) ?? []
 
@@ -100,7 +112,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
         cik: padded,
-        name: subs.name ?? null,
+        name,
         // The quarter the snapshot describes, and when it reached the SEC.
         reportDate: recent.reportDate?.[i] ?? null,
         filedAt: recent.filingDate?.[i] ?? null,
@@ -110,5 +122,13 @@ export async function GET(req: NextRequest) {
             weight: total > 0 ? h.value / total : 0,
         })),
         sourceUrl: `${base}/${table}`,
+        // We fetched the table and it parsed to nothing — that's the filing
+        // being empty, not us failing to read it.
+        ...(holdings.length
+            ? OK
+            : {
+                  status: "no-data" as const,
+                  reason: "The latest 13F reports no positions.",
+              }),
     })
 }

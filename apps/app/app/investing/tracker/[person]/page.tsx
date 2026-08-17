@@ -44,6 +44,27 @@ type Filing = {
     url: string
 }
 
+/**
+ * Every filing route now says whether an empty list means "nothing on file" or
+ * "we couldn't read the record" (see lib/sec.ts). The difference matters more
+ * here than anywhere else in the app: an empty list under someone's name reads
+ * as a claim about that person's conduct, and we're only entitled to make it
+ * when the source actually answered.
+ */
+type SourceReport = { status?: "ok" | "no-data" | "unavailable"; reason?: string | null }
+
+const UNREADABLE = "The filing record couldn't be read right now."
+
+/** The sentence to show above a list, or null when there's nothing to flag. */
+function caveat(report: SourceReport | null): string | null {
+    if (!report) return UNREADABLE
+    if (report.status === "unavailable") return report.reason ?? UNREADABLE
+    // "ok" with a reason is a partial read — some of the record loaded, some
+    // didn't — and the list is shown with the gap named above it.
+    if (report.status === "ok" && report.reason) return report.reason
+    return null
+}
+
 export default function TrackedPersonPage({ params }: { params: Promise<{ person: string }> }) {
     const { person: personId } = use(params)
     const person = personById(personId)
@@ -51,6 +72,8 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
     const [trades, setTrades] = useState<InsiderTrade[] | null>(null)
     const [holdings, setHoldings] = useState<{ holdings: FundHolding[]; reportDate: string | null; total: number } | null>(null)
     const [filings, setFilings] = useState<Filing[] | null>(null)
+    /** Null while loading, then whatever the route said about its own answer. */
+    const [report, setReport] = useState<SourceReport | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -59,28 +82,47 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
         ;(async () => {
             try {
                 if (person.category === "insiders" && person.cik) {
-                    const data = await apiGet<{ trades: InsiderTrade[] }>("/api/insider-trades", {
-                        cik: person.cik,
-                    })
-                    if (active) setTrades(data.trades)
+                    const data = await apiGet<SourceReport & { trades: InsiderTrade[] }>(
+                        "/api/insider-trades",
+                        { cik: person.cik }
+                    )
+                    if (active) {
+                        setTrades(data.trades)
+                        setReport(data)
+                    }
                 } else if (person.category === "investors" && person.cik) {
-                    const data = await apiGet<{
-                        holdings: FundHolding[]
-                        reportDate: string | null
-                        total: number
-                    }>("/api/fund-holdings", { cik: person.cik })
-                    if (active) setHoldings(data)
+                    const data = await apiGet<
+                        SourceReport & {
+                            holdings: FundHolding[]
+                            reportDate: string | null
+                            total: number
+                        }
+                    >("/api/fund-holdings", { cik: person.cik })
+                    if (active) {
+                        setHoldings(data)
+                        setReport(data)
+                    }
                 } else if (person.category === "politicians") {
                     const [first, ...rest] = person.name.split(" ")
-                    const data = await apiGet<{ filings: Filing[] }>("/api/congress-filings", {
-                        last: rest[rest.length - 1] ?? person.name,
-                        first,
-                    })
-                    if (active) setFilings(data.filings)
+                    const data = await apiGet<SourceReport & { filings: Filing[] }>(
+                        "/api/congress-filings",
+                        { last: rest[rest.length - 1] ?? person.name, first }
+                    )
+                    if (active) {
+                        setFilings(data.filings)
+                        setReport(data)
+                    }
                 }
             } catch {
-                // A miss is reported as "nothing on file", not as an error —
-                // plenty of these people simply have no recent filing.
+                // The request itself failed, so we know nothing. The section
+                // still renders — with an empty payload and `report` left null,
+                // which `caveat` reads as "couldn't be read". Rendering nothing
+                // at all would be the same silent gap in a different place.
+                if (!active) return
+                if (person.category === "insiders") setTrades([])
+                else if (person.category === "investors")
+                    setHoldings({ holdings: [], reportDate: null, total: 0 })
+                else if (person.category === "politicians") setFilings([])
             }
             if (active) setLoading(false)
         })()
@@ -139,9 +181,12 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
             {trades && (
                 <section className="flex flex-col gap-2.5">
                     <SectionLabel>Form 4 filings</SectionLabel>
-                    {trades.length === 0 ? (
+                    {/* A gap in the record is named above the list, so a short
+                        list is never mistaken for a complete one. */}
+                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                    {trades.length === 0 && !caveat(report) ? (
                         <Notice tone="info">No Form 4 transactions on file recently.</Notice>
-                    ) : (
+                    ) : trades.length === 0 ? null : (
                         <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
                             {trades.slice(0, 25).map((trade, index) => (
                                 <li
@@ -185,9 +230,10 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
             {holdings && (
                 <section className="flex flex-col gap-2.5">
                     <SectionLabel>13F holdings</SectionLabel>
-                    {holdings.holdings.length === 0 ? (
+                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                    {holdings.holdings.length === 0 && !caveat(report) ? (
                         <Notice tone="info">No recent 13F on file.</Notice>
-                    ) : (
+                    ) : holdings.holdings.length === 0 ? null : (
                         <>
                             <p className="figure text-sm font-semibold text-foreground">
                                 {compactMoney(holdings.total)} reported
@@ -226,9 +272,10 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
             {filings && (
                 <section className="flex flex-col gap-2.5">
                     <SectionLabel>House disclosures</SectionLabel>
-                    {filings.length === 0 ? (
+                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                    {filings.length === 0 && !caveat(report) ? (
                         <Notice tone="info">No disclosures found for this name.</Notice>
-                    ) : (
+                    ) : filings.length === 0 ? null : (
                         <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
                             {filings.slice(0, 25).map((filing, index) => (
                                 <li

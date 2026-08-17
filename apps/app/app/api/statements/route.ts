@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cikFor, OK, reportOf, secJson, type SourceReport } from "@/lib/sec";
 
 // Ten years of income statement, balance sheet and cash flow, from the SEC's
 // free XBRL company-facts data. No API key and no database: one SEC call per
@@ -10,19 +11,12 @@ import { NextRequest, NextResponse } from "next/server";
 // second, and identify yourself in the User-Agent with a working contact.
 // Set SEC_CONTACT, e.g. "FinnaCalc you@finnacalc.com".
 //
-// Supersedes /api/financials for the annual view: that route reads Finnhub's
-// financials-reported, which is free-tier but caps out at four periods and
-// varies by filer. This reads the filings themselves.
+// The response always carries `status` and `reason` (see lib/sec.ts), because
+// an empty `statements` array means two very different things: this company
+// files nothing we can read, or the SEC wouldn't tell us. Only the first is
+// safe to render as a missing section.
 
 export const revalidate = 86400;
-
-const SEC_HEADERS = {
-    // The SEC blocks callers who don't identify themselves with a REACHABLE
-    // contact, so the fallback has to be an address that actually receives
-    // mail. Override it with SEC_CONTACT in the environment.
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
-    Accept: "application/json",
-};
 
 // Each row lists the us-gaap tags companies actually use, best first. Tags are
 // MERGED across the list rather than first-wins: filers change tags mid-history
@@ -159,25 +153,14 @@ function series(facts: Record<string, any>, tags: string[], fyeMonth: number) {
     return merged;
 }
 
-async function cikFor(symbol: string): Promise<string | null> {
-    const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
-        headers: SEC_HEADERS,
-        next: { revalidate: 604800 }, // the ticker map moves slowly
-    });
-    if (!res.ok) return null;
-    const all = (await res.json()) as Record<string, { cik_str: number; ticker: string }>;
-    // Class shares are written BRK.B by quote feeds and by people, but the
-    // SEC writes them BRK-B, so a dotted ticker found nothing at all. Try the
-    // symbol as given, then with dots swapped for dashes.
-    const candidates = [symbol, symbol.replace(/\./g, "-")];
-    const hit = Object.values(all).find((c) => candidates.includes(c.ticker));
-    return hit ? String(hit.cik_str).padStart(10, "0") : null;
-}
-
-// Not every symbol files with the SEC (foreign listings, most ETFs), and not
-// every filer tags every line. Empty is the honest answer and the iOS section
-// hides itself on empty, exactly like /api/financials does.
-const EMPTY = (symbol: string) => NextResponse.json({ symbol, years: [], statements: [] });
+/**
+ * Keys unchanged so shipped iOS builds keep parsing; the report is additive.
+ * Not every symbol files with the SEC (foreign listings, most ETFs), and not
+ * every filer tags every line — that's "no-data", and hiding the section is a
+ * fair rendering of it. Being refused is not.
+ */
+const empty = (symbol: string, report: SourceReport) =>
+    NextResponse.json({ symbol, years: [], statements: [], ...report });
 
 export async function GET(req: NextRequest) {
     const symbol = (req.nextUrl.searchParams.get("symbol") ?? "").toUpperCase().trim();
@@ -186,17 +169,22 @@ export async function GET(req: NextRequest) {
     }
 
     const cik = await cikFor(symbol);
-    if (!cik) return EMPTY(symbol);
+    if (cik.status !== "ok") return empty(symbol, reportOf(cik));
 
-    const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
-        headers: SEC_HEADERS,
-        next: { revalidate },
-    });
-    if (!res.ok) return EMPTY(symbol);
+    const companyFacts = await secJson<any>(
+        `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.data}.json`,
+        revalidate
+    );
+    if (companyFacts.status !== "ok") return empty(symbol, reportOf(companyFacts));
 
-    const doc = (await res.json()) as any;
+    const doc = companyFacts.data;
     const facts = doc?.facts?.["us-gaap"];
-    if (!facts) return EMPTY(symbol);
+    if (!facts) {
+        return empty(symbol, {
+            status: "no-data",
+            reason: `${symbol} files with the SEC but doesn't tag its statements in US GAAP.`,
+        });
+    }
 
     const fyeMonth = fiscalYearEndMonth(facts);
     const built = [
@@ -215,24 +203,32 @@ export async function GET(req: NextRequest) {
     for (const s of built) for (const r of s.rows) for (const y of r.data.keys()) everyYear.add(y);
     const years = [...everyYear].sort((a, b) => a - b).slice(-10);
 
+    const statements = built
+        .map((statement) => ({
+            name: statement.name,
+            rows: statement.rows
+                // null, never 0, for a year a company did not report a line:
+                // the app has to tell "nothing here" from "they reported zero".
+                .map((r) => ({ label: r.label, values: years.map((y) => r.data.get(y) ?? null) }))
+                .filter((r) => r.values.some((v) => v !== null)),
+        }))
+        // Banks and insurers legitimately have no gross profit or R&D, so a
+        // statement with nothing in it is dropped rather than shown empty.
+        .filter((statement) => statement.rows.length > 0);
+
     return NextResponse.json({
         symbol,
         companyName: doc.entityName ?? symbol,
-        cik,
+        cik: cik.data,
         fiscalYearEndMonth: fyeMonth,
         years,
-        statements: built
-            .map((statement) => ({
-                name: statement.name,
-                rows: statement.rows
-                    // null, never 0, for a year a company did not report a line:
-                    // the app has to tell "nothing here" from "they reported zero".
-                    .map((r) => ({ label: r.label, values: years.map((y) => r.data.get(y) ?? null) }))
-                    .filter((r) => r.values.some((v) => v !== null)),
-            }))
-            // Banks and insurers legitimately have no gross profit or R&D, so a
-            // statement with nothing in it is dropped rather than shown empty.
-            .filter((statement) => statement.rows.length > 0),
+        statements,
         source: "SEC EDGAR XBRL company facts",
+        ...(statements.length
+            ? OK
+            : {
+                  status: "no-data" as const,
+                  reason: `The SEC has no statement lines tagged for ${symbol}.`,
+              }),
     });
 }

@@ -26,7 +26,16 @@ does on its own.
 ```
 NEXT_PUBLIC_SITE_ORIGIN=https://www.finnacalc.com
 NEXT_PUBLIC_SESSION_COOKIE_DOMAIN=.finnacalc.com
+SEC_CONTACT=FinnaCalc you@finnacalc.com
 ```
+
+`SEC_CONTACT` is the User-Agent the five SEC-backed routes identify themselves
+with — financials, statements, insider trades, fund holdings, congress filings.
+The SEC rejects callers it can't reach, and it rate-limits by User-Agent, so a
+deployment serving real traffic needs its own rather than the shared fallback in
+`lib/sec.ts`. When it's wrong the server logs `[sec] 403 …` once per process and
+the affected sections say the filings couldn't be loaded — they no longer render
+empty, which used to look like the company files nothing.
 
 **marketing**:
 
@@ -36,9 +45,25 @@ NEXT_PUBLIC_SITE_ORIGIN=https://www.finnacalc.com
 ```
 
 `NEXT_PUBLIC_APP_ORIGIN` must be present in the **build** environment: the
-`/api` proxy in `apps/web/next.config.mjs` is a rewrite, and rewrites are
-resolved when the site is built, not per request. Change it and redeploy, or
-nothing happens.
+`/api` proxy and the redirects in `apps/web/next.config.mjs` are both resolved
+when the site is built, not per request. Change it and redeploy, or nothing
+happens.
+
+## Redirects off the root domain
+
+Every path that used to be served by `www` and now lives on the subdomain
+redirects from `apps/web/next.config.mjs`. Two waves stranded them: the 2024
+per-calculator pages (`/loan-calculator` and friends, removed in #52) and every
+application route (moved by #99).
+
+Application routes are **308** — they live on the subdomain by design. Company
+pages (`/about`, `/plans`, `/privacy`, `/terms`) are **307**, because the
+marketing site may reclaim them and a cached 308 is hard to take back. `/advising`
+stays a 404: that service doesn't exist, and sending it somewhere plausible
+would be worse than the 404.
+
+Next evaluates redirects **before** `beforeFiles` rewrites, so no redirect may
+match `/api/*` — it would shadow the proxy below.
 
 ## The /api proxy
 
@@ -66,7 +91,9 @@ Rolling back is step 6 in reverse and takes minutes.
 ## Verify after cutover
 
 - `www.finnacalc.com` serves the marketing landing, sliders move
-- `www.finnacalc.com/budgeting` → 307 to the app
+- `www.finnacalc.com/budgeting` → 308 to the app
+- `www.finnacalc.com/loan-calculator` → 308 to `/calculators/loan`
+- `www.finnacalc.com/about` → 307 to the app
 - `www.finnacalc.com/api/market-stats?symbols=SPY` returns JSON — **this is
   what keeps installed iOS builds working**
 - `app.finnacalc.com/sign-in` completes a real sign-in

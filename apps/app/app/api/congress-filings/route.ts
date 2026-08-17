@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { inflateRawSync } from "node:zlib"
+import { OK, secBuffer } from "@/lib/sec"
 
 /**
  * A House member's periodic transaction reports (PTRs), from the Clerk's own
@@ -29,11 +30,13 @@ import { inflateRawSync } from "node:zlib"
  * the fact of a filing plus a link to the government's own copy is the
  * narrowest possible use, but whether this product qualifies for the media
  * carve-out is a question for a lawyer, not for this comment.
+ *
+ * The Clerk isn't the SEC, but the failure shape is identical, so this reuses
+ * lib/sec.ts: an index we couldn't download must not render as "this member has
+ * disclosed nothing".
  */
 
 export const revalidate = 21600
-
-const HEADERS = { "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com" }
 
 /** P is the periodic transaction report; the rest are annual/termination forms. */
 const FILING_TYPES: Record<string, string> = {
@@ -91,29 +94,45 @@ export async function GET(req: NextRequest) {
     const thisYear = new Date().getUTCFullYear()
     const years = [thisYear, thisYear - 1]
     const filings: any[] = []
+    // Which of the two annual indexes we actually managed to search. A year we
+    // couldn't download is a year we can't speak for.
+    const searched: number[] = []
+    const missed: number[] = []
 
     for (const year of years) {
-        const res = await fetch(
+        const archive = await secBuffer(
             `https://disclosures-clerk.house.gov/public_disc/financial-pdfs/${year}FD.ZIP`,
-            { headers: HEADERS, next: { revalidate } }
-        ).catch(() => null)
-        if (!res?.ok) continue
-
-        let text: string
-        try {
-            const unzipped = firstTextFileFromZip(Buffer.from(await res.arrayBuffer()))
-            if (!unzipped) continue
-            text = unzipped
-        } catch {
+            revalidate
+        )
+        if (archive.status !== "ok") {
+            missed.push(year)
             continue
         }
 
+        let text: string
+        try {
+            const unzipped = firstTextFileFromZip(archive.data)
+            if (!unzipped) {
+                missed.push(year)
+                continue
+            }
+            text = unzipped
+        } catch {
+            missed.push(year)
+            continue
+        }
         const lines = text.split(/\r?\n/)
         const header = (lines.shift() ?? "").split("\t")
         const col = (name: string) => header.indexOf(name)
         const iLast = col("Last"), iFirst = col("First"), iType = col("FilingType")
         const iDate = col("FilingDate"), iDoc = col("DocID"), iState = col("StateDst")
-        if (iLast < 0 || iDoc < 0) continue
+        // The Clerk changed the column layout on us: we have the file but can't
+        // read it, which is not the same as the member having filed nothing.
+        if (iLast < 0 || iDoc < 0) {
+            missed.push(year)
+            continue
+        }
+        searched.push(year)
 
         for (const line of lines) {
             if (!line.trim()) continue
@@ -154,5 +173,36 @@ export async function GET(req: NextRequest) {
         // Said out loud so the client never has to assume otherwise.
         tradesIncluded: false,
         filings,
+        yearsSearched: searched,
+        ...report(filings.length, searched, missed),
     })
+}
+
+/**
+ * What an empty list means, given how much of the record we could actually
+ * read. Searching one year of two and finding nothing is a partial answer, and
+ * it says so rather than passing itself off as a complete one.
+ */
+function report(found: number, searched: number[], missed: number[]) {
+    if (searched.length === 0) {
+        return {
+            status: "unavailable" as const,
+            reason: "The House Clerk's disclosure index couldn't be downloaded.",
+        }
+    }
+    if (missed.length > 0) {
+        return {
+            status: "ok" as const,
+            reason: `Only ${searched.join(" and ")} could be searched; ${missed.join(
+                " and "
+            )} didn't load.`,
+        }
+    }
+    if (found === 0) {
+        return {
+            status: "no-data" as const,
+            reason: `No disclosures filed under this name in ${searched.join(" or ")}.`,
+        }
+    }
+    return OK
 }

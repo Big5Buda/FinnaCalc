@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { OK, reportOf, secJson, secText } from "@/lib/sec"
 
 /**
  * Insider trades from SEC Form 4 filings.
@@ -26,14 +27,14 @@ import { NextRequest, NextResponse } from "next/server"
  * for P and S. The app leads with those and files the rest under
  * compensation, because saying "Cook sold $40M" about a tax withholding
  * would be a fabricated story about a real number.
+ *
+ * The same care applies to an empty response. "This person has filed no Form 4
+ * recently" and "the SEC wouldn't answer us" are different claims, and only the
+ * first is ours to make — so the response carries `status` and `reason` (see
+ * lib/sec.ts) and the page reads them.
  */
 
 export const revalidate = 3600
-
-const SEC_HEADERS = {
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
-    Accept: "application/json",
-}
 
 /** How many recent Form 4s to open per person. Each is one more SEC request. */
 const MAX_FILINGS = 12
@@ -77,26 +78,6 @@ function numberOf(xml: string, tag: string): number | null {
     return Number.isFinite(n) ? n : null
 }
 
-async function secJson(url: string, revalidateFor: number): Promise<any | null> {
-    try {
-        const res = await fetch(url, { headers: SEC_HEADERS, next: { revalidate: revalidateFor } })
-        if (!res.ok) return null
-        return await res.json()
-    } catch {
-        return null
-    }
-}
-
-async function secText(url: string, revalidateFor: number): Promise<string | null> {
-    try {
-        const res = await fetch(url, { headers: SEC_HEADERS, next: { revalidate: revalidateFor } })
-        if (!res.ok) return null
-        return await res.text()
-    } catch {
-        return null
-    }
-}
-
 export async function GET(req: NextRequest) {
     const cik = (req.nextUrl.searchParams.get("cik") ?? "").replace(/\D/g, "")
     if (!cik) {
@@ -104,10 +85,11 @@ export async function GET(req: NextRequest) {
     }
     const padded = cik.padStart(10, "0")
 
-    const submissions = await secJson(`https://data.sec.gov/submissions/CIK${padded}.json`, revalidate)
-    if (!submissions) {
-        return NextResponse.json({ cik: padded, name: null, trades: [] })
+    const result = await secJson<any>(`https://data.sec.gov/submissions/CIK${padded}.json`, revalidate)
+    if (result.status !== "ok") {
+        return NextResponse.json({ cik: padded, name: null, trades: [], ...reportOf(result) })
     }
+    const submissions = result.data
 
     const recent = submissions.filings?.recent
     const forms: string[] = recent?.form ?? []
@@ -124,11 +106,20 @@ export async function GET(req: NextRequest) {
         filedAt: String(recent.filingDate[i]),
     }))
 
+    // A Form 4 we couldn't open is counted, not swallowed: if the SEC listed
+    // twelve filings and refused all twelve documents, an empty list would
+    // read as "never trades" about someone who trades constantly.
+    let unreadable = 0
+
     const parsed = await Promise.all(
         filings.map(async (f) => {
             const url = `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${f.accession}/${f.document}`
-            const xml = await secText(url, revalidate)
-            if (!xml) return []
+            const document = await secText(url, revalidate)
+            if (document.status !== "ok") {
+                unreadable += 1
+                return []
+            }
+            const xml = document.data
 
             const issuerName = textOf(xml, "issuerName")
             const symbol = textOf(xml, "issuerTradingSymbol")
@@ -175,5 +166,26 @@ export async function GET(req: NextRequest) {
         cik: padded,
         name: submissions.name ?? null,
         trades,
+        ...report(trades.length, filings.length, unreadable),
     })
+}
+
+/** What an empty — or partial — list of trades actually means. */
+function report(trades: number, listed: number, unreadable: number) {
+    if (unreadable > 0 && trades === 0) {
+        return {
+            status: "unavailable" as const,
+            reason: "The SEC listed recent Form 4 filings but wouldn't serve them.",
+        }
+    }
+    if (unreadable > 0) {
+        return {
+            status: "ok" as const,
+            reason: `${unreadable} of ${listed} recent filings couldn't be read, so this list is incomplete.`,
+        }
+    }
+    if (trades === 0 && listed === 0) {
+        return { status: "no-data" as const, reason: "No Form 4 filings on record recently." }
+    }
+    return OK
 }

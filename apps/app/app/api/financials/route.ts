@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cikFor, OK, reportOf, secJson, type SourceReport } from "@/lib/sec";
 
 // Revenue + net-profit series (the "Financials" bars), annual and quarterly,
 // read from the SEC's free XBRL company-facts data — the same source
@@ -6,20 +7,16 @@ import { NextRequest, NextResponse } from "next/server";
 // vendor's reading of them.
 //
 // GET /api/financials?symbol=AAPL
-//   → { symbol, annual: [{ year, revenue, netProfit }], quarterly: [{ year, quarter, … }] }
+//   → { symbol, annual: [{ year, revenue, netProfit }], quarterly: [{ … }],
+//       status, reason }
 //
 // Not every symbol files with the SEC (foreign listings, most ETFs) and not
-// every filer tags every line. Empty arrays are the honest answer, and the iOS
-// section hides itself on empty.
+// every filer tags every line. That is `status: "no-data"`, and an empty
+// section is the honest rendering of it. `status: "unavailable"` is a different
+// answer — the SEC refused us, and we know nothing about this company — so the
+// caller must say so rather than hide. See lib/sec.ts.
 
 export const revalidate = 86400;
-
-const SEC_HEADERS = {
-    // The SEC blocks callers who don't identify themselves with a reachable
-    // contact. Override with SEC_CONTACT, e.g. "FinnaCalc you@finnacalc.com".
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
-    Accept: "application/json",
-};
 
 const REVENUE_TAGS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
@@ -40,20 +37,6 @@ type Fact = {
     fy?: number;
     frame?: string;
 };
-
-async function cikFor(symbol: string): Promise<string | null> {
-    const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
-        headers: SEC_HEADERS,
-        next: { revalidate: 604800 }, // the ticker map moves slowly
-    });
-    if (!res.ok) return null;
-    const all = (await res.json()) as Record<string, { cik_str: number; ticker: string }>;
-    // Class shares are written BRK.B by people and by quote feeds, but the SEC
-    // writes them BRK-B.
-    const candidates = [symbol, symbol.replace(/\./g, "-")];
-    const hit = Object.values(all).find((company) => candidates.includes(company.ticker));
-    return hit ? String(hit.cik_str).padStart(10, "0") : null;
-}
 
 /** USD facts for the first tag a filer actually uses, merged across tags. */
 function factsFor(facts: Record<string, any>, tags: string[]): Fact[] {
@@ -91,7 +74,14 @@ function byPeriod(facts: Fact[], kind: "annual" | "quarterly"): Map<string, Fact
     return out;
 }
 
-const EMPTY = (symbol: string) => NextResponse.json({ symbol, annual: [], quarterly: [] });
+/**
+ * The shape stays the same whatever happened, so every caller — including iOS
+ * builds already in the wild, which read only `annual` and `quarterly` — keeps
+ * parsing it. What's new is the report saying whether empty means "nothing to
+ * report" or "we couldn't find out".
+ */
+const empty = (symbol: string, report: SourceReport) =>
+    NextResponse.json({ symbol, annual: [], quarterly: [], ...report });
 
 export async function GET(request: NextRequest) {
     const symbol = request.nextUrl.searchParams.get("symbol")?.toUpperCase().trim();
@@ -101,17 +91,21 @@ export async function GET(request: NextRequest) {
 
     try {
         const cik = await cikFor(symbol);
-        if (!cik) return EMPTY(symbol);
+        if (cik.status !== "ok") return empty(symbol, reportOf(cik));
 
-        const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
-            headers: SEC_HEADERS,
-            next: { revalidate },
-        });
-        if (!res.ok) return EMPTY(symbol);
+        const facts_ = await secJson<any>(
+            `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.data}.json`,
+            revalidate
+        );
+        if (facts_.status !== "ok") return empty(symbol, reportOf(facts_));
 
-        const doc = (await res.json()) as any;
-        const facts = doc?.facts?.["us-gaap"];
-        if (!facts) return EMPTY(symbol);
+        const facts = facts_.data?.facts?.["us-gaap"];
+        if (!facts) {
+            return empty(symbol, {
+                status: "no-data",
+                reason: `${symbol} files with the SEC but doesn't tag its statements in US GAAP.`,
+            });
+        }
 
         const revenue = factsFor(facts, REVENUE_TAGS);
         const netIncome = factsFor(facts, NET_INCOME_TAGS);
@@ -140,12 +134,28 @@ export async function GET(request: NextRequest) {
             });
         };
 
+        const annual = build("annual");
+        const quarterly = build("quarterly");
+
         return NextResponse.json({
             symbol,
-            annual: build("annual"),
-            quarterly: build("quarterly"),
+            annual,
+            quarterly,
+            // A filer whose tags we simply couldn't match is "no-data", not a
+            // silent success: the section is empty either way, but only one of
+            // those is something the reader should be told.
+            ...(annual.length || quarterly.length
+                ? OK
+                : {
+                      status: "no-data" as const,
+                      reason: `The SEC has no revenue and net income tagged for ${symbol}.`,
+                  }),
         });
     } catch {
-        return EMPTY(symbol);
+        // A bug in our own parsing, not the SEC's answer. Say we don't know.
+        return empty(symbol, {
+            status: "unavailable",
+            reason: "The filings couldn't be read.",
+        });
     }
 }
