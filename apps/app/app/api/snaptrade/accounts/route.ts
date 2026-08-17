@@ -25,6 +25,13 @@ export interface BrokeragePosition {
     price: number | null
     marketValue: number | null
     openPnl: number | null
+    /** What the shares cost, per share. SnapTrade's average_purchase_price.
+     *  Forwarded because open_pnl is the only basis the app had and plenty of
+     *  brokerages never send it: an Alpaca paper account reports market value
+     *  and leaves open_pnl null, which left the app unable to show a cost
+     *  basis or a gain at all. This field is reported far more widely, and it
+     *  is the basis directly rather than a figure the basis is inferred from. */
+    averagePurchasePrice: number | null
 }
 
 function round2(n: number) {
@@ -125,6 +132,8 @@ export async function GET(req: NextRequest) {
                     price: price != null ? round2(price) : null,
                     marketValue: price != null ? round2(units * price) : null,
                     openPnl: p.open_pnl != null ? round2(p.open_pnl) : null,
+                    averagePurchasePrice:
+                        p.average_purchase_price != null ? round2(p.average_purchase_price) : null,
                 }
             })
         )
