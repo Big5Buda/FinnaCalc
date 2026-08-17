@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
+import { setSessionHint } from "@/lib/session-hint"
 
 /**
  * The sign-in / sign-up card — the web port of Features/Auth/AuthView.swift
@@ -43,9 +44,21 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
     const [info, setInfo] = useState<string | null>(null)
     const [working, setWorking] = useState(false)
 
-    // Someone who is already signed in has nothing to do here.
+    /**
+     * Someone who is already signed in has nothing to do here.
+     *
+     * Re-arming the hint cookie first makes this page self-healing. The gate in
+     * middleware.ts reads that cookie, and it can outlive or predecease the
+     * real session — it expires at 30 days while Supabase refreshes itself, and
+     * clearing site data drops one without the other. Whenever that happened,
+     * the gate sent the user here, this effect sent them back, and the two
+     * bounced forever. Setting the cookie before redirecting means arriving
+     * here with a live session repairs the mismatch instead of looping on it.
+     */
     useEffect(() => {
-        if (user) router.replace(next)
+        if (!user) return
+        setSessionHint()
+        router.replace(next)
     }, [user, next, router])
 
     const passwordLongEnough = mode === "signIn" || password.length >= MIN_NEW_PASSWORD

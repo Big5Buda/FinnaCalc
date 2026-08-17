@@ -86,10 +86,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [])
 
-    const signIn = useCallback(async (email: string, password: string) => {
-        const { error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password })
-        if (error) throw new Error(error.message)
+    /**
+     * Sets the hint cookie the middleware gate reads, synchronously, before any
+     * caller navigates.
+     *
+     * The onAuthStateChange listener below also sets it, but it fires on a
+     * later tick — and the sign-in form redirects the moment signIn() resolves.
+     * That raced: the navigation hit the gate before the cookie existed, the
+     * gate bounced it straight back to /sign-in, and a correct password looked
+     * like a dead button. document.cookie is a synchronous write, so doing it
+     * here closes the window entirely.
+     */
+    const armSession = useCallback((session: Session | null | undefined) => {
+        if (session) setSessionHint()
     }, [])
+
+    const signIn = useCallback(
+        async (email: string, password: string) => {
+            const { data, error } = await getSupabase().auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            })
+            if (error) throw new Error(error.message)
+            armSession(data.session)
+        },
+        [armSession]
+    )
 
     const signUp = useCallback(async (email: string, password: string, name: string): Promise<SignUpResult> => {
         const { data, error } = await getSupabase().auth.signUp({
@@ -102,8 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         if (error) throw new Error(error.message)
         // No session back means Supabase is waiting on email confirmation.
+        armSession(data.session)
         return { needsConfirmation: !data.session }
-    }, [])
+    }, [armSession])
 
     const oauth = useCallback(async (provider: "apple" | "google") => {
         const { error } = await getSupabase().auth.signInWithOAuth({
