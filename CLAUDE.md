@@ -91,6 +91,66 @@ clears **4.5:1**.
   the same pattern (Radix behaviour, local markup, `cva` variants, `cn` merging).
 - `lucide-react` for icons.
 
+### shadcn configuration — verified with `shadcn info`
+
+`apps/web/components.json` is the only real shadcn setup in this repo.
+
+```
+framework        Next.js 15.3.9 (next-app), RSC on, TypeScript
+tailwind         v3 (3.4.19) · tailwind.config.ts · app/globals.css
+style            new-york   base: radix   icons: lucide
+importAlias      @  →  apps/web/*
+registry         @shadcn  https://ui.shadcn.com/r/styles/{style}/{name}.json
+```
+
+Aliases, and the paths they resolve to:
+
+| Alias | Path |
+| --- | --- |
+| `@/components` | `apps/web/components` |
+| `@/components/ui` | `apps/web/components/ui` |
+| `@/lib` | `apps/web/lib` |
+| `@/lib/utils` | `apps/web/lib/utils` (exports `cn`) |
+| `@/hooks` | `apps/web/hooks` (not created yet) |
+
+**Installed primitives** — `button`, `dialog`, `input`, `label`, `slider`.
+Import from the file, never a barrel; there is no `components/ui/index.ts`:
+
+```ts
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+    Dialog, DialogTrigger, DialogContent, DialogHeader,
+    DialogTitle, DialogDescription, DialogFooter, DialogClose,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
+import { cn } from "@/lib/utils"
+```
+
+`Button` variants are `default | destructive | outline | secondary | ghost |
+link`, sizes `default | sm | lg | icon`. There is no `primary` or `inverse`
+variant — `default` is the mint CTA. Use `asChild` to wrap a link rather than
+nesting a `Button` inside an `<a>`.
+
+`Slider` is Radix: it takes `value={[n]}` and `onValueChange={([n]) => …}`, not
+a bare number.
+
+Adding a primitive: `cd apps/web && npx shadcn@latest add <name>`. It lands in
+`components/ui/` and inherits the tokens already defined in `globals.css` — do
+not hand-roll a component that the registry provides.
+
+Supporting libraries in `apps/web`: framer-motion 11, lucide-react 0.454,
+class-variance-authority 0.7, tailwind-merge 2.6, clsx 2.1, and four Radix
+packages (dialog, slot, slider, label) pulled in by the primitives above.
+
+**`apps/app` is not a shadcn project**, despite carrying a stale
+`components.json` from the original 2024 scaffold. It has zero Radix packages
+(pruned in #99) and its UI lives in one hand-rolled file,
+`components/ui/primitives.tsx`. Running `shadcn add` there would install Radix
+into the workspace this design system explicitly exempts. Don't. That
+`components.json` is a leftover and can be deleted.
+
 ---
 
 ## Two-Pass Design Plan — required before any UI code
