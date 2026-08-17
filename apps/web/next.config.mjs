@@ -47,12 +47,103 @@ function appOrigin() {
     }
 }
 
+/**
+ * Paths that used to be served by www and are now on the app origin.
+ *
+ * Two waves of moves stranded these:
+ *
+ *   1. The 2024 site had a page per calculator at /loan-calculator and friends.
+ *      #52 removed the whole web frontend for the mobile pivot and they've
+ *      404'd ever since. When the calculators came back they came back under
+ *      /calculators/<slug>, so the old URLs never found their way home.
+ *   2. #99 split the monorepo and moved every application route to
+ *      app.finnacalc.com. From that deploy onward, www/budgeting, www/investing
+ *      and the rest 404 too — including anything a reader had bookmarked the
+ *      week before.
+ *
+ * `permanent` is a real decision rather than a default. The application routes
+ * live on the subdomain by design and are never coming back to www, so they get
+ * a 308. The company pages are marked temporary: www is the marketing site and
+ * may well want its own /about or /privacy later, and a 308 that browsers have
+ * already cached is very hard to take back.
+ *
+ * /advising has no destination — that service no longer exists — so it stays a
+ * 404. Redirecting it somewhere plausible would be worse than the 404.
+ */
+const CALCULATOR_SLUGS = {
+    "break-even-calculator": "break-even",
+    "cash-flow-calculator": "cash-flow",
+    "emergency-fund-calculator": "emergency-fund",
+    "employee-contractor-calculator": "employee-contractor",
+    "loan-calculator": "loan",
+    "pricing-calculator": "pricing",
+    "profit-margin-calculator": "profit-margin",
+    "roi-calculator": "roi",
+    "startup-cost-calculator": "startup-cost",
+}
+
+/** Moved to the subdomain by #99 and staying there. */
+const APPLICATION_PATHS = [
+    "account",
+    "auth",
+    "billing",
+    "budgeting",
+    "calculators",
+    "education",
+    "investing",
+    "sign-in",
+    "sign-up",
+    "taxes",
+]
+
+/** Also on the subdomain today, but www has a fair claim to them later. */
+const COMPANY_PATHS = ["about", "plans", "privacy", "terms"]
+
+function movedRoutes(origin) {
+    return [
+        // The 2024 per-calculator pages.
+        ...Object.entries(CALCULATOR_SLUGS).map(([from, slug]) => ({
+            source: `/${from}`,
+            destination: `${origin}/calculators/${slug}`,
+            permanent: true,
+        })),
+        // /tax-calculator was a full return estimator, not one of the small
+        // calculators, so it lands on the taxes screen rather than in the list.
+        { source: "/tax-calculator", destination: `${origin}/taxes`, permanent: true },
+        // /premium became /plans when billing moved to Stripe.
+        { source: "/premium", destination: `${origin}/plans`, permanent: true },
+
+        // Both the section index and everything under it.
+        ...APPLICATION_PATHS.flatMap((path) => [
+            { source: `/${path}`, destination: `${origin}/${path}`, permanent: true },
+            { source: `/${path}/:rest*`, destination: `${origin}/${path}/:rest*`, permanent: true },
+        ]),
+        ...COMPANY_PATHS.flatMap((path) => [
+            { source: `/${path}`, destination: `${origin}/${path}`, permanent: false },
+            { source: `/${path}/:rest*`, destination: `${origin}/${path}/:rest*`, permanent: false },
+        ]),
+    ]
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     // The shared package ships TypeScript source rather than a build step.
     transpilePackages: ["@finnacalc/shared"],
     eslint: { ignoreDuringBuilds: true },
     images: { unoptimized: true },
+
+    /**
+     * Next evaluates redirects BEFORE beforeFiles rewrites, so nothing here may
+     * match /api/* or it would shadow the iOS lifeline proxy below. Nothing
+     * does — but that's the constraint to check before adding a rule.
+     *
+     * Destinations are absolute and resolved at BUILD time, exactly like the
+     * rewrite: same NEXT_PUBLIC_APP_ORIGIN, same need to rebuild after changing
+     * it.
+     */
+    async redirects() {
+        return movedRoutes(appOrigin())
+    },
 
     async rewrites() {
         const origin = appOrigin()

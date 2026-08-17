@@ -25,7 +25,13 @@ import {
     type ChartRange,
     type ChartStyle,
 } from "@/components/investing/price-chart"
-import { Button, SectionLabel } from "@/components/ui/primitives"
+import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+
+/**
+ * What we say when a source didn't answer and gave no reason of its own.
+ * Deliberately about us, not about the company: we don't know either way.
+ */
+const UNAVAILABLE = "SEC filings couldn't be loaded right now."
 
 /**
  * The stock detail page, ported from StocksPageView.swift: hero, chart with the
@@ -339,10 +345,18 @@ function formatMarketCap(value: number): string {
     return `$${int(value)}`
 }
 
-/** Revenue and net profit bars, annual or quarterly. Hides when SEC has nothing. */
+/**
+ * Revenue and net profit bars, annual or quarterly.
+ *
+ * Hides when the company genuinely files nothing we can read — most ETFs and
+ * foreign listings — and says so when the SEC refused us instead. Those used to
+ * look identical from here, so a rejected request silently removed the section
+ * and read as a fact about the company.
+ */
 function FinancialsSection({ symbol }: { symbol: string }) {
     const [annual, setAnnual] = useState<FinancialPeriod[]>([])
     const [quarterly, setQuarterly] = useState<FinancialPeriod[]>([])
+    const [problem, setProblem] = useState<string | null>(null)
     const [freq, setFreq] = useState<"annual" | "quarterly">("annual")
 
     useEffect(() => {
@@ -352,8 +366,11 @@ function FinancialsSection({ symbol }: { symbol: string }) {
                 if (!active) return
                 setAnnual(data.annual)
                 setQuarterly(data.quarterly)
+                setProblem(data.status === "unavailable" ? data.reason ?? UNAVAILABLE : null)
             })
-            .catch(() => {})
+            // The request itself failing tells us just as little as the SEC
+            // refusing, so it reads the same to the user.
+            .catch(() => active && setProblem(UNAVAILABLE))
         return () => {
             active = false
         }
@@ -365,7 +382,18 @@ function FinancialsSection({ symbol }: { symbol: string }) {
         [periods]
     )
 
-    if (annual.length === 0 && quarterly.length === 0) return null
+    if (annual.length === 0 && quarterly.length === 0) {
+        if (!problem) return null
+        return (
+            <section className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-foreground">Financials</h2>
+                <Notice tone="caution">
+                    {problem} We&rsquo;d rather say that than show you an empty chart that looks like{" "}
+                    {symbol} reports nothing.
+                </Notice>
+            </section>
+        )
+    }
 
     return (
         <section className="flex flex-col gap-3">
@@ -425,22 +453,43 @@ function FinancialsSection({ symbol }: { symbol: string }) {
     )
 }
 
-/** Ten years of income statement, balance sheet and cash flow, from SEC filings. */
+/**
+ * Ten years of income statement, balance sheet and cash flow, from SEC filings.
+ *
+ * Same rule as the section above: absent because the company files nothing is a
+ * fact and hides quietly; absent because the SEC wouldn't answer is a gap, and
+ * gaps get said out loud.
+ */
 function StatementsSection({ symbol }: { symbol: string }) {
     const [data, setData] = useState<StatementsResponse | null>(null)
+    const [problem, setProblem] = useState<string | null>(null)
     const [open, setOpen] = useState(false)
 
     useEffect(() => {
         let active = true
         statements(symbol)
-            .then((response) => active && setData(response))
-            .catch(() => {})
+            .then((response) => {
+                if (!active) return
+                setData(response)
+                setProblem(
+                    response.status === "unavailable" ? response.reason ?? UNAVAILABLE : null
+                )
+            })
+            .catch(() => active && setProblem(UNAVAILABLE))
         return () => {
             active = false
         }
     }, [symbol])
 
-    if (!data || data.statements.length === 0 || data.years.length === 0) return null
+    if (!data || data.statements.length === 0 || data.years.length === 0) {
+        if (!problem) return null
+        return (
+            <section className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-foreground">Financial statements</h2>
+                <Notice tone="caution">{problem}</Notice>
+            </section>
+        )
+    }
 
     return (
         <section className="flex flex-col gap-3">

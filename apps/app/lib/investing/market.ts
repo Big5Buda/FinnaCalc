@@ -116,7 +116,21 @@ export type FinancialPeriod = {
     netProfit: number
 }
 
-export type StatementsResponse = {
+/**
+ * Every SEC-backed route reports whether an empty payload means "there is
+ * nothing here" or "we couldn't find out". See lib/sec.ts — the distinction
+ * exists because a rejected request used to render as a hidden section, which
+ * reads as a fact about the company rather than a gap in what we know.
+ *
+ * Optional because shipped iOS builds predate it and older cached responses
+ * won't carry it; absent is treated as "ok".
+ */
+export type SourceReport = {
+    status?: "ok" | "no-data" | "unavailable"
+    reason?: string | null
+}
+
+export type StatementsResponse = SourceReport & {
     symbol: string
     years: (number | string)[]
     statements: { name: string; rows: { label: string; values: (number | null)[] }[] }[]
@@ -158,10 +172,9 @@ export const screener = (query: Record<string, string> = {}) =>
     }>("/api/screener", query)
 
 export const financials = (symbol: string) =>
-    apiGet<{ symbol: string; annual: FinancialPeriod[]; quarterly: FinancialPeriod[] }>(
-        "/api/financials",
-        { symbol }
-    )
+    apiGet<
+        SourceReport & { symbol: string; annual: FinancialPeriod[]; quarterly: FinancialPeriod[] }
+    >("/api/financials", { symbol })
 
 export const statements = (symbol: string) =>
     apiGet<StatementsResponse>("/api/statements", { symbol })
