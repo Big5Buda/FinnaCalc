@@ -6,7 +6,6 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
-import { Badge, Notice } from "@/components/ui/primitives"
 
 /**
  * The sign-in / sign-up card — the web port of Features/Auth/AuthView.swift
@@ -107,13 +106,15 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
 
     return (
         <div className="flex flex-col gap-5">
-            <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-center text-2xl font-medium tracking-[0.005em] text-[#1C1B1B]">
                 {mode === "signIn" ? "Log in" : "Sign up"}
             </h2>
 
             {!configured && (
                 <div className="flex justify-center">
-                    <Badge variant="secondary">Accounts aren’t configured yet</Badge>
+                    <span className="rounded-full bg-[#F1F0F0] px-3 py-1 text-xs font-medium text-[#686664]">
+                        Accounts aren&rsquo;t configured yet
+                    </span>
                 </div>
             )}
 
@@ -144,7 +145,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                             type="button"
                             onClick={() => setShowPassword((shown) => !shown)}
                             aria-label={showPassword ? "Hide password" : "Show password"}
-                            className="text-muted-foreground transition hover:text-foreground"
+                            className="text-[#686664] transition hover:text-[#1C1B1B]"
                         >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -155,7 +156,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                     <p
                         className={cn(
                             "text-sm",
-                            password !== "" && !passwordLongEnough ? "text-negative" : "text-muted-foreground"
+                            password !== "" && !passwordLongEnough ? "text-[#A43D12]" : "text-[#686664]"
                         )}
                     >
                         Minimum {MIN_NEW_PASSWORD} characters.
@@ -165,14 +166,14 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                         type="button"
                         onClick={onReset}
                         disabled={working}
-                        className="self-start text-sm font-semibold text-primary"
+                        className="self-start text-sm font-medium text-[#1C1B1B] underline underline-offset-4"
                     >
                         Forgot password?
                     </button>
                 )}
 
                 {mode === "signUp" && (
-                    <p className="text-xs leading-relaxed text-muted-foreground">
+                    <p className="text-xs leading-relaxed text-[#686664]">
                         By signing up, you agree to FinnaCalc&rsquo;s{" "}
                         <Link href="/terms" className="underline underline-offset-2">
                             Terms of Service
@@ -185,13 +186,17 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                     </p>
                 )}
 
-                {error && <Notice tone="error">{error}</Notice>}
-                {info && <Notice tone="info">{info}</Notice>}
+                {error && (
+                    <p className="rounded-md bg-[#A43D12]/10 p-3 text-sm text-[#A43D12]">{error}</p>
+                )}
+                {info && (
+                    <p className="rounded-md bg-[#1C1B1B]/[0.06] p-3 text-sm text-[#1C1B1B]">{info}</p>
+                )}
 
                 <button
                     type="submit"
                     disabled={working || !canSubmit || !configured}
-                    className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#1C1B1B] text-base font-medium text-[#FCFCFC] transition hover:bg-[#494645] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     {working && <Loader2 className="h-4 w-4 animate-spin" />}
                     {mode === "signIn" ? "Log in" : "Next"}
@@ -199,9 +204,9 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
             </form>
 
             <div className="flex items-center gap-3">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <span className="h-px flex-1 bg-border" />
+                <span className="h-px flex-1 bg-[#E4E2E1]" />
+                <span className="text-xs text-[#686664]">or</span>
+                <span className="h-px flex-1 bg-[#E4E2E1]" />
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -209,11 +214,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                 <OAuthButton label="Continue with Google" onClick={() => onOAuth("google")} disabled={working || !configured} />
             </div>
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-[#686664]">
                 {mode === "signIn" ? "New to FinnaCalc?" : "Already have an account?"}{" "}
                 <Link
                     href={`${mode === "signIn" ? "/sign-up" : "/sign-in"}?next=${encodeURIComponent(next)}`}
-                    className="font-semibold text-foreground underline underline-offset-4"
+                    className="font-medium text-[#1C1B1B] underline underline-offset-4"
                 >
                     {mode === "signIn" ? "Sign up here" : "Log in here"}
                 </Link>
@@ -239,15 +244,15 @@ function Field({
     trailing?: React.ReactNode
 }) {
     return (
-        <label className="flex h-14 items-center gap-2 rounded-xl bg-secondary px-4 transition focus-within:ring-2 focus-within:ring-primary/40">
+        <label className="flex h-14 items-center gap-2 rounded-[12px] bg-[#F1F0F0] px-4 transition focus-within:ring-2 focus-within:ring-[#1C1B1B]">
             <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+                <span className="text-[11px] font-medium text-[#686664]">{label}</span>
                 <input
                     type={type}
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
                     autoComplete={autoComplete}
-                    className="w-full bg-transparent text-base text-foreground outline-none"
+                    className="w-full bg-transparent text-base text-[#1C1B1B] outline-none"
                 />
             </span>
             {trailing}
@@ -269,7 +274,7 @@ function OAuthButton({
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className="inline-flex h-12 items-center justify-center rounded-full border border-border-strong text-base font-semibold text-foreground transition hover:bg-secondary disabled:opacity-40"
+            className="inline-flex h-12 items-center justify-center rounded-full border border-[#1C1B1B] text-base font-medium text-[#1C1B1B] transition hover:bg-[#1C1B1B]/5 disabled:opacity-40"
         >
             {label}
         </button>
