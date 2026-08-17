@@ -25,6 +25,7 @@ import {
 } from "@/lib/budget/types"
 import { GoalRing } from "@/components/budget/charts"
 import { Button } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Goals — ported from Features/Budgeting/GoalsTabView.swift: emoji rings,
@@ -41,16 +42,22 @@ export default function GoalsPage() {
     const [adding, setAdding] = useState(false)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <Link href="/budgeting" className="text-sm font-semibold text-primary">
-                    ← Budgeting
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Goals</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
+                            Budgeting
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Goals
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
                     What you&rsquo;re saving toward, and how the plan is tracking against its date.
                 </p>
-            </header>
 
             {!adding && !editing && (
                 <Button onClick={() => setAdding(true)} className="self-start">
@@ -92,7 +99,8 @@ export default function GoalsPage() {
                     <GoalCard key={goal.id} goal={goal} onEdit={() => setEditing(goal)} />
                 ))}
             </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

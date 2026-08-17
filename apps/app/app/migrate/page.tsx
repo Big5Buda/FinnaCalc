@@ -11,7 +11,7 @@ import {
     type StorageKey,
 } from "@finnacalc/shared/storage"
 import { Button, Notice } from "@/components/ui/primitives"
-import { PageHeader } from "@/components/shell/page-header"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Receives data stranded on the old origin by the domain split.
@@ -96,12 +96,10 @@ export default function MigratePage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
-            <PageHeader
-                eyebrow="Move your data"
-                title="Bring your budget across."
-                lead="The app moved to its own address. Browsers keep saved data per site, so anything you saved on the old one needs moving here once."
-            />
+        <>
+            <PageBar title="Move your data" />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-6">
+                <div className="contents">
 
             {error && <Notice tone="error">{error}</Notice>}
 
@@ -192,6 +190,8 @@ export default function MigratePage() {
                     </p>
                 </div>
             )}
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }

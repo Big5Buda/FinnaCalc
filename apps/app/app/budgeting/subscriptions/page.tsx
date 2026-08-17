@@ -9,6 +9,7 @@ import { categoryStyle } from "@/lib/budget/category-style"
 import { detectSubscriptions } from "@/lib/budget/subscriptions"
 import { cadenceTitle, isSubscription, monthlyAmount, type BudgetItem } from "@/lib/budget/types"
 import { Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Subscriptions — recurring charges found in imported transactions, plus the
@@ -32,18 +33,24 @@ export default function SubscriptionsPage() {
         tagged.reduce((sum, item) => sum + monthlyAmount(item), 0)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <Link href="/budgeting" className="text-sm font-semibold text-primary">
-                    ← Budgeting
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Subscriptions</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
+                            Budgeting
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Subscriptions
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
                     {detected.length + tagged.length > 0
                         ? `${detected.length + tagged.length} recurring · about $${int(monthlyTotal)} a month`
                         : "Recurring charges we can find in your transactions."}
                 </p>
-            </header>
 
             {tagged.length > 0 && (
                 <section className="flex flex-col gap-2.5">
@@ -104,7 +111,8 @@ export default function SubscriptionsPage() {
                 apart, within 25% of each other. Rent, utilities, loans and insurance are excluded — they
                 repeat, but they aren&rsquo;t subscriptions you&rsquo;d cancel.
             </p>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

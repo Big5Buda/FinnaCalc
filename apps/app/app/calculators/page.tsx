@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import * as Icons from "lucide-react"
 import { ChevronRight } from "lucide-react"
-import { PageHeader } from "@/components/shell/page-header"
 import { CALCULATORS } from "@/lib/calculators/catalog"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "All calculators",
@@ -14,12 +14,10 @@ export const metadata: Metadata = {
 /** The full calculator directory — the web twin of CalculatorListView. */
 export default function CalculatorsPage() {
     return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
-            <PageHeader
-                eyebrow="Calculators"
-                title="Run the numbers."
-                lead={`${CALCULATORS.length} free tools. Nothing to sign up for, and nothing leaves your browser.`}
-            />
+        <>
+            <PageBar title="Calculators" />
+            <PageBody className="flex w-full max-w-4xl flex-col gap-6">
+                <div className="contents">
 
             {/* The calculators below each answer one question. This one holds a
                 whole model open, so it sits above the list rather than in it. */}
@@ -66,6 +64,8 @@ export default function CalculatorsPage() {
                     )
                 })}
             </div>
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }

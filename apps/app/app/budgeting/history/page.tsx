@@ -8,6 +8,7 @@ import { compactMoney, currency } from "@/lib/format"
 import { useBudget } from "@/components/providers/budget-provider"
 import type { BudgetHistoryEntry } from "@/lib/budget/types"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * History — saved snapshots and bank imports, newest first. Ported from
@@ -31,16 +32,22 @@ export default function HistoryPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <header className="flex flex-col gap-1">
-                <Link href="/budgeting" className="text-sm font-semibold text-primary">
-                    ← Budgeting
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">History</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
+                            Budgeting
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        History
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
                     Snapshots you saved, and anything imported from a bank. Nothing here changes on its own.
                 </p>
-            </header>
 
             {notice && <Notice tone="info">{notice}</Notice>}
 
@@ -151,7 +158,8 @@ export default function HistoryPage() {
             <Button variant="outline" onClick={() => window.print()} className="self-start">
                 Print this page
             </Button>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

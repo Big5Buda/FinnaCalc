@@ -11,8 +11,8 @@ import { budgetTypeTitle, type BudgetType } from "@/lib/budget/types"
 import { computeFindings, findingsSummaryLine } from "@/lib/budget/findings"
 import { detectSubscriptions } from "@/lib/budget/subscriptions"
 import { SampleDonut } from "@/components/budget/charts"
-import { PageHeader } from "@/components/shell/page-header"
 import { Button, Notice } from "@/components/ui/primitives"
+import { PageBar, PageBody, Panel } from "@/components/shell/surface"
 
 /**
  * The Budgeting hub — a stack of feature cards, ported from
@@ -70,15 +70,11 @@ export default function BudgetingPage() {
         : "Snapshots and bank imports over time"
 
     return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
-            <PageHeader
-                eyebrow="Budgeting"
-                title="Where the money goes."
-                lead="Build a budget by hand or connect your bank. Everything stays on this device."
-            />
-            <div className="flex items-center justify-between">
-                <span className="sr-only">Budget type</span>
-                <div className="flex items-center gap-2">
+        <>
+            <PageBar
+                title="Budgeting"
+                actions={
+                    <div className="flex items-center gap-2">
                     <div className="flex rounded-full bg-secondary p-[3px]">
                         {(["personal", "business"] as BudgetType[]).map((type) => {
                             const selected = budget.budgetType === type
@@ -104,18 +100,20 @@ export default function BudgetingPage() {
                         onClick={() => setClearing((open) => !open)}
                         aria-label="Clear data"
                         aria-expanded={clearing}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-primary transition hover:bg-secondary"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-foreground transition hover:bg-secondary"
                     >
                         <MoreHorizontal className="h-4 w-4" />
                     </button>
-                </div>
-            </div>
-
+                    </div>
+                }
+            />
+            <PageBody className="flex w-full max-w-4xl flex-col gap-5">
             {clearing && <ClearDataPanel onDone={() => setClearing(false)} otherType={otherType} />}
 
             {/* The four figures sit as dashes until there's something to report,
                 so the page's shape never shifts. */}
-            <section className="grid grid-cols-2 gap-4">
+            <Panel>
+              <section className="grid grid-cols-2 gap-6 sm:grid-cols-4">
                 <Stat
                     label="INCOME"
                     value={budget.monthlyIncome > 0 ? compactMoney(budget.monthlyIncome) : "—"}
@@ -148,7 +146,8 @@ export default function BudgetingPage() {
                     }
                     tone={hasBudget ? (budget.monthlyNet >= 0 ? "positive" : "negative") : "muted"}
                 />
-            </section>
+              </section>
+            </Panel>
 
             <div className="flex flex-col gap-3.5">
                 <FeatureCard
@@ -189,7 +188,8 @@ export default function BudgetingPage() {
                     subtitle={historySubtitle}
                 />
             </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

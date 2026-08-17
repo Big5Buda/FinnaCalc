@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { FileText } from "lucide-react"
-import { PageHeader } from "@/components/shell/page-header"
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Taxes",
@@ -18,12 +18,10 @@ export const metadata: Metadata = {
  */
 export default function TaxesPage() {
     return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
-            <PageHeader
-                eyebrow="Taxes"
-                title="A federal estimate, built on the real 1040."
-                lead="The engine already powers the app. The web version of the interview is being built now."
-            />
+        <>
+            <PageBar title="Taxes" />
+            <PageBody className="flex w-full max-w-3xl flex-col gap-6">
+                <div className="contents">
 
             <Card>
                 <CardHeader>
@@ -50,6 +48,8 @@ export default function TaxesPage() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+                </div>
+            </PageBody>
+        </>
     )
 }
