@@ -93,6 +93,61 @@ clears **4.5:1**.
 
 ---
 
+## Two-Pass Design Plan — required before any UI code
+
+The `frontend-design` skill is committed at `.claude/skills/frontend-design/`.
+It loads automatically. Follow it, and follow this process on top of it.
+
+**No UI work starts with code.** Any task that creates a new screen, reshapes an
+existing one, or changes the visual direction runs two passes first. Most of it
+happens in thinking; only a confirmed direction reaches the user.
+
+### Pass one — propose
+
+Produce a compact token system for *this* brief:
+
+- **Colour** — 4–6 named hex values, each with the job it does.
+- **Type** — at least two roles: a characterful display face used with
+  restraint, a body face that complements it, and a utility face for captions
+  or data when the screen has figures.
+- **Layout** — the concept in a sentence, plus an ASCII wireframe. Wireframes
+  are for comparing structures cheaply; draw more than one when the structure
+  is genuinely open.
+- **Signature** — the one element the page is remembered by, and what about the
+  subject it embodies.
+
+### Pass two — critique, then revise
+
+Review the plan against the brief before writing a line of code. The test:
+would this same plan fall out of a similar prompt for a different product? If
+yes, it's a default rather than a choice — revise it, and **say what changed
+and why**.
+
+Three looks that AI design currently defaults to, per the skill, so they need
+justification rather than assumption:
+
+1. Warm cream (near `#F4F1EA`), high-contrast serif display, terracotta accent.
+2. Near-black background, single bright acid-green or vermilion accent.
+3. Broadsheet layout — hairline rules, zero radius, dense newspaper columns.
+
+**A brief that names a direction wins outright.** The skill is explicit about
+this, and it applies here: `apps/web` runs Deep Obsidian with Electric Mint and
+Vermilion, which is look 2 above. That was specified hex by hex, so it stands.
+The critique pass exists for the axes a brief leaves free — spend that freedom
+on something specific to FinnaCalc, not on a default.
+
+### Then build
+
+Write code only once the direction is confirmed, deriving every colour and type
+decision from the plan. Spend boldness in one place: let the signature be the
+memorable thing and keep everything around it quiet.
+
+The quality floor is not optional and is not announced: responsive to mobile,
+visible keyboard focus, `prefers-reduced-motion` respected, and every
+text/background pair at 4.5:1 or better.
+
+---
+
 ## House rules — everywhere, and they outrank the design system
 
 These have governed every change in this repo. A pretty screen that breaks one
