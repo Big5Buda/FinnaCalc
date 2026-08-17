@@ -415,3 +415,61 @@ export function loan(input: {
         { label: "Principal financed", value: currency(P, 2), accent: "purple" },
     ]
 }
+
+/**
+ * Compound growth year by year, on the same monthly compounding
+ * `compoundInterest` uses.
+ *
+ * Lives here so the marketing hero, the landing widget and the app's
+ * calculator screen all draw the same curve from the same arithmetic. Two
+ * implementations of this drift, and then the site shows one number while the
+ * product shows another.
+ */
+export type GrowthPoint = {
+    year: number
+    /** Everything paid in so far, including the opening deposit. */
+    contributed: number
+    /** Balance at the end of that year. */
+    balance: number
+    /** balance − contributed. Negative is impossible with a non-negative rate. */
+    growth: number
+}
+
+export function compoundInterestSeries(input: {
+    initialDeposit: number
+    monthlyContribution: number
+    annualRate: number
+    years: number
+}): GrowthPoint[] {
+    const monthlyRate = input.annualRate / 100 / 12
+    let balance = input.initialDeposit
+    const points: GrowthPoint[] = [
+        {
+            year: 0,
+            contributed: input.initialDeposit,
+            balance: input.initialDeposit,
+            growth: 0,
+        },
+    ]
+
+    for (let year = 1; year <= Math.max(0, Math.round(input.years)); year++) {
+        for (let month = 0; month < 12; month++) {
+            balance = balance * (1 + monthlyRate) + input.monthlyContribution
+        }
+        const contributed = input.initialDeposit + input.monthlyContribution * 12 * year
+        points.push({ year, contributed, balance, growth: balance - contributed })
+    }
+
+    return points
+}
+
+/**
+ * The first year compounding has added more than the saver has paid in — the
+ * point where the returns are doing more work than the deposits. null when it
+ * doesn't happen inside the window, which is the common case at low rates or
+ * short horizons, and saying so is better than implying it always arrives.
+ */
+export function crossoverYear(series: GrowthPoint[]): number | null {
+    const hit = series.find((point) => point.year > 0 && point.growth > point.contributed)
+    return hit ? hit.year : null
+}

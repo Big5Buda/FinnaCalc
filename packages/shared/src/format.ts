@@ -61,6 +61,12 @@ export function count(value: number): string {
  */
 export function compactMoney(value: number): string {
     if (!Number.isFinite(value)) return "—"
+    // Millions get their own tier: a long horizon pushes balances past seven
+    // figures, and "$1041.8k" is a figure nobody reads at a glance.
+    if (value >= 1_000_000) {
+        const millions = value / 1_000_000
+        return `$${millions >= 10 ? millions.toFixed(0) : millions.toFixed(2)}M`
+    }
     if (value >= 1000) {
         const k = value / 1000
         const str = k === Math.round(k) ? k.toFixed(0) : k.toFixed(1)
