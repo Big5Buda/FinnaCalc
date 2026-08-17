@@ -3,15 +3,91 @@
 @tailwind utilities;
 
 /*
- * The token layer arrives through the shared Tailwind preset
- * (@finnacalc/shared/tailwind-preset), so this file only carries what the
- * marketing site adds on top.
+ * The marketing site's design tokens. Dark only — there is no light theme here
+ * and no switcher; apps/app keeps its own light/dark system, which mirrors the
+ * iOS app and is deliberately not this.
+ *
+ * Two layers of naming:
+ *   - the brand tokens (canvas, surface, mint, vermilion), which is how the
+ *     design system is written down and how components should refer to colour;
+ *   - the shadcn token names (background, primary, destructive…), mapped onto
+ *     the same values so registry components drop in unmodified.
+ *
+ * Channels are space-separated RGB so Tailwind's /alpha modifiers work.
  */
 
 @layer base {
-  /* Body copy sits at 16–20px with a 1.6–1.8 line height, per the brief. */
+  :root {
+    /* Brand */
+    --canvas: 9 10 15; /* #090A0F — Deep Obsidian */
+    --surface: 30 34 48; /* #1E2230 — Slate Zinc */
+    --mint: 0 255 135; /* #00FF87 — Electric Mint */
+    --vermilion: 255 71 87; /* #FF4757 — Vermilion */
+
+    /* Text. Off-white rather than pure white: #FFF on obsidian glares at
+       display sizes. 16.8:1 against the canvas. */
+    --ink: 240 242 247;
+    /* Supporting copy — 7.4:1 on canvas, comfortably past the 4.5:1 floor. */
+    --ink-muted: 158 165 184;
+    /* Lines. Visible against both canvas and surface without drawing the eye. */
+    --line: 44 49 66;
+    --line-strong: 63 70 92;
+
+    /* shadcn aliases over the same values, so registry components work as
+       shipped. Mint is the primary action, and its foreground is the canvas —
+       black-on-mint is the only readable pairing at 4.5:1. */
+    --background: var(--canvas);
+    --foreground: var(--ink);
+    --card: var(--surface);
+    --card-foreground: var(--ink);
+    --popover: var(--surface);
+    --popover-foreground: var(--ink);
+    --primary: var(--mint);
+    --primary-foreground: var(--canvas);
+    --secondary: var(--surface);
+    --secondary-foreground: var(--ink);
+    --muted: var(--surface);
+    --muted-foreground: var(--ink-muted);
+    --accent: var(--surface);
+    --accent-foreground: var(--ink);
+    --destructive: var(--vermilion);
+    --destructive-foreground: var(--ink);
+    --border: var(--line);
+    --input: var(--line-strong);
+    --ring: var(--mint);
+
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
   body {
+    @apply bg-background text-foreground font-sans;
+    /* 17px / 1.65 — inside the 16–20px, 1.6–1.8 the system requires. */
     font-size: 17px;
     line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Display type is Fraunces, and it is the only thing that is. The utility
+     class comes from the theme; this just makes headings default to it. */
+  h1,
+  h2 {
+    font-family: var(--font-fraunces), Georgia, serif;
+  }
+}
+
+@layer components {
+  /*
+   * Every figure a reader might compare, scan or check: money, percentages,
+   * table dates, calculator output. JetBrains Mono with tabular figures, so
+   * columns of numbers line up and a changing value doesn't reflow its row.
+   */
+  .figure {
+    font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }

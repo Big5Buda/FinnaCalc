@@ -6,7 +6,18 @@ import { Loader2, Lock } from "lucide-react"
 import { compoundInterest } from "@finnacalc/shared/calculators"
 import { currency, fixed } from "@finnacalc/shared/format"
 import { beginHandoff } from "@/lib/auth-handoff"
-import { Button, Dialog, DialogContent, DialogTrigger, Slider, TextField } from "@/components/ui"
+import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 /**
@@ -57,7 +68,7 @@ export function CalculatorWidget() {
     }, [initial, monthly, rate, years])
 
     return (
-        <div className="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-sm lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
+        <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
             <div className="flex flex-col gap-6">
                 <SliderRow
                     label="Starting amount"
@@ -107,32 +118,32 @@ export function CalculatorWidget() {
                         <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                             <defs>
                                 <linearGradient id="balance" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="rgb(var(--primary))" stopOpacity={0.35} />
-                                    <stop offset="100%" stopColor="rgb(var(--primary))" stopOpacity={0} />
+                                    <stop offset="0%" stopColor="rgb(var(--mint))" stopOpacity={0.35} />
+                                    <stop offset="100%" stopColor="rgb(var(--mint))" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid stroke="rgb(var(--border))" vertical={false} />
+                            <CartesianGrid stroke="rgb(var(--line))" vertical={false} />
                             <XAxis
                                 dataKey="year"
                                 tickLine={false}
                                 axisLine={false}
-                                tick={{ fill: "rgb(var(--muted-foreground))", fontSize: 11 }}
+                                tick={{ fill: "rgb(var(--ink-muted))", fontSize: 11 }}
                                 tickFormatter={(year: number) => (year === 0 ? "now" : `${year}y`)}
                             />
                             <YAxis
                                 width={54}
                                 tickLine={false}
                                 axisLine={false}
-                                tick={{ fill: "rgb(var(--muted-foreground))", fontSize: 11 }}
+                                tick={{ fill: "rgb(var(--ink-muted))", fontSize: 11 }}
                                 tickFormatter={(value: number) =>
                                     value >= 1000 ? `$${Math.round(value / 1000)}k` : `$${value}`
                                 }
                             />
                             <Tooltip
-                                cursor={{ stroke: "rgb(var(--border-strong))" }}
+                                cursor={{ stroke: "rgb(var(--line-strong))" }}
                                 contentStyle={{
-                                    background: "rgb(var(--card))",
-                                    border: "1px solid rgb(var(--border))",
+                                    background: "rgb(var(--surface))",
+                                    border: "1px solid rgb(var(--line))",
                                     borderRadius: 12,
                                     fontSize: 12,
                                 }}
@@ -145,14 +156,14 @@ export function CalculatorWidget() {
                             <Area
                                 type="monotone"
                                 dataKey="contributed"
-                                stroke="rgb(var(--border-strong))"
+                                stroke="rgb(var(--line-strong))"
                                 strokeDasharray="4 4"
                                 fill="none"
                             />
                             <Area
                                 type="monotone"
                                 dataKey="balance"
-                                stroke="rgb(var(--primary))"
+                                stroke="rgb(var(--mint))"
                                 strokeWidth={2.5}
                                 fill="url(#balance)"
                             />
@@ -163,15 +174,16 @@ export function CalculatorWidget() {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {(results ?? []).map((metric) => (
                         <div key={metric.label} className="flex flex-col gap-0.5">
-                            <span className="text-xs text-muted-foreground">{metric.label}</span>
+                            <span className="text-xs font-light text-ink-muted">{metric.label}</span>
                             <span
                                 className={cn(
-                                    "figure text-xl font-bold",
-                                    metric.accent === "green" && "text-positive",
-                                    metric.accent === "blue" && "text-primary",
-                                    metric.accent === "purple" && "text-accent-purple",
-                                    metric.accent === "orange" && "text-accent-orange",
-                                    metric.accent === "red" && "text-negative"
+                                    "figure text-2xl font-black",
+                                    // Mint carries the figure that matters; the
+                                    // rest stay neutral so it keeps meaning
+                                    // something. Vermilion is errors only.
+                                    metric.accent === "green" && "text-mint",
+                                    metric.accent === "red" && "text-vermilion",
+                                    !["green", "red"].includes(metric.accent) && "text-ink"
                                 )}
                             >
                                 {metric.value}
@@ -180,7 +192,7 @@ export function CalculatorWidget() {
                     ))}
                 </div>
 
-                <p className="text-xs leading-relaxed text-muted-foreground">
+                <p className="text-xs font-extralight leading-relaxed text-ink-muted">
                     An estimate on a steady return, compounded monthly. Real returns vary year to year and
                     can be negative; this is for planning, not a projection of what you will have.
                 </p>
@@ -209,17 +221,17 @@ function SliderRow({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-foreground">{label}</span>
-                <span className="figure text-sm font-bold text-foreground">{display}</span>
+                <span className="text-sm font-light text-ink-muted">{label}</span>
+                <span className="figure text-sm font-bold text-ink">{display}</span>
             </div>
             <Slider
-                label={label}
-                value={value}
-                onChange={onChange}
+                aria-label={label}
+                aria-valuetext={display}
+                value={[value]}
+                onValueChange={([next]) => onChange(next)}
                 min={min}
                 max={max}
                 step={step}
-                ariaValueText={display}
             />
         </div>
     )
@@ -260,13 +272,36 @@ function SaveGate({ scenario }: { scenario: Record<string, string | number> }) {
                     Save this scenario
                 </Button>
             </DialogTrigger>
-            <DialogContent
-                title="Save your scenario"
-                description="Free account. Your numbers come with you — nothing you've set here is lost."
-            >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="font-display text-2xl font-black">
+                        Save your scenario
+                    </DialogTitle>
+                    <DialogDescription className="font-extralight">
+                        Free account. Your numbers come with you — nothing you&rsquo;ve set here is lost.
+                    </DialogDescription>
+                </DialogHeader>
                 <form onSubmit={handoff} className="flex flex-col gap-3">
-                    <TextField label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" required />
-                    <TextField label="Name (optional)" value={name} onChange={setName} autoComplete="name" />
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="handoff-email">Email</Label>
+                        <Input
+                            id="handoff-email"
+                            type="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            autoComplete="email"
+                            required
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="handoff-name">Name (optional)</Label>
+                        <Input
+                            id="handoff-name"
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            autoComplete="name"
+                        />
+                    </div>
                     <Button type="submit" size="lg" disabled={working || email.trim() === ""}>
                         {working && <Loader2 className="h-4 w-4 animate-spin" />}
                         Continue
@@ -274,7 +309,7 @@ function SaveGate({ scenario }: { scenario: Record<string, string | number> }) {
                     <Button type="button" variant="outline" size="lg" onClick={() => void handoff()}>
                         Continue with Google
                     </Button>
-                    <p className="text-xs leading-relaxed text-muted-foreground">
+                    <p className="text-xs font-extralight leading-relaxed text-ink-muted">
                         You&rsquo;ll finish signing up on app.finnacalc.com. Password and provider details are
                         entered there, never here.
                     </p>

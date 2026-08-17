@@ -6,13 +6,15 @@ import { Lock, Menu, ServerCog, ShieldCheck, Smartphone, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { loginUrl, signUpUrl, appUrl } from "@/lib/app-url"
 import { useSessionHint } from "@/lib/auth-handoff"
-import { Button } from "@/components/ui"
+import { Button } from "@/components/ui/button"
+import { Rise, Stagger } from "@/components/motion"
 
-/** The wordmark: "Finna" in ink, "Calc" in the brand blue. */
+/** The wordmark. Display face, and the weight contrast the system runs on. */
 export function Wordmark({ className }: { className?: string }) {
     return (
-        <span className={cn("font-bold tracking-tight text-foreground", className)}>
-            Finna<span className="text-primary">Calc</span>
+        <span className={cn("font-display tracking-tight text-ink", className)}>
+            <span className="font-black">Finna</span>
+            <span className="font-extralight text-mint">Calc</span>
         </span>
     )
 }
@@ -40,7 +42,7 @@ export function SiteNav() {
         <header
             className={cn(
                 "sticky top-0 z-40 transition-colors duration-300",
-                scrolled ? "border-b border-border bg-background/90 backdrop-blur" : "bg-transparent"
+                scrolled ? "border-b border-line bg-canvas/90 backdrop-blur" : "bg-transparent"
             )}
         >
             <nav className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-6 px-6">
@@ -53,7 +55,7 @@ export function SiteNav() {
                         <a
                             key={item.href}
                             href={item.href}
-                            className="rounded-full px-3.5 py-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
+                            className="rounded-full px-3.5 py-2 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
                         >
                             {item.label}
                         </a>
@@ -63,51 +65,50 @@ export function SiteNav() {
                 <div className="flex items-center gap-2">
                     {/* Sign-in lives on the app subdomain; this site never holds a session. */}
                     {checked && signedIn ? (
-                        <a href={appUrl("/")}>
-                            <Button variant="inverse" size="sm">
-                                Open app
-                            </Button>
-                        </a>
+                        <Button asChild size="sm">
+                            <a href={appUrl("/")}>Open app</a>
+                        </Button>
                     ) : (
                         <>
                             <a
                                 href={loginUrl()}
-                                className="hidden h-10 items-center px-3 text-sm font-semibold text-foreground transition hover:text-primary sm:inline-flex"
+                                className="hidden h-9 items-center px-3 text-sm font-medium text-ink transition-colors hover:text-mint sm:inline-flex"
                             >
                                 Sign in
                             </a>
-                            <a href={signUpUrl()}>
-                                <Button size="sm">Start free</Button>
-                            </a>
+                            <Button asChild size="sm" className="rounded-full font-bold">
+                                <a href={signUpUrl()}>Start free</a>
+                            </Button>
                         </>
                     )}
 
-                    <button
-                        type="button"
+                    <Button
+                        variant="outline"
+                        size="icon"
                         onClick={() => setOpen((current) => !current)}
                         aria-label={open ? "Close menu" : "Open menu"}
                         aria-expanded={open}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-foreground md:hidden"
+                        className="rounded-full md:hidden"
                     >
-                        {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                    </button>
+                        {open ? <X /> : <Menu />}
+                    </Button>
                 </div>
             </nav>
 
             {open && (
-                <div className="border-t border-border bg-background px-6 py-4 md:hidden">
+                <div className="border-t border-line bg-canvas px-6 py-4 md:hidden">
                     <div className="flex flex-col">
                         {NAV.map((item) => (
                             <a
                                 key={item.href}
                                 href={item.href}
                                 onClick={() => setOpen(false)}
-                                className="rounded-md px-2 py-3 text-lg font-semibold text-muted-foreground"
+                                className="rounded-md px-2 py-3 text-lg font-medium text-ink-muted"
                             >
                                 {item.label}
                             </a>
                         ))}
-                        <a href={loginUrl()} className="rounded-md px-2 py-3 text-lg font-semibold text-muted-foreground">
+                        <a href={loginUrl()} className="rounded-md px-2 py-3 text-lg font-medium text-ink-muted">
                             Sign in
                         </a>
                     </div>
@@ -120,10 +121,10 @@ export function SiteNav() {
 /**
  * What's actually true about how FinnaCalc handles money and data.
  *
- * Deliberately not a compliance badge grid: FinnaCalc holds no SOC 2 report
- * and no PCI attestation, and a badge claiming otherwise would be a lie told
- * to someone deciding whether to connect a bank account. Each line below is
- * something the codebase does and a reader could verify.
+ * Deliberately not a compliance badge grid: FinnaCalc holds no SOC 2 report and
+ * no PCI attestation, and a badge claiming otherwise would be a lie told to
+ * someone deciding whether to connect a bank account. Each line is something
+ * the codebase does and a reader could verify.
  */
 const SECURITY_FACTS = [
     {
@@ -150,55 +151,54 @@ const SECURITY_FACTS = [
 
 export function SecurityGrid() {
     return (
-        <section id="security" className="border-y border-border bg-sunken">
-            <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-20">
-                <div className="flex max-w-2xl flex-col gap-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                        Security
-                    </p>
-                    <h2 className="text-[clamp(1.85rem,4vw,2.75rem)] font-bold leading-[1.08] tracking-[-0.02em] text-foreground">
+        <section id="security" className="border-y border-line bg-surface/30">
+            <Stagger className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
+                <Rise className="flex max-w-2xl flex-col gap-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-mint">Security</p>
+                    <h2 className="font-display text-[clamp(2rem,4.4vw,3rem)] font-black leading-[1.04] tracking-[-0.02em] text-ink">
                         What we can actually promise.
                     </h2>
-                    <p className="text-lg leading-relaxed text-muted-foreground">
+                    <p className="text-lg font-extralight leading-relaxed text-ink-muted">
                         No badges we haven&rsquo;t earned. Here is precisely how your money data is handled,
                         and where it isn&rsquo;t handled by us at all.
                     </p>
-                </div>
+                </Rise>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     {SECURITY_FACTS.map((fact) => (
-                        <div
-                            key={fact.title}
-                            className="flex gap-4 rounded-2xl border border-border bg-card p-6"
-                        >
-                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
-                                <fact.icon className="h-5 w-5" />
-                            </span>
-                            <div className="flex flex-col gap-1.5">
-                                <p className="text-base font-bold text-foreground">{fact.title}</p>
-                                <p className="text-sm leading-relaxed text-muted-foreground">{fact.body}</p>
+                        <Rise key={fact.title}>
+                            <div className="flex h-full gap-4 rounded-2xl border border-line bg-surface p-6">
+                                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint/12 text-mint">
+                                    <fact.icon className="h-5 w-5" />
+                                </span>
+                                <div className="flex flex-col gap-1.5">
+                                    <p className="text-base font-bold text-ink">{fact.title}</p>
+                                    <p className="text-sm font-extralight leading-relaxed text-ink-muted">
+                                        {fact.body}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
+                        </Rise>
                     ))}
                 </div>
 
-                <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                <Rise as="p" className="max-w-3xl text-sm font-extralight leading-relaxed text-ink-muted">
                     FinnaCalc is not SOC 2 certified and holds no PCI attestation of its own; card data is
                     handled entirely by Stripe, which does. We&rsquo;d rather say that than show a badge we
                     haven&rsquo;t earned.
-                </p>
-            </div>
+                </Rise>
+            </Stagger>
         </section>
     )
 }
 
 export function SiteFooter() {
     return (
-        <footer className="border-t border-border bg-background">
+        <footer className="border-t border-line bg-canvas">
             <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[1.2fr_repeat(3,minmax(0,1fr))]">
                 <div className="flex flex-col gap-2">
                     <Wordmark className="text-2xl" />
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-extralight text-ink-muted">
                         Your All In One Personal Finance Platform
                     </p>
                 </div>
@@ -215,24 +215,24 @@ export function SiteFooter() {
                 <FooterColumn
                     title="App"
                     links={[
-                        { href: appUrl("/calculators"), label: "All calculators", external: true },
-                        { href: appUrl("/budgeting"), label: "Budgeting", external: true },
-                        { href: appUrl("/investing"), label: "Investing", external: true },
-                        { href: appUrl("/education"), label: "Education", external: true },
+                        { href: appUrl("/calculators"), label: "All calculators" },
+                        { href: appUrl("/budgeting"), label: "Budgeting" },
+                        { href: appUrl("/investing"), label: "Investing" },
+                        { href: appUrl("/education"), label: "Education" },
                     ]}
                 />
                 <FooterColumn
                     title="Legal"
                     links={[
-                        { href: appUrl("/privacy"), label: "Privacy policy", external: true },
-                        { href: appUrl("/terms"), label: "Terms of service", external: true },
-                        { href: "mailto:helpfinnacalc@gmail.com", label: "Contact", external: true },
+                        { href: appUrl("/privacy"), label: "Privacy policy" },
+                        { href: appUrl("/terms"), label: "Terms of service" },
+                        { href: "mailto:helpfinnacalc@gmail.com", label: "Contact" },
                     ]}
                 />
             </div>
 
-            <div className="mx-auto max-w-6xl border-t border-border px-6 py-8">
-                <p className="max-w-4xl text-xs leading-relaxed text-muted-foreground">
+            <div className="mx-auto max-w-6xl border-t border-line px-6 py-8">
+                <p className="max-w-4xl text-xs font-extralight leading-relaxed text-ink-muted">
                     Calculations are for informational estimates only and do not constitute formal tax,
                     legal, or financial advice. FinnaCalc is not a broker-dealer, investment adviser, or tax
                     preparer. Market data is supplied by third parties and may be delayed. Orders you place
@@ -245,22 +245,16 @@ export function SiteFooter() {
     )
 }
 
-function FooterColumn({
-    title,
-    links,
-}: {
-    title: string
-    links: { href: string; label: string; external?: boolean }[]
-}) {
+function FooterColumn({ title, links }: { title: string; links: { href: string; label: string }[] }) {
     return (
         <div className="flex flex-col gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">{title}</p>
             <ul className="flex flex-col gap-2.5">
                 {links.map((link) => (
                     <li key={link.href}>
                         <a
                             href={link.href}
-                            className="text-sm font-medium text-foreground/80 transition hover:text-foreground"
+                            className="text-sm font-light text-ink/80 transition-colors hover:text-mint"
                         >
                             {link.label}
                         </a>

@@ -1,13 +1,17 @@
 import type { Config } from "tailwindcss"
-import { sharedPreset } from "@finnacalc/shared/tailwind-preset"
 
 /*
- * The marketing site renders the same brand as the app: colours, radii and
- * fonts all come from the shared preset (the iOS app's Theme tokens). What
- * this file adds is only what the landing page needs on top.
+ * The marketing site's own theme — deliberately NOT the shared preset.
+ *
+ * packages/shared carries the app's Paper & Cobalt tokens, which mirror the iOS
+ * app's Theme.swift. The public site runs its own dark system (see CLAUDE.md);
+ * extending the shared preset here would drag light-mode values and IBM Plex
+ * into a site that must not have them.
+ *
+ * Colour values live in app/globals.css as CSS variables. This file only names
+ * them.
  */
 const config: Config = {
-    presets: [sharedPreset as Config],
     darkMode: ["class"],
     content: [
         "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -16,18 +20,73 @@ const config: Config = {
     ],
     theme: {
         extend: {
-            keyframes: {
-                "fade-up": {
-                    from: { opacity: "0", transform: "translateY(8px)" },
-                    to: { opacity: "1", transform: "translateY(0)" },
-                },
+            fontFamily: {
+                // Display and hero headlines only.
+                display: ["var(--font-fraunces)", "Georgia", "serif"],
+                // Everything else a person reads as prose or interface.
+                sans: ["var(--font-bricolage)", "ui-sans-serif", "sans-serif"],
+                // Numbers. Never prose.
+                mono: ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
             },
-            animation: {
-                "fade-up": "fade-up 0.4s ease-out both",
+            colors: {
+                // Brand names — how the design system is written down.
+                canvas: "rgb(var(--canvas) / <alpha-value>)",
+                surface: "rgb(var(--surface) / <alpha-value>)",
+                mint: "rgb(var(--mint) / <alpha-value>)",
+                vermilion: "rgb(var(--vermilion) / <alpha-value>)",
+                ink: {
+                    DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+                    muted: "rgb(var(--ink-muted) / <alpha-value>)",
+                },
+                line: {
+                    DEFAULT: "rgb(var(--line) / <alpha-value>)",
+                    strong: "rgb(var(--line-strong) / <alpha-value>)",
+                },
+
+                // shadcn aliases over the same variables.
+                background: "rgb(var(--background) / <alpha-value>)",
+                foreground: "rgb(var(--foreground) / <alpha-value>)",
+                card: {
+                    DEFAULT: "rgb(var(--card) / <alpha-value>)",
+                    foreground: "rgb(var(--card-foreground) / <alpha-value>)",
+                },
+                popover: {
+                    DEFAULT: "rgb(var(--popover) / <alpha-value>)",
+                    foreground: "rgb(var(--popover-foreground) / <alpha-value>)",
+                },
+                primary: {
+                    DEFAULT: "rgb(var(--primary) / <alpha-value>)",
+                    foreground: "rgb(var(--primary-foreground) / <alpha-value>)",
+                },
+                secondary: {
+                    DEFAULT: "rgb(var(--secondary) / <alpha-value>)",
+                    foreground: "rgb(var(--secondary-foreground) / <alpha-value>)",
+                },
+                muted: {
+                    DEFAULT: "rgb(var(--muted) / <alpha-value>)",
+                    foreground: "rgb(var(--muted-foreground) / <alpha-value>)",
+                },
+                accent: {
+                    DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+                    foreground: "rgb(var(--accent-foreground) / <alpha-value>)",
+                },
+                destructive: {
+                    DEFAULT: "rgb(var(--destructive) / <alpha-value>)",
+                    foreground: "rgb(var(--destructive-foreground) / <alpha-value>)",
+                },
+                border: "rgb(var(--border) / <alpha-value>)",
+                input: "rgb(var(--input) / <alpha-value>)",
+                ring: "rgb(var(--ring) / <alpha-value>)",
+            },
+            borderRadius: {
+                lg: "var(--radius)",
+                md: "calc(var(--radius) - 2px)",
+                sm: "calc(var(--radius) - 4px)",
+                card: "22px",
             },
         },
     },
-    plugins: [require("tailwindcss-animate")],
+    plugins: [],
 }
 
 export default config
