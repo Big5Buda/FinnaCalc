@@ -35,11 +35,11 @@ export const metadata: Metadata = {
         template: "%s — FinnaCalc",
     },
     description:
-        "Budgeting, investing, taxes and financial calculators — with the arithmetic shown on every number. Free to use, no account needed to start.",
+        "Budget, invest and plan your taxes in one place. Free calculators, and you can always check the math. No account needed to start.",
     openGraph: {
         title: "FinnaCalc — Money, with the math shown",
         description:
-            "Budgeting, investing, taxes and financial calculators — with the arithmetic shown on every number.",
+            "Budget, invest and plan your taxes in one place. Free calculators, and you can always check the math.",
         url: SITE_ORIGIN,
         siteName: "FinnaCalc",
         type: "website",

@@ -63,7 +63,7 @@ export function Hero() {
                     </svg>
 
                     <Tile className="left-[8%] top-[42%] hidden w-44 sm:block" delay={0.7}>
-                        <p className="text-[11px] text-ink-muted">Budget, by category</p>
+                        <p className="text-[11px] text-ink-muted">Where the month went</p>
                         <div className="flex flex-col gap-1.5 pt-2">
                             <CategoryBar label="Rent" width="82%" />
                             <CategoryBar label="Groceries" width="55%" />
@@ -79,7 +79,7 @@ export function Hero() {
                             {compactMoney(exampleResult.balance)}
                         </p>
                         <p className="text-[11px] text-celery">
-                            {compactMoney(exampleResult.growth)} of it is growth
+                            {compactMoney(exampleResult.growth)} of that is growth
                         </p>
                     </Tile>
 
@@ -122,7 +122,7 @@ export function Hero() {
                         transition={{ duration: 1, ease: "easeOut", delay: 0.35 }}
                         className="max-w-xl text-xl text-chip/90"
                     >
-                        Budgeting, investing and taxes with the arithmetic shown on every number.
+                        Your budget, your investments, your tax bill. You can always check how we got the number.
                     </m.p>
                     <m.div
                         initial={reduceMotion ? false : { opacity: 0, y: 24 }}
