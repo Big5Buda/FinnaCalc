@@ -82,34 +82,28 @@ const CALCULATOR_SLUGS = {
     "startup-cost-calculator": "startup-cost",
 }
 
-/** Moved to the subdomain by #99 and staying there. */
-const APPLICATION_PATHS = [
-    "account",
-    "auth",
-    "billing",
-    "budgeting",
-    "calculators",
-    "education",
-    "investing",
-    "sign-in",
-    "sign-up",
-    "taxes",
-]
+/**
+ * Account-shaped paths that only make sense signed in; these forward to the
+ * app. The five product sections (calculators, budgeting, investing, taxes,
+ * education) are deliberately NOT here any more — this site serves its own
+ * pages for them, with the calculators fully working and un-gated.
+ */
+const APPLICATION_PATHS = ["account", "auth", "billing", "sign-in", "sign-up"]
 
 /** Also on the subdomain today, but www has a fair claim to them later. */
 const COMPANY_PATHS = ["about", "plans", "privacy", "terms"]
 
 function movedRoutes(origin) {
     return [
-        // The 2024 per-calculator pages.
+        // The 2024 per-calculator pages, now served by this site un-gated.
         ...Object.entries(CALCULATOR_SLUGS).map(([from, slug]) => ({
             source: `/${from}`,
-            destination: `${origin}/calculators/${slug}`,
+            destination: `/calculators/${slug}`,
             permanent: true,
         })),
         // /tax-calculator was a full return estimator, not one of the small
-        // calculators, so it lands on the taxes screen rather than in the list.
-        { source: "/tax-calculator", destination: `${origin}/taxes`, permanent: true },
+        // calculators, so it lands on the taxes section rather than in the list.
+        { source: "/tax-calculator", destination: "/taxes", permanent: true },
         // /premium became /plans when billing moved to Stripe.
         { source: "/premium", destination: `${origin}/plans`, permanent: true },
 

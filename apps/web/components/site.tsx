@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react"
 import { ArrowRight, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { loginUrl, signUpUrl, appUrl } from "@/lib/app-url"
+import { MobileMenu, NavMenus } from "@/components/nav-menu"
 import { useSessionHint } from "@/lib/auth-handoff"
 
 /*
@@ -96,19 +97,6 @@ export function SectionLockup({ suffix, onColor = false }: { suffix: string; onC
     )
 }
 
-/*
- * Nav items scroll to that product's section on this page. Nothing in the
- * chrome deep-links into the app: the app is for signed-in users, and the only
- * doors are Log in and Get started.
- */
-const NAV = [
-    { href: "/#calculators", label: "Calculators" },
-    { href: "/#budgeting", label: "Budgeting" },
-    { href: "/#investing", label: "Investing" },
-    { href: "/#taxes", label: "Taxes" },
-    { href: "/#education", label: "Education" },
-]
-
 export function SiteNav() {
     const [open, setOpen] = useState(false)
     const { signedIn, checked } = useSessionHint()
@@ -123,17 +111,8 @@ export function SiteNav() {
                         <Wordmark className="text-[22px]" />
                     </Link>
 
-                    <div className="hidden items-center gap-1 lg:flex">
-                        {NAV.map((item) => (
-                            <a
-                                key={item.label}
-                                href={item.href}
-                                className="rounded-pill px-3 py-2 text-sm font-medium text-ink transition-colors duration-[350ms] ease-ws hover:bg-ink/5"
-                            >
-                                {item.label}
-                            </a>
-                        ))}
-                    </div>
+                    {/* Dropdown menus; every item is a real page on this site. */}
+                    <NavMenus />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -169,22 +148,14 @@ export function SiteNav() {
             </nav>
 
             {open && (
-                <div className="mx-auto mt-2 max-w-[1400px] rounded-md border border-line bg-chip px-5 py-4 lg:hidden">
-                    <div className="flex flex-col">
-                        {NAV.map((item) => (
-                            <a
-                                key={item.label}
-                                href={item.href}
-                                onClick={() => setOpen(false)}
-                                className="rounded-md px-2 py-3 text-lg font-medium text-ink"
-                            >
-                                {item.label}
-                            </a>
-                        ))}
-                        <a href={loginUrl()} className="rounded-md px-2 py-3 text-lg font-medium text-ink-muted">
-                            Log in
-                        </a>
-                    </div>
+                <div className="mx-auto mt-2 max-h-[75vh] max-w-[1400px] overflow-y-auto rounded-md border border-line bg-chip px-5 py-5 lg:hidden">
+                    <MobileMenu onNavigate={() => setOpen(false)} />
+                    <a
+                        href={loginUrl()}
+                        className="mt-4 block rounded-md px-2 py-3 text-base font-medium text-ink-muted"
+                    >
+                        Log in
+                    </a>
                 </div>
             )}
         </header>
@@ -203,11 +174,11 @@ const FOOTER_COLUMNS: { title: string; links: { href: string; label: string }[] 
     {
         title: "Products",
         links: [
-            { href: "/#calculators", label: "Calculators" },
-            { href: "/#budgeting", label: "Budgeting" },
-            { href: "/#investing", label: "Investing" },
-            { href: "/#taxes", label: "Taxes" },
-            { href: "/#education", label: "Education" },
+            { href: "/calculators", label: "Calculators" },
+            { href: "/budgeting", label: "Budgeting" },
+            { href: "/investing", label: "Investing" },
+            { href: "/taxes", label: "Taxes" },
+            { href: "/education", label: "Education" },
         ],
     },
     {
