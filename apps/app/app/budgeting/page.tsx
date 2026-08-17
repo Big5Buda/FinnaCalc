@@ -12,7 +12,7 @@ import { computeFindings, findingsSummaryLine } from "@/lib/budget/findings"
 import { detectSubscriptions } from "@/lib/budget/subscriptions"
 import { SampleDonut } from "@/components/budget/charts"
 import { Button, Notice } from "@/components/ui/primitives"
-import { PageBar, PageBody, Panel } from "@/components/shell/surface"
+import { PageBar, PageBody, Panel, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * The Budgeting hub — a stack of feature cards, ported from
@@ -75,26 +75,15 @@ export default function BudgetingPage() {
                 title="Budgeting"
                 actions={
                     <div className="flex items-center gap-2">
-                    <div className="flex rounded-full bg-secondary p-[3px]">
-                        {(["personal", "business"] as BudgetType[]).map((type) => {
-                            const selected = budget.budgetType === type
-                            return (
-                                <button
-                                    key={type}
-                                    type="button"
-                                    onClick={() => budget.setBudgetType(type)}
-                                    className={cn(
-                                        "rounded-full px-3.5 py-1.5 text-xs transition",
-                                        selected
-                                            ? "bg-card font-bold text-foreground shadow-sm"
-                                            : "font-semibold text-muted-foreground"
-                                    )}
-                                >
-                                    {budgetTypeTitle(type)}
-                                </button>
-                            )
-                        })}
-                    </div>
+                    <SegmentedControl
+                        label="Budget type"
+                        value={budget.budgetType}
+                        onChange={(next) => budget.setBudgetType(next)}
+                        options={(["personal", "business"] as BudgetType[]).map((type) => ({
+                            value: type,
+                            label: budgetTypeTitle(type),
+                        }))}
+                    />
                     <button
                         type="button"
                         onClick={() => setClearing((open) => !open)}

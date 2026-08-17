@@ -10,6 +10,7 @@ import {
     topicName,
     videoLessons,
 } from "@/lib/education-content"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export function generateStaticParams() {
     return EDU_TOPICS.map((topic) => ({ topic: topic.id }))
@@ -41,7 +42,19 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
     const Icon = (Icons as unknown as Record<string, Icons.LucideIcon>)[meta.icon] ?? Icons.BookOpen
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/education" className="text-muted-foreground hover:text-foreground">
+                            Learn
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Learn
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-3">
                 <span className="inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary/14 p-3.5 text-primary">
                     <Icon className="h-6 w-6" strokeWidth={2.2} />
@@ -85,10 +98,7 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
                     </div>
                 </section>
             )}
-
-            <Link href="/education" className="text-sm font-semibold text-primary">
-                ← All of {topicName(topic)} and every other topic
-            </Link>
-        </div>
+            </PageBody>
+        </>
     )
 }

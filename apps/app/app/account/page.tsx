@@ -9,7 +9,7 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { useAppearance, type Appearance } from "@/components/providers/appearance-provider"
 import { Badge, Button, IconChip, Notice, SectionLabel } from "@/components/ui/primitives"
 import { planFor, type BillingInterval, type PlanTier } from "@/lib/plans"
-import { PageBar, PageBody } from "@/components/shell/surface"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * Account — the web port of Features/Auth/AccountView.swift: sign-in hero or
@@ -134,33 +134,27 @@ export default function AccountPage() {
 
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>Appearance</SectionLabel>
-                <div className="flex rounded-full bg-secondary p-[3px]">
-                    {(
+                <SegmentedControl
+                    label="Appearance"
+                    className="w-full [&>button]:flex-1"
+                    value={appearance}
+                    onChange={setAppearance}
+                    options={(
                         [
                             { value: "system", label: "System", Icon: Monitor },
                             { value: "light", label: "Light", Icon: Sun },
                             { value: "dark", label: "Dark", Icon: Moon },
                         ] as { value: Appearance; label: string; Icon: typeof Monitor }[]
-                    ).map(({ value, label, Icon }) => {
-                        const selected = appearance === value
-                        return (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => setAppearance(value)}
-                                className={cn(
-                                    "flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[12.5px] transition",
-                                    selected
-                                        ? "bg-card font-bold text-foreground shadow-sm"
-                                        : "font-semibold text-muted-foreground"
-                                )}
-                            >
-                                <Icon className={cn("h-3.5 w-3.5", selected && "text-primary")} />
+                    ).map(({ value, label, Icon }) => ({
+                        value,
+                        label: (
+                            <span className="flex items-center justify-center gap-1.5">
+                                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                                 {label}
-                            </button>
-                        )
-                    })}
-                </div>
+                            </span>
+                        ),
+                    }))}
+                />
             </section>
 
             <FeedbackSection email={user?.email} userId={user?.id} />
@@ -261,14 +255,14 @@ function FeedbackSection({ email, userId }: { email?: string; userId?: string })
                                 rows={4}
                                 required
                                 placeholder="What's working, what isn't, what you wish existed…"
-                                className="w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-primary"
+                                className="w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                             />
                             <input
                                 type="email"
                                 value={replyTo}
                                 onChange={(e) => setReplyTo(e.target.value)}
                                 placeholder="Your email (optional, so we can reply)"
-                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                             />
                             {error && <Notice tone="error">{error}</Notice>}
                             <div className="flex gap-2">

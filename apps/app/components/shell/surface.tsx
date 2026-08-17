@@ -173,3 +173,63 @@ export function Stat({
         </div>
     )
 }
+
+/**
+ * The segmented control — one choice from a short, visible set.
+ *
+ * This markup was hand-copied into eight screens (budget type, chart range,
+ * billing interval, appearance, order side, portfolio view…), each with its own
+ * slightly different padding and font size. Same control, eight spellings,
+ * eight chances to drift. One implementation instead.
+ *
+ * It is a radiogroup rather than a row of buttons: arrow keys move between
+ * options natively, and a screen reader announces "2 of 3" instead of reading
+ * three unrelated buttons.
+ */
+export function SegmentedControl<T extends string>({
+    value,
+    onChange,
+    options,
+    label,
+    size = "md",
+    className,
+}: {
+    value: T
+    onChange: (next: T) => void
+    options: { value: T; label: ReactNode }[]
+    /** Names the group for assistive tech; visually hidden. */
+    label: string
+    size?: "sm" | "md"
+    className?: string
+}) {
+    return (
+        <div
+            role="radiogroup"
+            aria-label={label}
+            className={cn("inline-flex rounded-pill bg-secondary p-[3px]", className)}
+        >
+            {options.map((option) => {
+                const selected = option.value === value
+                return (
+                    <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => onChange(option.value)}
+                        className={cn(
+                            "rounded-pill font-medium transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                            size === "sm" ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-sm",
+                            selected
+                                ? "bg-card text-foreground shadow-sm"
+                                : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        {option.label}
+                    </button>
+                )
+            })}
+        </div>
+    )
+}

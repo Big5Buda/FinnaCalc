@@ -13,6 +13,12 @@ export type SectorMeta = {
     blurb: string
 }
 
+/*
+ * Sector colours are darkened to clear 4.5:1 against the white text that sits
+ * on them — axe flagged the originals at 2.5–3.7:1. If you retune these, check
+ * the contrast rather than the swatch: several of the brighter originals were
+ * unreadable on the card even though they looked fine in isolation.
+ */
 export const SECTORS: SectorMeta[] = [
     {
         id: "technology",
@@ -24,28 +30,28 @@ export const SECTORS: SectorMeta[] = [
     {
         id: "healthcare",
         name: "Healthcare",
-        color: "#0CA678",
+        color: "#098460",
         icon: "Stethoscope",
         blurb: "Drugmakers, insurers, and medical-device companies.",
     },
     {
         id: "financials",
         name: "Financials",
-        color: "#E8590C",
+        color: "#C94D0A",
         icon: "Landmark",
         blurb: "Businesses that are in the business of money.",
     },
     {
         id: "consumer",
         name: "Consumer",
-        color: "#E64980",
+        color: "#CC4071",
         icon: "ShoppingCart",
         blurb: "Retail, autos, and the brands people buy every day.",
     },
     {
         id: "energy",
         name: "Energy",
-        color: "#F08C00",
+        color: "#AA6300",
         icon: "Zap",
         blurb: "Oil, gas, and the companies that power the world.",
     },
@@ -59,7 +65,7 @@ export const SECTORS: SectorMeta[] = [
     {
         id: "industrials",
         name: "Industrials",
-        color: "#1098AD",
+        color: "#0D7F91",
         icon: "Settings",
         blurb: "Aerospace, machinery, and logistics companies.",
     },

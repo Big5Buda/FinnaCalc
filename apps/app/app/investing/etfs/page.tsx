@@ -8,6 +8,7 @@ import { fixed } from "@/lib/format"
 import { CURATED_ETFS } from "@/lib/investing/catalog"
 import { marketStats, type MarketStat } from "@/lib/investing/market"
 import { CompanyLogo } from "@/components/investing/pieces"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Curated ETFs and index funds — an on-ramp, not a catalog of the universe.
@@ -38,19 +39,24 @@ export default function ETFsPage() {
     }, [])
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
-            <Link href="/investing" className="text-sm font-semibold text-primary">
-                ← Investing
-            </Link>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        ETFs & Index Funds
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
 
             <header className="flex flex-col gap-3">
-                <span
-                    className="inline-flex h-16 w-16 items-center justify-center rounded-full text-white"
-                    style={{ backgroundColor: "#0B7285" }}
-                >
+                <span className="inline-flex h-16 w-16 items-center justify-center rounded-pill bg-foreground text-background">
                     <Layers className="h-7 w-7" />
                 </span>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">ETFs &amp; Index Funds</h1>
                 <p className="text-base text-muted-foreground">
                     One purchase, hundreds of companies. The simplest way to own the whole market.
                 </p>
@@ -93,6 +99,7 @@ export default function ETFsPage() {
                     )
                 })}
             </ul>
-        </div>
+            </PageBody>
+        </>
     )
 }

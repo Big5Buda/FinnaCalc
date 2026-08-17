@@ -46,7 +46,7 @@ export default async function EducationLessonPage({
     const thumbnail = youtubeThumbnail(video.url)
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
+        <div className="flex w-full max-w-4xl flex-col gap-6 px-6 py-6 lg:px-10">
             <Link href={`/education/${topic}`} className="text-sm font-semibold text-primary">
                 ← {topicName(topic)}
             </Link>
@@ -57,7 +57,7 @@ export default async function EducationLessonPage({
                 rel="noopener noreferrer"
                 className="paper-card-flat overflow-hidden rounded-2xl transition hover:border-border-strong"
             >
-                <span className="relative flex h-[170px] w-full items-center justify-center bg-gradient-to-br from-[#23335C] to-[#16130E]">
+                <span className="relative flex h-[170px] w-full items-center justify-center bg-secondary">
                     {thumbnail && (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />

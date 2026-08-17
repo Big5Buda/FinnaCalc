@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
  */
 
 const INPUT_CHROME =
-    "h-11 w-full rounded-md border border-input bg-background text-base text-foreground outline-none transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+    "h-11 w-full rounded-md border border-input bg-background text-base text-foreground transition focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background"
 
 function FieldContainer({
     label,
@@ -106,7 +106,7 @@ export function CurrencyField({
                     value={value}
                     onChange={(e) => onChange(formatCurrencyTyping(e.target.value))}
                     placeholder={placeholder ?? lastWord(label)}
-                    className="figure h-full w-full bg-transparent pl-2 pr-3.5 outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                    className="figure h-full w-full bg-transparent pl-2 pr-3.5  placeholder:font-normal placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
             </div>
         </FieldContainer>
@@ -144,7 +144,7 @@ export function PercentField({
                         onChange(cleaned)
                     }}
                     placeholder={placeholder ?? lastWord(label)}
-                    className="figure h-full w-full bg-transparent pl-3.5 pr-2 outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                    className="figure h-full w-full bg-transparent pl-3.5 pr-2  placeholder:font-normal placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
                 <span className="pr-3.5 text-sm font-medium text-muted-foreground">%</span>
             </div>
@@ -190,7 +190,7 @@ export function StepperField({
                         value={value}
                         onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
                         size={Math.max(2, value.length)}
-                        className="figure bg-transparent text-center outline-none"
+                        className="figure bg-transparent text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                     />
                     {unit && <span className="text-xs font-medium text-muted-foreground">{unit}</span>}
                 </div>

@@ -8,6 +8,7 @@ import { fixed, int } from "@/lib/format"
 import { screener, type ScreenerRow } from "@/lib/investing/market"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * The screener, ported from DashboardScreenerView.swift and narrowed to what
@@ -55,12 +56,20 @@ export default function ScreenerPage() {
     }, [])
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Screener
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-6xl flex-col gap-5">
             <header className="flex flex-col gap-1">
-                <Link href="/investing" className="text-sm font-semibold text-primary">
-                    ← Investing
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Screener</h1>
                 <p className="text-sm text-muted-foreground">
                     The day&rsquo;s most-active stocks, filtered on price, move and volume.
                 </p>
@@ -128,7 +137,8 @@ export default function ScreenerPage() {
                     ))}
                 </ul>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }
 
@@ -149,7 +159,7 @@ function Field({
                 onChange={(event) => onChange(event.target.value.replace(/[^0-9.-]/g, ""))}
                 inputMode="decimal"
                 placeholder="—"
-                className="figure h-9 rounded-md border border-input bg-background px-2.5 text-sm font-normal text-foreground outline-none focus:border-primary"
+                className="figure h-9 rounded-md border border-input bg-background px-2.5 text-sm font-normal text-foreground  focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             />
         </label>
     )

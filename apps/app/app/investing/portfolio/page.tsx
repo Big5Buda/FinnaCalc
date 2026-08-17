@@ -27,6 +27,7 @@ import { holdings, provisionalPositions } from "@/lib/investing/analytics"
 import { useAuth } from "@/components/providers/auth-provider"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * Portfolio — connect a brokerage through SnapTrade, then the total value, the
@@ -341,18 +342,27 @@ export default function PortfolioPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Portfolio
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-6xl flex-col gap-5">
             <header className="flex flex-col gap-1">
-                <Link href="/investing" className="text-sm font-semibold text-primary">
-                    ← Investing
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Portfolio</h1>
                 <p className="text-sm text-muted-foreground">
                     Your own accounts, read straight from your brokerage.
                 </p>
             </header>
             {children}
-        </div>
+            </PageBody>
+        </>
     )
 }
 
@@ -397,28 +407,17 @@ function ConnectPanel({
                 </div>
             </div>
 
-            <div className="flex rounded-full bg-secondary p-[3px]">
-                {(
-                    [
-                        { value: "read", label: "View only" },
-                        { value: "trade", label: "View and trade" },
-                    ] as { value: BrokerageAccess; label: string }[]
-                ).map((option) => (
-                    <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setAccess(option.value)}
-                        className={cn(
-                            "flex-1 rounded-full py-2 text-xs transition",
-                            access === option.value
-                                ? "bg-card font-bold text-foreground shadow-sm"
-                                : "font-semibold text-muted-foreground"
-                        )}
-                    >
-                        {option.label}
-                    </button>
-                ))}
-            </div>
+            <SegmentedControl
+                label="Brokerage access"
+                className="w-full [&>button]:flex-1"
+                size="sm"
+                value={access}
+                onChange={setAccess}
+                options={[
+                    { value: "read" as BrokerageAccess, label: "View only" },
+                    { value: "trade" as BrokerageAccess, label: "View and trade" },
+                ]}
+            />
 
             <p className="text-xs text-muted-foreground">
                 {access === "trade"
@@ -431,7 +430,7 @@ function ConnectPanel({
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Find your brokerage"
                 aria-label="Find your brokerage"
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground  focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             />
 
             <div className="grid grid-cols-2 gap-2">

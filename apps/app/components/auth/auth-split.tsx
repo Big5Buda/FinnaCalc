@@ -53,13 +53,7 @@ export function AuthSplit({ children }: { children: ReactNode }) {
             {/* Left: the brand moment — the marketing hero's warm gradient,
                 the serif speaking, the coin mark. */}
             <section
-                className="relative flex flex-col justify-between gap-10 px-8 py-10 text-[#FCFCFC] lg:w-[46%] lg:px-14 lg:py-14"
-                style={{
-                    background:
-                        "radial-gradient(120% 90% at 80% 100%, rgb(161 116 92 / 0.55), transparent 60%)," +
-                        "radial-gradient(100% 80% at 15% 10%, rgb(143 133 120 / 0.9), transparent 70%)," +
-                        "linear-gradient(135deg, #8f8578 0%, #857466 45%, #93705c 100%)",
-                }}
+                className="auth-ground relative flex flex-col justify-between gap-10 px-8 py-10 text-card lg:w-[46%] lg:px-14 lg:py-14"
             >
                 <Link href="/" aria-label="FinnaCalc home" className="flex items-center gap-2.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -81,7 +75,7 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                             <p
                                 key={point}
                                 className={cn(
-                                    "absolute inset-0 text-lg leading-relaxed text-[#FCFCFC]/85 transition-opacity duration-700 motion-reduce:transition-none",
+                                    "absolute inset-0 text-lg leading-relaxed text-card/85 transition-opacity duration-700 motion-reduce:transition-none",
                                     reduced
                                         ? position === 0
                                             ? "opacity-100"
@@ -98,39 +92,39 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                     </div>
                 </div>
 
-                <p className="text-xs text-[#FCFCFC]/60">
+                <p className="text-xs text-card/60">
                     FinnaCalc is a tool, not an advisor. Nothing here is financial advice.
                 </p>
             </section>
 
             {/* Right: the card on cream, and the strip under it. */}
-            <section className="flex flex-1 flex-col bg-[#F5F3EF]">
+            <section className="flex flex-1 flex-col bg-background">
                 <div className="flex flex-1 items-center justify-center px-5 py-12">
-                    <div className="w-full max-w-md rounded-[24px] border border-[#E4E2E1] bg-[#FCFCFC] p-7 shadow-[0_1px_2px_rgb(28_27_27/0.04)] sm:p-9">
+                    <div className="w-full max-w-md rounded-card border border-border bg-card p-7 shadow-[0_1px_2px_rgb(28_27_27/0.04)] sm:p-9">
                         {children}
                     </div>
                 </div>
 
-                <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E4E2E1] px-6 py-5 text-sm">
+                <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-5 text-sm">
                     <div className="flex gap-4">
                         <Link
                             href="/privacy"
-                            className="font-medium text-[#1C1B1B] underline-offset-4 hover:underline"
+                            className="font-medium text-foreground underline-offset-4 hover:underline"
                         >
                             Privacy
                         </Link>
                         <Link
                             href="/terms"
-                            className="font-medium text-[#1C1B1B] underline-offset-4 hover:underline"
+                            className="font-medium text-foreground underline-offset-4 hover:underline"
                         >
                             Terms
                         </Link>
                     </div>
-                    <p className="text-[#686664]">
+                    <p className="text-muted-foreground">
                         Coming to iPhone —{" "}
                         <Link
                             href="/#waitlist"
-                            className="font-medium text-[#1C1B1B] underline-offset-4 hover:underline"
+                            className="font-medium text-foreground underline-offset-4 hover:underline"
                         >
                             join the waitlist
                         </Link>

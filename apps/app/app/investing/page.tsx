@@ -269,7 +269,7 @@ function SymbolSearch() {
                     onChange={(event) => setTerm(event.target.value.toUpperCase())}
                     placeholder="Search stocks"
                     aria-label="Search stocks"
-                    className="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+                    className="w-full bg-transparent text-base text-foreground  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
                 {term !== "" && (
                     <button type="button" onClick={() => setTerm("")} aria-label="Clear search">

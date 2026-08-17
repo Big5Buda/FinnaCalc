@@ -9,6 +9,7 @@ import { marketStats, sparklines, type MarketStat } from "@/lib/investing/market
 import { useWatchlist, DEFAULT_WATCHLIST } from "@/components/providers/watchlist-provider"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * The watchlist — symbols the user follows, with a live quote and a sparkline
@@ -48,12 +49,20 @@ export default function WatchlistPage() {
     }, [symbols, watchlist.ready])
 
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Watchlist
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-1">
-                <Link href="/investing" className="text-sm font-semibold text-primary">
-                    ← Investing
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Watchlist</h1>
                 <p className="text-sm text-muted-foreground">
                     {watchlist.saved === null
                         ? "A starter list until you save your own. Add or remove anything."
@@ -76,7 +85,7 @@ export default function WatchlistPage() {
                     onChange={(event) => setAdding(event.target.value.toUpperCase())}
                     placeholder="Add a symbol"
                     aria-label="Add a symbol to your watchlist"
-                    className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+                    className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground  focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
                 <Button type="submit" disabled={adding.trim() === ""}>
                     <Plus className="h-4 w-4" />
@@ -149,7 +158,8 @@ export default function WatchlistPage() {
                     Restore the starter list
                 </Button>
             )}
-        </div>
+            </PageBody>
+        </>
     )
 }
 

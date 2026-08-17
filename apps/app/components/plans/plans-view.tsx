@@ -7,7 +7,7 @@ import { Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { useAuth } from "@/components/providers/auth-provider"
-import { PageBar, PageBody } from "@/components/shell/surface"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 import { Badge, IconChip, Notice } from "@/components/ui/primitives"
 import {
     PLANS,
@@ -101,29 +101,25 @@ export function PlansView() {
             <PageBody className="flex w-full max-w-5xl flex-col gap-6">
                 <div className="contents">
 
-            <div className="flex rounded-full bg-secondary p-[3px]">
-                {(["monthly", "annual"] as BillingInterval[]).map((option) => {
-                    const selected = interval === option
-                    return (
-                        <button
-                            key={option}
-                            type="button"
-                            onClick={() => setInterval(option)}
-                            className={cn(
-                                "flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[12.5px] transition",
-                                selected ? "bg-card font-bold text-foreground shadow-sm" : "font-semibold text-muted-foreground"
-                            )}
-                        >
+            <SegmentedControl
+                label="Billing interval"
+                className="w-full max-w-sm [&>button]:flex-1"
+                value={interval}
+                onChange={setInterval}
+                options={(["monthly", "annual"] as BillingInterval[]).map((option) => ({
+                    value: option,
+                    label: (
+                        <span className="flex items-center justify-center gap-1.5">
                             {option === "monthly" ? "Monthly" : "Annual"}
                             {option === "annual" && (
-                                <span className="text-[10.5px] font-bold text-positive">
+                                <span className="text-[10.5px] font-semibold text-positive">
                                     Save up to {maxAnnualSavingsPercent()}%
                                 </span>
                             )}
-                        </button>
-                    )
-                })}
-            </div>
+                        </span>
+                    ),
+                }))}
+            />
 
             {PLANS.map((plan) => (
                 <PlanCard
@@ -212,7 +208,7 @@ function PlanCard({
         >
             <div className="flex items-center gap-2.5">
                 {spotlight ? (
-                    <Icon className="h-4 w-4 text-[#8FB0FF]" strokeWidth={2.4} />
+                    <Icon className="h-4 w-4 text-caution" strokeWidth={2.4} />
                 ) : (
                     <IconChip>
                         <Icon className="h-4 w-4" strokeWidth={2.2} />
@@ -241,7 +237,7 @@ function PlanCard({
                 {plan.benefits.map((benefit) => (
                     <li key={benefit.text} className="flex items-start gap-2.5 text-[13px]">
                         <Check
-                            className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", spotlight ? "text-[#8FB0FF]" : "text-positive")}
+                            className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", spotlight ? "text-caution" : "text-positive")}
                             strokeWidth={3}
                         />
                         <span className={spotlight ? "opacity-95" : "text-body"}>{benefit.text}</span>

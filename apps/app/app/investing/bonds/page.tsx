@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Bonds",
@@ -14,12 +15,19 @@ export const metadata: Metadata = {
  */
 export default function BondsPage() {
     return (
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-6">
-            <Link href="/investing" className="text-sm font-semibold text-primary">
-                ← Investing
-            </Link>
-
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Bonds</h1>
+        <>
+            <PageBar
+                title={
+                    <span className="flex items-center gap-2">
+                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
+                            Investing
+                        </Link>
+                        <span className="text-border-strong">/</span>
+                        Bonds
+                    </span>
+                }
+            />
+            <PageBody className="flex w-full max-w-4xl flex-col gap-5">
 
             <Card>
                 <CardContent className="pt-6">
@@ -34,6 +42,7 @@ export default function BondsPage() {
                     </p>
                 </CardContent>
             </Card>
-        </div>
+            </PageBody>
+        </>
     )
 }
