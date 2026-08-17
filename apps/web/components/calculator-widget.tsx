@@ -68,7 +68,7 @@ export function CalculatorWidget() {
     }, [initial, monthly, rate, years])
 
     return (
-        <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
+        <div className="grid gap-6 rounded-2xl border border-line bg-surface-elevated p-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
             <div className="flex flex-col gap-6">
                 <SliderRow
                     label="Starting amount"

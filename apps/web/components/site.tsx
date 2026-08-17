@@ -42,7 +42,7 @@ export function SiteNav() {
         <header
             className={cn(
                 "sticky top-0 z-40 transition-colors duration-300",
-                scrolled ? "border-b border-line bg-canvas/90 backdrop-blur" : "bg-transparent"
+                scrolled ? "glass-panel border-b border-line" : "bg-transparent"
             )}
         >
             <nav className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-6 px-6">
@@ -151,7 +151,7 @@ const SECURITY_FACTS = [
 
 export function SecurityGrid() {
     return (
-        <section id="security" className="border-y border-line bg-surface/30">
+        <section id="security" className="border-y border-line bg-mesh-surface">
             <Stagger className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
                 <Rise className="flex max-w-2xl flex-col gap-3">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-mint">Security</p>
@@ -167,7 +167,7 @@ export function SecurityGrid() {
                 <div className="grid gap-4 sm:grid-cols-2">
                     {SECURITY_FACTS.map((fact) => (
                         <Rise key={fact.title}>
-                            <div className="flex h-full gap-4 rounded-2xl border border-line bg-surface p-6">
+                            <div className="flex h-full gap-4 rounded-2xl border border-line bg-surface-elevated p-6">
                                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint/12 text-mint">
                                     <fact.icon className="h-5 w-5" />
                                 </span>
