@@ -2,18 +2,23 @@
 
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
-import { SiteHeader } from "@/components/shell/site-header"
-import { SiteFooter } from "@/components/shell/site-footer"
+import { AppRail } from "@/components/shell/app-rail"
 
 /**
- * The site shell, minus the pages that deliberately stand alone.
+ * The application shell: the icon rail on the left, the workspace filling the
+ * rest of the window.
  *
- * Sign-in, sign-up and the auth callbacks render full-bleed with their own
- * wordmark and bottom strip, so the nav doesn't compete with the form. They opt
- * out here rather than through a route group: a group would mean moving every
- * other page in the app into a folder to change where two of them render.
+ * The old top header and marketing footer are gone. Since #114 this app is
+ * behind sign-in, so every page here belongs to someone who is already a user
+ * — they need navigation between workspaces, not a site nav selling the
+ * product. Marketing lives on finnacalc.com now.
+ *
+ * Sign-in, sign-up and the auth callbacks still render bare: they're the
+ * doorway, and the rail would be navigation to places the visitor can't go
+ * yet. They opt out here rather than through a route group, which would mean
+ * moving every other page into a folder to change where three of them render.
  */
-const BARE_ROUTES = ["/sign-in", "/sign-up", "/auth/"]
+const BARE_ROUTES = ["/sign-in", "/sign-up", "/auth/", "/migrate"]
 
 export function SiteChrome({ children }: { children: ReactNode }) {
     const pathname = usePathname()
@@ -22,10 +27,10 @@ export function SiteChrome({ children }: { children: ReactNode }) {
     if (bare) return <>{children}</>
 
     return (
-        <div className="flex min-h-screen flex-col">
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
+        <div className="min-h-screen bg-background">
+            <AppRail />
+            {/* The rail is fixed, so the workspace is inset by its width. */}
+            <div className="lg:pl-[88px]">{children}</div>
         </div>
     )
 }

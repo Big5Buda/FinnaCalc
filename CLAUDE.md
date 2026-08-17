@@ -15,12 +15,20 @@ and the cutover order. Read it before touching anything deployment-shaped.
 
 ## Front-end design system — `apps/web` only
 
-**Scope.** These rules govern `apps/web`, the public marketing site, and nothing
-else. `apps/app` and `packages/shared` are deliberately exempt: their tokens and
-typefaces mirror the iOS app's `Core/DesignSystem/Theme.swift` so the web app and
-the phone app read as one product. Changing them there is a separate decision
-about iOS parity, not a styling choice — do not "fix" `apps/app` to match this
-section.
+**Scope.** These rules govern **both web workspaces** — `apps/web` (the public
+marketing site) and `apps/app` (the signed-in application). One system, so the
+walk from finnacalc.com to app.finnacalc.com is continuous.
+
+`apps/app` adopted this system in August 2026 at the user's direction, replacing
+the Paper & Cobalt palette that mirrored the iOS app's
+`Core/DesignSystem/Theme.swift`. **The iPhone app deliberately keeps its blue
+theme** — web and phone now read as siblings, not twins. Do not "fix" the iOS
+repo to match this section; that would be a separate decision.
+
+The two workspaces express the same tokens differently by necessity:
+`apps/web` declares them in `app/globals.css`, `apps/app` gets them from
+`packages/shared/src/tailwind-preset.ts` (its only consumer). The hex values are
+the same on both sides — change one, change the other.
 
 **Provenance.** This system was measured off wealthsimple.com in August 2026
 (stylesheets, computed styles, full-page renders) and adopted deliberately, at
@@ -109,6 +117,22 @@ System/Light/Dark switcher; that is not an inconsistency to resolve.
   (opacity + 24–28px rise, ~1s ease-out), not per-element scroll effects.
 - Everything respects `prefers-reduced-motion`, rendering the finished state
   immediately. Motion is decoration; nothing may depend on it to become legible.
+
+### The application shell — `apps/app`
+
+The signed-in app is a workspace, not a site: no top nav, no marketing footer.
+
+- **An 88px icon rail** pinned left (`components/shell/app-rail.tsx`): search on
+  top, six primary destinations (Home, Budgeting, Investing, Taxes, Calculators,
+  Education), FinnaBot and Account at the bottom. Icon-only with hover tooltips
+  and real accessible names; collapses to a bottom sheet under `lg`.
+- **Compose screens from `components/shell/surface.tsx`** — `PageBar`,
+  `PageBody`, `Panel`, `PanelTitle`, `EmptyState`, `ActionPill`, `Stat`. A new
+  screen uses these rather than inventing its own card.
+- **Every panel needs a real empty state.** `EmptyState` says what is missing
+  and offers the one action that fixes it. Never a sample budget or a demo
+  portfolio — a plausible fake on a first-run screen is precisely the lie house
+  rule 1 forbids.
 
 ### Primitives
 

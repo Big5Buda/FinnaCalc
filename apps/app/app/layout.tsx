@@ -1,5 +1,5 @@
 import { type Metadata } from 'next'
-import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { DM_Sans, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -11,15 +11,20 @@ import { WatchlistProvider } from '@/components/providers/watchlist-provider'
 import { SiteChrome } from '@/components/shell/site-chrome'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
 
-const ibmPlexSans = IBM_Plex_Sans({
-    variable: '--font-ibm-plex-sans',
+/*
+ * The marketing site's pair, by role: the sans carries the interface, the
+ * serif carries brand moments. Stand-ins for The Future and Tiempos Text,
+ * which the user intends to license — swapping them is this block alone.
+ */
+const sans = DM_Sans({
+    variable: '--font-sans',
     subsets: ['latin'],
-    weight: ['400', '500', '600', '700'],
+    weight: 'variable',
 })
-const ibmPlexMono = IBM_Plex_Mono({
-    variable: '--font-ibm-plex-mono',
+const serif = Source_Serif_4({
+    variable: '--font-serif',
     subsets: ['latin'],
-    weight: ['400', '500', '600'],
+    weight: 'variable',
 })
 
 const siteUrl = 'https://www.finnacalc.com'
@@ -64,7 +69,7 @@ try {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
+        <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
             <head>
                 <script dangerouslySetInnerHTML={{ __html: appearanceScript }} />
             </head>
