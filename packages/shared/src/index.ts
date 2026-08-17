@@ -10,4 +10,5 @@
 export * from "./format"
 export * from "./calculators"
 export * from "./plans"
+export * from "./calculators-catalog"
 export * from "./storage"

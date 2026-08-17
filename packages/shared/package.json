@@ -12,6 +12,7 @@
     "./plans": "./src/plans.ts",
     "./tokens.css": "./src/tokens.css",
     "./tailwind-preset": "./src/tailwind-preset.ts",
-    "./storage": "./src/storage.ts"
+    "./storage": "./src/storage.ts",
+    "./calculators-catalog": "./src/calculators-catalog.ts"
   }
 }
