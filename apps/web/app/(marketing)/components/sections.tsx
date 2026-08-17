@@ -249,46 +249,51 @@ export function InvestingSection() {
 }
 
 /**
- * The Investing tab, actually being used: a screen recording of a real session
- * on the deployed app — live index prices, a stock page with its chart and SEC
- * stats, the news feed. Nothing in the frame is staged; the prices were the
- * prices when it was recorded, and the caption dates it for exactly that
- * reason.
+ * The Investing tab of the iPhone app, actually being used.
  *
- * Reduced-motion readers get the poster frame. The video is muted, looped,
- * inline, ~300KB — decoration that happens to be true, not a page cost.
+ * A screen recording of a real session in the iOS app running against
+ * production data: the Investing tab opens, the market card swipes to Most
+ * Active, AMD opens at its real price, the chart flips to the one-year view,
+ * and the scroll ends on the company's actual SEC financial statements.
+ * Nothing is staged and nothing is mocked; the caption dates the session so
+ * the prices can't be read as current.
+ *
+ * Reduced-motion readers get the poster frame. The clip is ~620KB — a phone
+ * screen's worth of pixels, not a film.
  */
 function InvestingDemo() {
     const reduceMotion = useReducedMotion()
 
     return (
-        <div className="flex flex-col gap-3">
-            <div className="overflow-hidden rounded-lg border border-chip/20 shadow-[0_32px_80px_rgb(0_0_0/0.4)]">
-                {reduceMotion ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                        src="/investing-poster.jpg"
-                        alt="The FinnaCalc Investing tab: market overview with live index prices"
-                        className="block w-full"
-                    />
-                ) : (
-                    <video
-                        className="block w-full"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        poster="/investing-poster.jpg"
-                        aria-label="A recorded session of the FinnaCalc Investing tab: browsing the market overview, opening a stock page, switching chart ranges, and scrolling its stats and news"
-                    >
-                        <source src="/investing-demo.webm" type="video/webm" />
-                        <source src="/investing-demo.mp4" type="video/mp4" />
-                    </video>
-                )}
+        <div className="flex flex-col items-center gap-4">
+            <div className="w-[290px] overflow-hidden rounded-[44px] border border-chip/25 bg-ink/25 p-2 shadow-[0_32px_80px_rgb(0_0_0/0.45)] sm:w-[320px]">
+                <div className="overflow-hidden rounded-[36px]">
+                    {reduceMotion ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                            src="/ios-poster.jpg"
+                            alt="The FinnaCalc iPhone app's Investing tab showing a stock page with its live chart"
+                            className="block w-full"
+                        />
+                    ) : (
+                        <video
+                            className="block w-full"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="metadata"
+                            poster="/ios-poster.jpg"
+                            aria-label="A recorded session of the FinnaCalc iPhone app's Investing tab: opening the market overview, browsing the most active stocks, opening AMD, switching the chart to one year, and scrolling to its SEC financial statements"
+                        >
+                            <source src="/ios-demo.webm" type="video/webm" />
+                            <source src="/ios-demo.mp4" type="video/mp4" />
+                        </video>
+                    )}
+                </div>
             </div>
             <p className="text-xs muted-on-color">
-                A real session in the app, recorded August 2026. Prices are from that day.
+                A real session in the iPhone app, recorded August 2026. Prices are from that day.
             </p>
         </div>
     )
