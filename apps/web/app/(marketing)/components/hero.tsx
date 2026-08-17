@@ -1,217 +1,177 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { compoundInterestSeries, crossoverYear } from "@finnacalc/shared/calculators"
-import { compactMoney, currency } from "@finnacalc/shared/format"
-import { Rise, Stagger } from "@/components/motion"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
+import { m, useReducedMotion } from "framer-motion"
+import { compoundInterestSeries } from "@finnacalc/shared/calculators"
+import { compactMoney } from "@finnacalc/shared/format"
 import { signUpUrl } from "@/lib/app-url"
-import { cn } from "@/lib/utils"
+import { Pill } from "@/components/site"
 
 /**
- * The hero is the thesis: instead of describing the product, it runs it.
+ * The hero, composed the way the reference composes it: a warm gradient
+ * ground, a hand-drawn white line climbing across it, small rounded tiles of
+ * the product floating along the curve, and the headline — serif, centred,
+ * small against all that space — near the bottom.
  *
- * The claim FinnaCalc makes is that compounding is worth modelling precisely,
- * so the hero models it — one slider, live figures, and the arithmetic visible.
- * The reader tests the claim before reading a word of marketing.
+ * The reference fills this frame with a video montage. Until FinnaCalc has one
+ * (the user intends to shoot it), the ground is the gradient and the tiles are
+ * live product vignettes instead of film clips — which has one honest
+ * advantage: the figure on the compound tile is computed by the same shared
+ * engine the app runs, not filmed.
  *
- * The signature is the contribution stack: what you paid in against what
- * compounding added, side by side, with the crossover marked — the year the
- * returns start doing more work than the deposits. That year moves as you drag,
- * which is the whole argument in one gesture.
- *
- * Deliberately not a line chart: the section below already draws one, and a
- * second would say the same thing twice in the same shape.
+ * The line draws itself once on load (pathLength), the tiles rise with it, and
+ * prefers-reduced-motion renders everything settled immediately.
  */
 
-/** Fixed and stated in the copy, so the figures can't be read as a promise. */
-const RATE = 7
-const HORIZON = 20
-const DEFAULT_MONTHLY = 2000
+/** One worked example, stated and computed — never a number pulled from air. */
+const EXAMPLE = { monthly: 400, rate: 7, years: 25 }
+const exampleSeries = compoundInterestSeries({
+    initialDeposit: 0,
+    monthlyContribution: EXAMPLE.monthly,
+    annualRate: EXAMPLE.rate,
+    years: EXAMPLE.years,
+})
+const exampleResult = exampleSeries[exampleSeries.length - 1]
+
+/** Rises, dips, recovers — a market line, not a slogan line. */
+const LINE_PATH =
+    "M -20 560 C 180 480, 300 430, 420 360 C 500 313, 540 320, 570 380 C 590 420, 610 430, 640 400 C 720 320, 860 220, 1010 150 C 1100 108, 1180 80, 1280 60"
 
 export function Hero() {
-    const [monthly, setMonthly] = useState(DEFAULT_MONTHLY)
-
-    const { balance, contributed, growth, crossover, growthShare } = useMemo(() => {
-        const series = compoundInterestSeries({
-            initialDeposit: 0,
-            monthlyContribution: monthly,
-            annualRate: RATE,
-            years: HORIZON,
-        })
-        const last = series[series.length - 1]
-        return {
-            balance: last.balance,
-            contributed: last.contributed,
-            growth: last.growth,
-            crossover: crossoverYear(series),
-            growthShare: last.balance > 0 ? last.growth / last.balance : 0,
-        }
-    }, [monthly])
+    const reduceMotion = useReducedMotion()
 
     return (
-        <section className="bg-mesh-atmosphere">
-            <Stagger className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-32">
-                {/* ── The claim ─────────────────────────────────────────── */}
-                <div className="flex flex-col gap-7">
-                    <Rise>
-                        <p className="figure text-xs uppercase tracking-[0.22em] text-mint">
-                            Compound modelling
+        <section className="hero-ground relative overflow-hidden pt-[92px]">
+            <div className="relative mx-auto flex min-h-[88vh] max-w-site flex-col px-6">
+                {/* ── The line and its tiles ────────────────────────────── */}
+                <div className="relative h-[46vh] min-h-[320px] flex-1">
+                    <svg
+                        viewBox="0 0 1264 600"
+                        preserveAspectRatio="xMidYMid slice"
+                        className="absolute inset-0 h-full w-full"
+                        aria-hidden="true"
+                    >
+                        <m.path
+                            d={LINE_PATH}
+                            fill="none"
+                            stroke="#FCFCFC"
+                            strokeWidth={2.5}
+                            strokeLinecap="round"
+                            initial={reduceMotion ? false : { pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 2.2, ease: [0.241, 0.969, 0.635, 0.997] }}
+                        />
+                    </svg>
+
+                    <Tile className="left-[8%] top-[42%] hidden w-44 sm:block" delay={0.7}>
+                        <p className="text-[11px] text-ink-muted">Budget, by category</p>
+                        <div className="flex flex-col gap-1.5 pt-2">
+                            <CategoryBar label="Rent" width="82%" />
+                            <CategoryBar label="Groceries" width="55%" />
+                            <CategoryBar label="Saving" width="38%" grow />
+                        </div>
+                    </Tile>
+
+                    <Tile className="left-[34%] top-[18%] w-52" delay={1.1}>
+                        <p className="text-[11px] text-ink-muted">
+                            ${EXAMPLE.monthly}/mo at {EXAMPLE.rate}% for {EXAMPLE.years} years
                         </p>
-                    </Rise>
-
-                    <Rise>
-                        <h1 className="font-display text-[clamp(2.75rem,6vw,4.5rem)] leading-[0.94] tracking-[-0.035em] text-ink">
-                            <span className="font-black">Precision wealth modeling</span>{" "}
-                            <span className="font-extralight italic">for founders.</span>
-                        </h1>
-                    </Rise>
-
-                    <Rise>
-                        <p className="max-w-md text-lg font-extralight leading-relaxed text-ink-muted">
-                            Income that arrives in lumps is hard to plan against. Model what a contribution
-                            actually becomes — with the arithmetic shown, not a number pulled from a brochure.
+                        <p className="figure pt-1 text-2xl font-semibold text-ink">
+                            {compactMoney(exampleResult.balance)}
                         </p>
-                    </Rise>
-
-                    <Rise className="flex flex-wrap items-center gap-3">
-                        <Button asChild size="lg" className="rounded-full px-8 font-bold">
-                            <a href={signUpUrl()}>Start free</a>
-                        </Button>
-                        <Button asChild variant="ghost" size="lg" className="rounded-full px-6">
-                            <a href="#calculator">Open the full model</a>
-                        </Button>
-                    </Rise>
-
-                    <Rise>
-                        <p className="text-sm font-light text-ink-muted">
-                            No credit card. No account needed to use the calculators.
+                        <p className="text-[11px] text-celery">
+                            {compactMoney(exampleResult.growth)} of it is growth
                         </p>
-                    </Rise>
+                    </Tile>
+
+                    <Tile className="right-[10%] top-[8%] hidden w-40 lg:block" delay={1.5}>
+                        <p className="text-[11px] text-ink-muted">Watchlist</p>
+                        <svg viewBox="0 0 130 36" className="mt-2 w-full" aria-hidden="true">
+                            <path
+                                d="M0 30 C 18 26, 28 18, 44 20 C 60 22, 68 10, 84 12 C 100 14, 112 6, 130 4"
+                                fill="none"
+                                stroke="rgb(72 102 53)"
+                                strokeWidth={2}
+                            />
+                        </svg>
+                        <div className="flex gap-1.5 pt-2">
+                            {["AAPL", "VOO", "MSFT"].map((symbol) => (
+                                <span
+                                    key={symbol}
+                                    className="figure rounded-pill bg-ink/5 px-2 py-0.5 text-[10px] font-medium text-ink-soft"
+                                >
+                                    {symbol}
+                                </span>
+                            ))}
+                        </div>
+                    </Tile>
                 </div>
 
-                {/* ── The thesis, running ───────────────────────────────── */}
-                <Rise>
-                    <div className="rounded-2xl border border-white/10 bg-surface-elevated/40 p-6 backdrop-blur-md sm:p-8">
-                        <div className="flex items-baseline justify-between gap-4">
-                            <label
-                                htmlFor="hero-contribution"
-                                className="text-sm font-light text-ink-muted"
-                            >
-                                Set aside each month
-                            </label>
-                            <output
-                                htmlFor="hero-contribution"
-                                className="text-2xl font-black text-ink"
-                            >
-                                {currency(monthly)}
-                            </output>
-                        </div>
-
-                        <div className="pt-5">
-                            <Slider
-                                id="hero-contribution"
-                                aria-label="Monthly contribution"
-                                aria-valuetext={`${currency(monthly)} a month`}
-                                value={[monthly]}
-                                onValueChange={([next]) => setMonthly(next)}
-                                min={0}
-                                max={10000}
-                                step={50}
-                            />
-                            <div className="flex justify-between pt-2">
-                                <span className="figure text-[11px] text-ink-muted">$0</span>
-                                <span className="figure text-[11px] text-ink-muted">$10,000</span>
-                            </div>
-                        </div>
-
-                        {/* The divider separates what the reader controls from what
-                            the model returns. That split is the actual hierarchy
-                            here, so it earns a rule. */}
-                        <div className="divider-fade my-7" aria-hidden="true" />
-
-                        <p className="text-sm font-light text-ink-muted">
-                            After {HORIZON} years at {RATE}% a year
-                        </p>
-                        <output className="mt-1 block text-[clamp(2.25rem,5vw,3.25rem)] font-black leading-none text-mint">
-                            {compactMoney(balance)}
-                        </output>
-
-                        <ContributionStack contributed={contributed} growth={growth} />
-
-                        <dl className="grid grid-cols-2 gap-4 pt-5">
-                            <div className="flex flex-col gap-0.5">
-                                <dt className="text-xs font-light text-ink-muted">You put in</dt>
-                                <dd className="figure text-lg font-bold text-ink">
-                                    {compactMoney(contributed)}
-                                </dd>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                                <dt className="text-xs font-light text-ink-muted">Compounding added</dt>
-                                <dd className="figure text-lg font-bold text-mint">
-                                    {compactMoney(growth)}
-                                </dd>
-                            </div>
-                        </dl>
-
-                        <p className="pt-4 text-sm font-light leading-relaxed text-ink-muted">
-                            {crossover !== null ? (
-                                <>
-                                    Growth overtakes your deposits in{" "}
-                                    <span className="figure font-bold text-ink">year {crossover}</span> — from
-                                    then on the returns are contributing more than you are, and end up{" "}
-                                    <span className="figure font-bold text-ink">
-                                        {Math.round(growthShare * 100)}%
-                                    </span>{" "}
-                                    of the balance.
-                                </>
-                            ) : (
-                                <>
-                                    Over this window your deposits stay ahead of the growth. Compounding
-                                    overtakes them on a longer horizon, or at a higher return than {RATE}%.
-                                </>
-                            )}
-                        </p>
-
-                        <p className="pt-4 text-xs font-extralight leading-relaxed text-ink-muted">
-                            A projection, not a promise: {RATE}% compounded monthly, held steady. Real returns
-                            vary year to year and can be negative.
-                        </p>
-                    </div>
-                </Rise>
-            </Stagger>
-            <div className="divider-fade" aria-hidden="true" />
+                {/* ── The claim ─────────────────────────────────────────── */}
+                <div className="flex flex-col items-center gap-5 pb-24 text-center">
+                    <m.h1
+                        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                        className="headline-serif text-[clamp(2.75rem,5.5vw,4rem)] text-chip"
+                    >
+                        Do the math.
+                    </m.h1>
+                    <m.p
+                        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1, ease: "easeOut", delay: 0.35 }}
+                        className="max-w-xl text-xl text-chip/90"
+                    >
+                        Budgeting, investing and taxes with the arithmetic shown on every number.
+                    </m.p>
+                    <m.div
+                        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
+                    >
+                        <Pill href={signUpUrl()} tone="outline-on-color" className="px-7">
+                            Get started
+                        </Pill>
+                    </m.div>
+                </div>
+            </div>
         </section>
     )
 }
 
-/**
- * Deposits against growth, as one bar. The mint half is the argument: it starts
- * as a sliver and takes over the bar as the horizon does its work.
- */
-function ContributionStack({ contributed, growth }: { contributed: number; growth: number }) {
-    const total = contributed + growth
-    const contributedShare = total > 0 ? (contributed / total) * 100 : 100
-
+function Tile({
+    className,
+    delay,
+    children,
+}: {
+    className?: string
+    delay: number
+    children: React.ReactNode
+}) {
+    const reduceMotion = useReducedMotion()
     return (
-        <div className="pt-6">
-            <div
-                className="flex h-3 w-full overflow-hidden rounded-full bg-surface"
-                role="img"
-                aria-label={`${compactMoney(contributed)} contributed, ${compactMoney(growth)} from growth`}
-            >
-                <div
-                    className="h-full bg-ink/25 transition-[width] duration-300 ease-out motion-reduce:transition-none"
-                    style={{ width: `${contributedShare}%` }}
+        <m.div
+            initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: "easeOut", delay: reduceMotion ? 0 : delay }}
+            className={`absolute rounded-lg bg-chip/95 p-3.5 shadow-[0_12px_40px_rgb(28_27_27/0.18)] ${className ?? ""}`}
+        >
+            {children}
+        </m.div>
+    )
+}
+
+/** A cap bar with no dollar figure — the shape of a budget, not a fake one. */
+function CategoryBar({ label, width, grow = false }: { label: string; width: string; grow?: boolean }) {
+    return (
+        <div className="flex items-center gap-2">
+            <span className="w-16 text-[10px] text-ink-soft">{label}</span>
+            <span className="h-1.5 flex-1 overflow-hidden rounded-pill bg-ink/8">
+                <span
+                    className={`block h-full rounded-pill ${grow ? "bg-celery" : "bg-ink/35"}`}
+                    style={{ width }}
                 />
-                <div
-                    className={cn(
-                        "h-full flex-1 bg-mint transition-[width] duration-300 ease-out",
-                        "motion-reduce:transition-none"
-                    )}
-                />
-            </div>
+            </span>
         </div>
     )
 }

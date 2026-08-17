@@ -96,7 +96,7 @@ export function DataHandoffBanner() {
     if (state === "done") {
         return (
             <Banner tone="done" onDismiss={() => setState("hidden")}>
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-celery" />
                 <p className="text-sm">
                     Your data is in the app now, and the copy left on this site has been cleared.
                 </p>
@@ -150,8 +150,8 @@ function Banner({
         <div
             className={
                 tone === "done"
-                    ? "border-b border-line bg-mint/10"
-                    : "border-b border-line bg-mint/10"
+                    ? "border-b border-line bg-section-education/60"
+                    : "border-b border-line bg-section-education/60"
             }
         >
             <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-3 px-6 py-3.5">

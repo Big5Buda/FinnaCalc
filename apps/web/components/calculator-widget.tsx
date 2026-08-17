@@ -68,7 +68,7 @@ export function CalculatorWidget() {
     }, [initial, monthly, rate, years])
 
     return (
-        <div className="grid gap-6 rounded-2xl border border-line bg-surface-elevated p-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
+        <div className="grid gap-6 rounded-lg border border-line bg-chip p-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:p-8">
             <div className="flex flex-col gap-6">
                 <SliderRow
                     label="Starting amount"
@@ -118,8 +118,8 @@ export function CalculatorWidget() {
                         <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                             <defs>
                                 <linearGradient id="balance" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="rgb(var(--mint))" stopOpacity={0.35} />
-                                    <stop offset="100%" stopColor="rgb(var(--mint))" stopOpacity={0} />
+                                    <stop offset="0%" stopColor="rgb(var(--celery))" stopOpacity={0.35} />
+                                    <stop offset="100%" stopColor="rgb(var(--celery))" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid stroke="rgb(var(--line))" vertical={false} />
@@ -142,7 +142,7 @@ export function CalculatorWidget() {
                             <Tooltip
                                 cursor={{ stroke: "rgb(var(--line-strong))" }}
                                 contentStyle={{
-                                    background: "rgb(var(--surface))",
+                                    background: "rgb(var(--chip))",
                                     border: "1px solid rgb(var(--line))",
                                     borderRadius: 12,
                                     fontSize: 12,
@@ -163,7 +163,7 @@ export function CalculatorWidget() {
                             <Area
                                 type="monotone"
                                 dataKey="balance"
-                                stroke="rgb(var(--mint))"
+                                stroke="rgb(var(--celery))"
                                 strokeWidth={2.5}
                                 fill="url(#balance)"
                             />
@@ -174,15 +174,15 @@ export function CalculatorWidget() {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {(results ?? []).map((metric) => (
                         <div key={metric.label} className="flex flex-col gap-0.5">
-                            <span className="text-xs font-light text-ink-muted">{metric.label}</span>
+                            <span className="text-xs text-ink-muted">{metric.label}</span>
                             <span
                                 className={cn(
-                                    "figure text-2xl font-black",
+                                    "figure text-2xl font-semibold",
                                     // Mint carries the figure that matters; the
                                     // rest stay neutral so it keeps meaning
                                     // something. Vermilion is errors only.
-                                    metric.accent === "green" && "text-mint",
-                                    metric.accent === "red" && "text-vermilion",
+                                    metric.accent === "green" && "text-celery",
+                                    metric.accent === "red" && "text-terracotta",
                                     !["green", "red"].includes(metric.accent) && "text-ink"
                                 )}
                             >
@@ -192,7 +192,7 @@ export function CalculatorWidget() {
                     ))}
                 </div>
 
-                <p className="text-xs font-extralight leading-relaxed text-ink-muted">
+                <p className="text-xs leading-relaxed text-ink-muted">
                     An estimate on a steady return, compounded monthly. Real returns vary year to year and
                     can be negative; this is for planning, not a projection of what you will have.
                 </p>
@@ -221,8 +221,8 @@ function SliderRow({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between">
-                <span className="text-sm font-light text-ink-muted">{label}</span>
-                <span className="figure text-sm font-bold text-ink">{display}</span>
+                <span className="text-sm text-ink-muted">{label}</span>
+                <span className="figure text-sm font-medium text-ink">{display}</span>
             </div>
             <Slider
                 aria-label={label}
@@ -274,10 +274,10 @@ function SaveGate({ scenario }: { scenario: Record<string, string | number> }) {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className="font-display text-2xl font-black">
+                    <DialogTitle className="headline-sans text-2xl">
                         Save your scenario
                     </DialogTitle>
-                    <DialogDescription className="font-extralight">
+                    <DialogDescription>
                         Free account. Your numbers come with you — nothing you&rsquo;ve set here is lost.
                     </DialogDescription>
                 </DialogHeader>
@@ -309,7 +309,7 @@ function SaveGate({ scenario }: { scenario: Record<string, string | number> }) {
                     <Button type="button" variant="outline" size="lg" onClick={() => void handoff()}>
                         Continue with Google
                     </Button>
-                    <p className="text-xs font-extralight leading-relaxed text-ink-muted">
+                    <p className="text-xs leading-relaxed text-ink-muted">
                         You&rsquo;ll finish signing up on app.finnacalc.com. Password and provider details are
                         entered there, never here.
                     </p>

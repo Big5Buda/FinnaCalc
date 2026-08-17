@@ -4,15 +4,14 @@ import type { Config } from "tailwindcss"
  * The marketing site's own theme — deliberately NOT the shared preset.
  *
  * packages/shared carries the app's Paper & Cobalt tokens, which mirror the iOS
- * app's Theme.swift. The public site runs its own dark system (see CLAUDE.md);
- * extending the shared preset here would drag light-mode values and IBM Plex
- * into a site that must not have them.
+ * app's Theme.swift. The public site runs the warm-light system measured off
+ * wealthsimple.com (see CLAUDE.md); extending the shared preset here would drag
+ * IBM Plex and the app palette into a site that must not have them.
  *
  * Colour values live in app/globals.css as CSS variables. This file only names
  * them.
  */
 const config: Config = {
-    darkMode: ["class"],
     content: [
         "./app/**/*.{js,ts,jsx,tsx,mdx}",
         "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -21,29 +20,33 @@ const config: Config = {
     theme: {
         extend: {
             fontFamily: {
-                // Display and hero headlines only.
-                display: ["var(--font-fraunces)", "Georgia", "serif"],
-                // Everything else a person reads as prose or interface.
-                sans: ["var(--font-bricolage)", "ui-sans-serif", "sans-serif"],
-                // Numbers. Never prose.
-                mono: ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+                // Brand moments: the hero line, the manifesto, the footer
+                // wordmark. Serves the Tiempos role until the licence lands.
+                serif: ["var(--font-serif)", "Lucida", "Georgia", "serif"],
+                // Everything else — product headlines included. Serves The
+                // Future role until the licence lands.
+                sans: ["var(--font-sans)", "system-ui", "Helvetica Neue", "sans-serif"],
             },
             colors: {
-                // Brand names — how the design system is written down.
-                canvas: "rgb(var(--background) / <alpha-value>)",
-                surface: {
-                    DEFAULT: "rgb(var(--surface) / <alpha-value>)",
-                    elevated: "rgb(var(--surface-elevated) / <alpha-value>)",
-                },
-                mint: "rgb(var(--accent-mint) / <alpha-value>)",
-                vermilion: "rgb(var(--accent-vermilion) / <alpha-value>)",
+                // The names the design system is written in.
+                paper: "rgb(var(--paper) / <alpha-value>)",
+                chip: "rgb(var(--chip) / <alpha-value>)",
                 ink: {
                     DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+                    soft: "rgb(var(--ink-soft) / <alpha-value>)",
                     muted: "rgb(var(--ink-muted) / <alpha-value>)",
                 },
                 line: {
-                    DEFAULT: "rgb(var(--border-subtle) / <alpha-value>)",
+                    DEFAULT: "rgb(var(--line) / <alpha-value>)",
                     strong: "rgb(var(--line-strong) / <alpha-value>)",
+                },
+                celery: "rgb(var(--celery) / <alpha-value>)",
+                terracotta: "rgb(var(--terracotta) / <alpha-value>)",
+                section: {
+                    budgeting: "rgb(var(--sec-budgeting) / <alpha-value>)",
+                    investing: "rgb(var(--sec-investing) / <alpha-value>)",
+                    taxes: "rgb(var(--sec-taxes) / <alpha-value>)",
+                    education: "rgb(var(--sec-education) / <alpha-value>)",
                 },
 
                 // shadcn aliases over the same variables.
@@ -82,10 +85,19 @@ const config: Config = {
                 ring: "rgb(var(--ring) / <alpha-value>)",
             },
             borderRadius: {
-                lg: "var(--radius)",
-                md: "calc(var(--radius) - 2px)",
-                sm: "calc(var(--radius) - 4px)",
-                card: "22px",
+                // Their scale: small 4, normal 12, large 24, pill effectively ∞.
+                sm: "0.25rem",
+                md: "0.75rem",
+                lg: "1.5rem",
+                pill: "100rem",
+            },
+            transitionTimingFunction: {
+                // The one easing the whole site runs on.
+                ws: "cubic-bezier(0.241, 0.969, 0.635, 0.997)",
+            },
+            maxWidth: {
+                // Their container.
+                site: "1264px",
             },
         },
     },
