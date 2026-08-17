@@ -1,6 +1,5 @@
 "use client"
 
-import { Coins } from "lucide-react"
 import { CALCULATORS } from "@finnacalc/shared/calculators-catalog"
 import { Rise, Stagger } from "@/components/motion"
 import { CalculatorWidget } from "@/components/calculator-widget"
@@ -105,8 +104,9 @@ export function CalculatorsSection() {
                     </Rise>
                     <Rise>
                         <p className="text-lg leading-relaxed text-ink-soft">
-                            Loans, retirement, break-even, runway, ROI. No sign-up and nothing stored —
-                            and this one below is live, running the same engine the app runs.
+                            Loan payments, retirement, business runway, what to charge. Try this one
+                            right now, no account needed. It runs the same engine as the app, so
+                            the number you see here is the number you get there.
                         </p>
                     </Rise>
                 </div>
@@ -133,7 +133,7 @@ export function BudgetingSection() {
             onColor
             lockupSuffix="Budgeting"
             headline="A budget that lives on your device, not our servers."
-            copy="Connect a bank through Plaid or type it in by hand. Category caps, recurring charges, savings goals — stored in your browser, where clearing your data really deletes it."
+            copy="Link your bank through Plaid, or just type things in. Set caps on the categories that get away from you, catch the subscriptions you forgot about, watch the savings bar fill. It all stays on your device."
             href={signUpUrl()}
             ctaLabel="Get started with Budgeting"
         >
@@ -182,7 +182,7 @@ function PhoneMockup() {
                     </div>
                 </div>
             </div>
-            <p className="text-xs muted-on-color">An example budget — yours starts empty.</p>
+            <p className="text-xs muted-on-color">This one is made up. Yours won&rsquo;t be.</p>
         </div>
     )
 }
@@ -194,29 +194,32 @@ export function ManifestoSection() {
         <section className="bg-paper">
             <Stagger className="mx-auto flex max-w-site flex-col items-start gap-10 px-6 py-32">
                 <Rise>
-                    <Coins className="h-16 w-16 text-ink" strokeWidth={1.25} aria-hidden="true" />
+                    {/* The app's actual mark — the coin stack from the iOS asset
+                        catalog, not a stand-in icon. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/finnacalc-logo.png" alt="" className="h-28 w-auto" />
                 </Rise>
                 <Rise>
                     <h2 className="headline-serif max-w-5xl text-[clamp(3rem,8.8vw,8rem)] text-ink">
-                        Welcome to honest arithmetic
+                        We show our work
                     </h2>
                 </Rise>
                 <Rise>
                     <div className="flex max-w-2xl flex-col gap-4 text-xl leading-relaxed text-ink">
                         <p>
-                            Why are we here? Because a number you can&rsquo;t check is a number you
-                            can&rsquo;t trust. Every figure in FinnaCalc shows the arithmetic behind it,
-                            and when something can&rsquo;t be computed, the screen says so instead of
-                            guessing. Your money decisions are yours — orders execute at your own
-                            brokerage, and your budget never leaves your device.
+                            Most money apps hand you a number and expect you to take it on faith.
+                            We think that&rsquo;s backwards. FinnaCalc shows you how every figure was
+                            worked out, and when we can&rsquo;t work something out, we say so on the
+                            screen. No guessing, no padding, no invented statistics. It&rsquo;s your
+                            money. You should get to check the math.
                         </p>
                     </div>
                 </Rise>
                 <Rise>
                     <p className="max-w-3xl text-sm leading-relaxed text-ink-muted">
-                        One engine computes every number: the calculator on this page, the app, and
-                        the iOS app all call the same shared math, so the figure you see before
-                        signing up is the figure you keep after.
+                        The calculator up top, the web app and the iPhone app all share one set
+                        of math underneath. The number you saw before signing up doesn&rsquo;t change
+                        after.
                     </p>
                 </Rise>
             </Stagger>
@@ -233,8 +236,8 @@ export function InvestingSection() {
             ground="bg-section-investing"
             onColor
             lockupSuffix="Investing"
-            headline="Live quotes, your real holdings, and ten years of filings."
-            copy="Follow markets, dig into SEC statements, and track your actual portfolio with its real cost basis. Orders execute at your own brokerage — FinnaCalc never holds your money."
+            headline="Live prices, your actual holdings, ten years of filings."
+            copy="Watch the market, read the SEC filings for yourself, follow your own cost basis. When you place a trade, it goes through your own brokerage. We never touch the money."
             href={signUpUrl()}
             ctaLabel="Get started with Investing"
             flip
@@ -301,8 +304,8 @@ export function TaxesSection() {
             ground="bg-section-taxes"
             onColor
             lockupSuffix="Taxes"
-            headline={`A full-return estimator, checked by ${TAX_TEST_COUNT} automated tests.`}
-            copy="Federal and state, filing status, dependents, capital gains, self-employment — a real 1040 engine, not a bracket lookup. An estimate, clearly labelled, never filed for you."
+            headline="Know your tax bill before April does."
+            copy={`Filing status, dependents, capital gains, side income, state taxes. There is a proper 1040 engine under here, and we check it against ${TAX_TEST_COUNT} test returns so the estimate is one you can plan around. We never file for you.`}
             href={signUpUrl()}
             ctaLabel="Get started with Taxes"
         >
@@ -324,7 +327,7 @@ function TaxCard() {
     return (
         <div className="rounded-lg bg-chip p-7 shadow-[0_24px_64px_rgb(0_0_0/0.3)]">
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-muted">
-                What the engine walks through
+                What it walks through
             </p>
             <ol className="flex flex-col pt-4">
                 {steps.map((step, index) => (
@@ -352,17 +355,28 @@ export function EducationSection() {
             <Stagger className="mx-auto max-w-site px-6 py-16">
                 <Rise>
                     <div className="rounded-lg bg-section-education px-8 py-16 sm:px-14 sm:py-20">
-                        <div className="flex max-w-2xl flex-col items-start gap-6">
-                            <h2 className="headline-serif text-[clamp(2.5rem,5vw,4rem)] text-ink">
-                                Learn
-                            </h2>
-                            <p className="text-xl leading-relaxed text-ink">
-                                Short lessons on credit, investing, retirement and tax — plain language,
-                                no jargon, and no product pitch hiding in paragraph three.
-                            </p>
-                            <Pill href={signUpUrl()} tone="outline" className="px-6">
-                                Get started
-                            </Pill>
+                        <div className="flex flex-col items-start gap-10 sm:flex-row sm:items-center sm:gap-14">
+                            <div className="flex max-w-xl flex-col items-start gap-6">
+                                <h2 className="headline-serif text-[clamp(2.5rem,5vw,4rem)] text-ink">
+                                    Learn
+                                </h2>
+                                <p className="text-xl leading-relaxed text-ink">
+                                    Short lessons on credit, investing, retirement and taxes, written
+                                    the way you&rsquo;d explain them to a friend. And when a lesson
+                                    raises a question, FinnaBot actually answers it.
+                                </p>
+                                <Pill href={signUpUrl()} tone="outline" className="px-6">
+                                    Get started
+                                </Pill>
+                            </div>
+                            {/* FinnaBot, from the iOS asset catalog — the app's own
+                                helper, holding the coin up like it means it. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/finnabot.png"
+                                alt="FinnaBot, the FinnaCalc helper — a stick figure holding the FinnaCalc coin overhead"
+                                className="h-56 w-auto shrink-0 sm:h-72"
+                            />
                         </div>
                     </div>
                 </Rise>
@@ -387,7 +401,7 @@ export function CloserSection() {
                 </Rise>
                 <Rise>
                     <p className="max-w-xl text-xl text-ink-soft">
-                        The calculators need no account at all. Everything else is one click away.
+                        The calculator above doesn&rsquo;t even need an account. The rest takes about a minute.
                     </p>
                 </Rise>
                 <Rise>

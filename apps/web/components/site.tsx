@@ -117,7 +117,9 @@ export function SiteNav() {
         <header className="fixed inset-x-0 top-0 z-40 px-3 pt-3 sm:px-5 sm:pt-5">
             <nav className="mx-auto flex h-[52px] max-w-[1400px] items-center justify-between rounded-md border border-line bg-chip pl-5 pr-2 shadow-[0_1px_2px_rgb(28_27_27/0.04)]">
                 <div className="flex items-center gap-7">
-                    <Link href="/" aria-label="FinnaCalc home">
+                    <Link href="/" aria-label="FinnaCalc home" className="flex items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/finnacalc-logo.png" alt="" className="h-8 w-auto" />
                         <Wordmark className="text-[22px]" />
                     </Link>
 
