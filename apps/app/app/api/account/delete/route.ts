@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { deleteAllItems } from "@/lib/plaid-items"
 
 // Permanently deletes the caller's Supabase account. Deletion can only be done
 // with the service_role key, which must never reach the client — so the app
@@ -48,6 +49,16 @@ export async function POST(req: NextRequest) {
         } catch (err) {
             console.error("[/api/account/delete] SnapTrade teardown failed:", err)
         }
+    }
+
+    // Forget the stored Plaid access tokens. The rows cascade with the auth
+    // user anyway, but deleting them first means a failure to delete the user
+    // never leaves live bank credentials behind pointing at a half-deleted
+    // account. Best-effort for the same reason the SnapTrade teardown is.
+    try {
+        await deleteAllItems(userData.user.id)
+    } catch (err) {
+        console.error("[/api/account/delete] Plaid item teardown failed:", err)
     }
 
     const { error: delErr } = await admin.auth.admin.deleteUser(userData.user.id)
