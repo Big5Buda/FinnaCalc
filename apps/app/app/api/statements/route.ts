@@ -446,13 +446,13 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
                 const year = annual.get(residual.year);
                 const parts = residual.parts.map((end) => filed.get(end));
                 if (year === undefined || parts.some((value) => value === undefined)) return null;
-                const residual = year - (parts as number[]).reduce((sum, value) => sum + value, 0);
+                const derived = year - (parts as number[]).reduce((sum, value) => sum + value, 0);
                 // A negative residual on a line that cannot be negative means
                 // the annual and the quarters were restated at different
                 // times. Blank is the honest answer; the alternative is a
                 // confident minus twelve billion. See NON_NEGATIVE_FLOWS.
-                if (residual < 0 && NON_NEGATIVE_FLOWS.has(label)) return null;
-                return residual;
+                if (derived < 0 && NON_NEGATIVE_FLOWS.has(label)) return null;
+                return derived;
             }),
         };
     });
