@@ -201,7 +201,20 @@ const QUARTER_MAX_DAYS = 100;
  *     describe different companies. GE's FY2022 nets a twice-restated year
  *     against once-restated quarters and lands below zero.
  */
-const QUARTER_LIMIT = 20;
+/**
+ * Five fiscal YEARS of quarters, not a count of quarters.
+ *
+ * Counting gives a ragged edge: twenty quarters reach into a sixth fiscal
+ * year and leave it holding one, so the app draws a card that is almost
+ * entirely dashes and a reader counts four usable years rather than five.
+ * Selecting whole years gives five cards, each with everything that year
+ * filed.
+ *
+ * The newest year stays in even though it is partial. A company three
+ * quarters into its year has genuinely reported those three, and hiding them
+ * to tidy the grid would withhold the most current figures on the page.
+ */
+const QUARTER_YEARS = 5;
 
 type QuarterPart = "Q1" | "Q2" | "Q3" | "Q4";
 type Quarter = { fy: number; fp: QuarterPart; label: string; end: string };
@@ -412,7 +425,11 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     }
 
     quarters.sort((a, b) => (a.end < b.end ? -1 : 1));
-    const shown = quarters.slice(-QUARTER_LIMIT);
+    // Whole fiscal years, newest first, then filtered in place so the values
+    // arrays stay in the chronological order the annual keys use.
+    const orderedYears = [...new Set(quarters.map((quarter) => quarter.fy))].sort((a, b) => b - a);
+    const keptYears = new Set(orderedYears.slice(0, QUARTER_YEARS));
+    const shown = quarters.filter((quarter) => keptYears.has(quarter.fy));
     // Every quarter, not just the ones shown: an old Q4 at the top of the
     // window still nets off three quarters that fall outside it.
     const known = new Set(quarters.map((quarter) => quarter.end));
