@@ -181,8 +181,27 @@ function series(facts: Record<string, any>, tags: string[], fyeMonth: number) {
 /** Longest a period can run and still be one discrete quarter, not a roll-up. */
 const QUARTER_MAX_DAYS = 100;
 
-/** Three years of quarters: enough to see a seasonal shape, few enough to fit. */
-const QUARTER_LIMIT = 12;
+/**
+ * Five years of quarters. Three covered a single cycle; five shows the shape
+ * either side of one, and the rail scrolls, so the extra periods cost no room.
+ *
+ * A wider window reaches back past events the narrow one never met. Both of
+ * these are as-filed rather than introduced here, and are written down so the
+ * next reader does not mistake them for a fault in the derivation:
+ *
+ *   - Per-share lines carry the share count of the newest filing that still
+ *     included the period. A 10-Q restates only the year-ago quarter, so
+ *     quarters older than a stock split keep their pre-split base while newer
+ *     ones are split-adjusted. Walmart's 3-for-1 in February 2024 puts that
+ *     step between its FY2023 Q3 and FY2024 Q1.
+ *   - The Q4 residual nets the newest annual figure against the newest
+ *     quarters, and those are not always the same vintage. A filer that moves
+ *     a segment to discontinued operations restates the year in its next 10-K
+ *     and never refiles the old 10-Qs, so the two halves of the subtraction
+ *     describe different companies. GE's FY2022 nets a twice-restated year
+ *     against once-restated quarters and lands below zero.
+ */
+const QUARTER_LIMIT = 20;
 
 type QuarterPart = "Q1" | "Q2" | "Q3" | "Q4";
 type Quarter = { fy: number; fp: QuarterPart; label: string; end: string };
