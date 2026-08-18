@@ -181,8 +181,27 @@ function series(facts: Record<string, any>, tags: string[], fyeMonth: number) {
 /** Longest a period can run and still be one discrete quarter, not a roll-up. */
 const QUARTER_MAX_DAYS = 100;
 
-/** Three years of quarters: enough to see a seasonal shape, few enough to fit. */
-const QUARTER_LIMIT = 12;
+/**
+ * Five years of quarters. Three covered a single cycle; five shows the shape
+ * either side of one, and the rail scrolls, so the extra periods cost no room.
+ *
+ * A wider window reaches back past events the narrow one never met. Both of
+ * these are as-filed rather than introduced here, and are written down so the
+ * next reader does not mistake them for a fault in the derivation:
+ *
+ *   - Per-share lines carry the share count of the newest filing that still
+ *     included the period. A 10-Q restates only the year-ago quarter, so
+ *     quarters older than a stock split keep their pre-split base while newer
+ *     ones are split-adjusted. Walmart's 3-for-1 in February 2024 puts that
+ *     step between its FY2023 Q3 and FY2024 Q1.
+ *   - The Q4 residual nets the newest annual figure against the newest
+ *     quarters, and those are not always the same vintage. A filer that moves
+ *     a segment to discontinued operations restates the year in its next 10-K
+ *     and never refiles the old 10-Qs, so the two halves of the subtraction
+ *     describe different companies. GE's FY2022 nets a twice-restated year
+ *     against once-restated quarters and lands below zero.
+ */
+const QUARTER_LIMIT = 20;
 
 type QuarterPart = "Q1" | "Q2" | "Q3" | "Q4";
 type Quarter = { fy: number; fp: QuarterPart; label: string; end: string };
@@ -217,6 +236,30 @@ function pick(rows: Row[], labels: string[]): Row[] {
  *             produces a confident, entirely fictional number.
  */
 const QUARTERLY_FLOWS = pick(INCOME, ["Revenue", "Operating income", "Net income"]);
+
+/**
+ * Lines whose Q4 residual cannot legitimately come out negative.
+ *
+ * Revenue is money in. A quarter can be terrible and it can be zero, but it
+ * cannot be minus twelve billion dollars, so a negative residual is not a bad
+ * quarter, it is proof the subtraction mixed two vintages of the same year.
+ *
+ * Not hypothetical. GE restated FY2022 twice after spinning off HealthCare
+ * and Vernova: the annual figure in company facts is the newest restatement
+ * (29.1B) while Q1 to Q3 were last restated in the 2023 10-Qs (41.3B between
+ * them). Subtracting one from the other yields -12.1B, and widening the
+ * window from three years to five is what brings that year into view.
+ *
+ * Operating income and net income are NOT on this list, deliberately. A
+ * loss-making quarter is real: Rivian files four a year, and suppressing
+ * those would delete true figures to avoid a false one.
+ *
+ * This catches the impossible case only. A restatement that leaves the
+ * residual positive but understated (GE FY2023 lands at 2.8B this way) cannot
+ * be spotted by sign, and fixing it properly means matching the vintage of
+ * the annual figure to the vintage of the quarters, which is a larger change.
+ */
+const NON_NEGATIVE_FLOWS = new Set(["Revenue"]);
 const QUARTERLY_RATIOS = pick(INCOME, ["Earnings per share (diluted)"]);
 const QUARTERLY_INSTANTS = pick(BALANCE, ["Cash & equivalents"]);
 
@@ -386,7 +429,13 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
                 const year = annual.get(residual.year);
                 const parts = residual.parts.map((end) => filed.get(end));
                 if (year === undefined || parts.some((value) => value === undefined)) return null;
-                return year - (parts as number[]).reduce((sum, value) => sum + value, 0);
+                const residual = year - (parts as number[]).reduce((sum, value) => sum + value, 0);
+                // A negative residual on a line that cannot be negative means
+                // the annual and the quarters were restated at different
+                // times. Blank is the honest answer; the alternative is a
+                // confident minus twelve billion. See NON_NEGATIVE_FLOWS.
+                if (residual < 0 && NON_NEGATIVE_FLOWS.has(label)) return null;
+                return residual;
             }),
         };
     });
