@@ -28,10 +28,27 @@ import { OK, reportOf, secJson, secText, type SourceReport } from "@/lib/sec"
 
 export const revalidate = 21600
 
+/**
+ * XML entities, decoded. Issuer names carry them constantly: SPDR files as
+ * "STATE STR SPDR S&amp;P 500 ETF", and left raw that reached the app as
+ * "State Str Spdr S&Amp;P 500 Etf T" once it title-cased the name.
+ */
+function decodeEntities(s: string): string {
+    return s
+        .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        // Ampersand last, so "&amp;lt;" does not become "<".
+        .replace(/&amp;/g, "&")
+}
+
 function tagText(block: string, tag: string): string | null {
     // 13F tables are sometimes namespaced (ns1:nameOfIssuer), sometimes not.
     const m = new RegExp(`<(?:[\\w-]+:)?${tag}>([\\s\\S]*?)</(?:[\\w-]+:)?${tag}>`).exec(block)
-    return m ? m[1].trim() : null
+    return m ? decodeEntities(m[1].trim()) : null
 }
 
 function tagNumber(block: string, tag: string): number | null {
