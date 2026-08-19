@@ -33,9 +33,17 @@ import { OK, reportOf, secJson, secText, type SourceReport } from "@/lib/sec"
  * bond's PRN is dollars of face value, and adding it to a share count is
  * adding two different units.
  *
- * Amendments: a 13F-HR/A restates a quarter already on file. Listing both
- * would draw one quarter twice with two answers and no way to tell which
- * stands, so the newest filing for each quarter wins and is flagged.
+ * Amendments: a 13F-HR/A does NOT simply supersede the filing it amends, and
+ * assuming it does is the trap this route was written around. <amendmentType>
+ * says which of two very different things it is. A RESTATEMENT carries the
+ * whole table again and does replace the original. A NEW HOLDINGS amendment
+ * carries ONLY the rows being added: Berkshire's 2025-03-31 amendment has four
+ * rows against the original's hundred and ten. Taking the newest filing per
+ * quarter would have read that as a fund that liquidated everything it owned,
+ * and printed about thirty-eight exits that never happened. So a restatement
+ * replaces, new holdings merge onto the original, and an amendment whose type
+ * we cannot read is ignored in favour of the original, which is stale at worst
+ * where the other two directions are fiction.
  *
  * COST
  * ----
@@ -132,6 +140,19 @@ function dollarScale(positions: Position[], filedAt: string | null): number | nu
     return null                                            // cannot tell
 }
 
+/**
+ * What kind of amendment this is, from its cover page. Only ever asked about a
+ * 13F-HR/A, so the common case costs nothing.
+ */
+async function amendmentTypeOf(cik: string, accession: string): Promise<string | null> {
+    const bare = accession.replace(/-/g, "")
+    const base = `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${bare}`
+    const cover = await secText(`${base}/primary_doc.xml`, revalidate)
+    if (cover.status !== "ok") return null
+    const m = /<(?:[\w-]+:)?amendmentType>([\s\S]*?)<\/(?:[\w-]+:)?amendmentType>/.exec(cover.data)
+    return m ? m[1].trim().toUpperCase() : null
+}
+
 /** One filing's positions, aggregated by CUSIP, options and debt removed. */
 async function tableOf(cik: string, accession: string): Promise<Table | SourceReport> {
     const bare = accession.replace(/-/g, "")
@@ -177,6 +198,52 @@ async function tableOf(cik: string, accession: string): Promise<Table | SourceRe
     return { positions, optionRowsExcluded, sourceUrl: `${base}/${table}` }
 }
 
+/**
+ * Every filing for one quarter, resolved into a single set of positions.
+ *
+ * Order matters and so does kind: start at the newest restatement if there is
+ * one, otherwise the original, then merge any NEW HOLDINGS amendments filed
+ * after it. A merged row REPLACES a CUSIP already present rather than adding
+ * to it, because an amendment that restates a line is correcting it, and
+ * summing the two would report shares nobody holds.
+ */
+async function positionsForPeriod(
+    cik: string,
+    filings: { accession: string; form: string; filedAt: string | null }[]
+): Promise<Table | SourceReport> {
+    // Oldest first, so later filings are applied on top of earlier ones.
+    const ordered = [...filings].sort((a, b) => (a.filedAt ?? "").localeCompare(b.filedAt ?? ""))
+    const originals = ordered.filter((f) => f.form === "13F-HR")
+    const amendments = ordered.filter((f) => f.form !== "13F-HR")
+
+    const kinds = await Promise.all(
+        amendments.map((a) => amendmentTypeOf(cik, a.accession))
+    )
+
+    // The base is the newest restatement, or failing that the original.
+    let baseIndex = -1
+    for (let i = amendments.length - 1; i >= 0; i--) {
+        if (kinds[i] === "RESTATEMENT") { baseIndex = i; break }
+    }
+    const base =
+        baseIndex >= 0 ? amendments[baseIndex] : originals[originals.length - 1] ?? ordered[0]
+    if (!base) return { status: "no-data", reason: "No readable 13F for that quarter." }
+
+    const resolved = await tableOf(cik, base.accession)
+    if (!("positions" in resolved)) return resolved
+
+    // Anything that only adds rows, applied after the base it followed.
+    for (let i = 0; i < amendments.length; i++) {
+        if (kinds[i] !== "NEW HOLDINGS") continue
+        if (baseIndex >= 0 && i <= baseIndex) continue
+        const extra = await tableOf(cik, amendments[i].accession)
+        if (!("positions" in extra)) continue
+        for (const [cusip, p] of extra.positions) resolved.positions.set(cusip, p)
+        resolved.optionRowsExcluded += extra.optionRowsExcluded
+    }
+    return resolved
+}
+
 export async function GET(req: NextRequest) {
     const cik = (req.nextUrl.searchParams.get("cik") ?? "").replace(/\D/g, "")
     if (!cik) return NextResponse.json({ error: "Pass a cik." }, { status: 400 })
@@ -199,7 +266,8 @@ export async function GET(req: NextRequest) {
     const recent = submissions.data.filings?.recent
     const forms: string[] = recent?.form ?? []
 
-    // Newest filing per quarter wins, so an amendment replaces what it amends.
+    // EVERY filing for a quarter is kept, because resolving one quarter can
+    // need the original and its amendments together. See positionsForPeriod.
     type Row = {
         accession: string
         form: string
@@ -207,27 +275,40 @@ export async function GET(req: NextRequest) {
         periodOfReport: string
         filedAt: string | null
     }
-    const byPeriod = new Map<string, Row>()
+    const byPeriod = new Map<string, Row[]>()
     for (let i = 0; i < forms.length; i++) {
         const form = forms[i]
         if (form !== "13F-HR" && form !== "13F-HR/A") continue
         const periodOfReport = recent.reportDate?.[i]
         if (!periodOfReport) continue
-        const filedAt = recent.filingDate?.[i] ?? null
-        const held = byPeriod.get(periodOfReport)
-        if (held && (held.filedAt ?? "") >= (filedAt ?? "")) continue
-        byPeriod.set(periodOfReport, {
+        const list = byPeriod.get(periodOfReport) ?? []
+        list.push({
             accession: String(recent.accessionNumber[i]),
             form,
             isAmendment: form.endsWith("/A"),
             periodOfReport,
-            filedAt,
+            filedAt: recent.filingDate?.[i] ?? null,
         })
+        byPeriod.set(periodOfReport, list)
     }
 
-    const ordered = [...byPeriod.values()].sort((a, b) =>
-        a.periodOfReport < b.periodOfReport ? 1 : a.periodOfReport > b.periodOfReport ? -1 : 0
-    )
+    // One entry per quarter for the caller, newest quarter first. The entry
+    // shows the newest filing's identity and whether any amendment touched it.
+    const ordered = [...byPeriod.entries()]
+        .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+        .map(([periodOfReport, list]) => {
+            const newest = [...list].sort((a, b) =>
+                (b.filedAt ?? "").localeCompare(a.filedAt ?? "")
+            )[0]
+            return {
+                periodOfReport,
+                all: list,
+                accession: newest.accession,
+                form: newest.form,
+                isAmendment: list.some((f) => f.isAmendment),
+                filedAt: newest.filedAt,
+            }
+        })
     if (!ordered.length) {
         return nothing(name, {
             status: "no-data",
@@ -238,7 +319,7 @@ export async function GET(req: NextRequest) {
     // One extra quarter, unreturned, so the oldest card still has something to
     // be compared against.
     const window = ordered.slice(0, quarters + 1)
-    const tables = await Promise.all(window.map((r) => tableOf(cik, r.accession)))
+    const tables = await Promise.all(window.map((r) => positionsForPeriod(cik, r.all)))
 
     const filings = window.slice(0, quarters).map((row, i) => {
         const here = tables[i]
