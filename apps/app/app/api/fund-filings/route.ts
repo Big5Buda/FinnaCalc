@@ -62,9 +62,26 @@ const MAX_ROWS = 12
  */
 const DOLLARS_FROM = "2023-01-03"
 
+/**
+ * XML entities, decoded. Issuer names carry them constantly: SPDR files as
+ * "STATE STR SPDR S&amp;P 500 ETF", and left raw that reaches the phone as
+ * "S&Amp;P" once the app title-cases it.
+ */
+function decodeEntities(s: string): string {
+    return s
+        .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        // Ampersand last, so "&amp;lt;" does not become "<".
+        .replace(/&amp;/g, "&")
+}
+
 function tagText(block: string, tag: string): string | null {
     const m = new RegExp(`<(?:[\\w-]+:)?${tag}>([\\s\\S]*?)</(?:[\\w-]+:)?${tag}>`).exec(block)
-    return m ? m[1].trim() : null
+    return m ? decodeEntities(m[1].trim()) : null
 }
 
 function tagNumber(block: string, tag: string): number | null {
