@@ -23,8 +23,26 @@ export const isAlpacaConfigured = Boolean(KEY_ID && SECRET_KEY)
 export const FEED = "iex"
 
 const DATA_BASE = "https://data.alpaca.markets"
-/** Assets live on the trading API, not the data API. */
-const TRADING_BASE = "https://api.alpaca.markets"
+/**
+ * Assets live on the trading API, not the data API, and the two hosts do not
+ * accept the same credentials. Paper-trading keys are refused by the LIVE host,
+ * `get` turns the refusal into null, and the caller renders a bare symbol where
+ * a company name should be. That is what shipped: .env.example tells the
+ * operator "a paper-trading account is enough", which is true of
+ * data.alpaca.markets and false of this host, so every company name in the app
+ * came back empty and /api/stock-search answered [] for every query while the
+ * prices beside them stayed correct.
+ *
+ * The host therefore has to be nameable per deployment. Set ALPACA_TRADING_BASE
+ * to "https://paper-api.alpaca.markets" when the keys belong to a paper
+ * account; the live host stays the default, so a live-keyed deployment is
+ * unchanged. The value is trimmed and tested for emptiness rather than read
+ * with `??`, because a variable added in the Vercel UI and left blank arrives
+ * as "": `??` would accept it, every asset URL would become a relative path
+ * that fetch rejects, and the result would be the same silent null this change
+ * exists to remove.
+ */
+const TRADING_BASE = process.env.ALPACA_TRADING_BASE?.trim() || "https://api.alpaca.markets"
 
 function headers(): Record<string, string> {
     return {
@@ -34,12 +52,50 @@ function headers(): Record<string, string> {
     }
 }
 
+/** Host and status pairs already logged, so a bad key reports once, not once per request. */
+const warnedRefusals = new Set<string>()
+
+/**
+ * A refusal and an empty answer both reach the caller as null, which is how
+ * every company name in the app could go missing for days with nothing in the
+ * logs to say the trading host was turning us away. lib/sec.ts draws the same
+ * line for EDGAR and says so out loud; this does it for Alpaca, once per host
+ * and status so a restart is not needed to hear about a new kind of failure.
+ *
+ * 404 stays silent on purpose: on /v2/assets it means the symbol does not
+ * exist, which is a real answer rather than a door closed in our face.
+ */
+function warnRefusal(url: string, status: number) {
+    if (status !== 401 && status !== 403 && status !== 429) return
+    let host = url
+    try {
+        host = new URL(url).host
+    } catch {
+        // A malformed url is still worth naming in the log, so keep the raw string.
+    }
+    const seen = `${host} ${status}`
+    if (warnedRefusals.has(seen)) return
+    warnedRefusals.add(seen)
+    if (status === 429) {
+        console.warn(`[alpaca] 429 from ${host}. The plan's calls-per-minute ceiling is being hit.`)
+        return
+    }
+    console.warn(
+        `[alpaca] ${status} from ${host}. This is a credential mismatch, not a missing symbol: ` +
+            `paper keys are accepted by data.alpaca.markets and paper-api.alpaca.markets and ` +
+            `refused by api.alpaca.markets. Set ALPACA_TRADING_BASE if these are paper keys.`
+    )
+}
+
 /** GET returning parsed JSON, or null on any failure. Callers degrade to "—". */
 async function get<T>(url: string, revalidate: number): Promise<T | null> {
     if (!isAlpacaConfigured) return null
     try {
         const res = await fetch(url, { headers: headers(), next: { revalidate } })
-        if (!res.ok) return null
+        if (!res.ok) {
+            warnRefusal(url, res.status)
+            return null
+        }
         return (await res.json()) as T
     } catch {
         return null
