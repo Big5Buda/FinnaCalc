@@ -129,11 +129,26 @@ export async function GET(request: NextRequest) {
 
         // Daily bars back a month give the session average relVolume needs;
         // 32 calendar days covers ~21 sessions through weekends and holidays.
+        //
+        // The budget is scaled by the symbol count because Alpaca applies
+        // `limit` to the WHOLE multi-symbol response rather than per symbol,
+        // and pages the remainder behind a token. Its own API reference is
+        // blunt about it ("The limit applies to the total number of data
+        // points, not per symbol!") and warns that results come back sorted by
+        // symbol, so the alphabetically first names eat the whole allowance. A
+        // flat 25 bought twenty-five bars for the entire call: on a live
+        // hundred-symbol universe AAL took 23 of them and AAPL took the
+        // remaining 2, the other 98 rows carried a null avgVolume and
+        // relVolume, and relVolumeMoreThan therefore dropped all but those two.
+        // /api/sparklines hit this first and was fixed the same way. 100
+        // symbols at 25 bars each is 2,500, inside the endpoint's documented
+        // ceiling of 10,000, so nothing here needs to follow the page token.
+        const BARS_PER_SYMBOL = 25;
         const start = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
         const [snapshots, assets, history] = await Promise.all([
             stockSnapshots(symbols, revalidate),
             activeAssets(),
-            multiBars(symbols, "1Day", start, 25, revalidate),
+            multiBars(symbols, "1Day", start, BARS_PER_SYMBOL * symbols.length, revalidate),
         ]);
         const info = new Map(assets.map((entry) => [entry.symbol, entry]));
 
