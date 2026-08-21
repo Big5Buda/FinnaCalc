@@ -15,8 +15,16 @@ import {
 
 export type LiveQuote = {
     price: number
-    change: number
-    changePct: number
+    /**
+     * The day's move, or null when Alpaca has no previous close to measure
+     * against. Nullable rather than zero: these used to fall back to 0, which
+     * states that a stock finished the day exactly flat. BRK.A is the live
+     * example. It trades a few shares a day, IEX carries no daily bar for it
+     * at all, and the row read "$477,207.28, 0.00%" as though we had checked.
+     * A price we have and a move we do not are different facts.
+     */
+    change: number | null
+    changePct: number | null
     /** Instrument name, when the assets endpoint knows it. */
     name: string | null
 }
@@ -50,8 +58,8 @@ export async function fetchQuotes(
         const move = snapshotChange(snapshot)
         out[symbol] = {
             price,
-            change: move?.change ?? 0,
-            changePct: move?.changePct ?? 0,
+            change: move?.change ?? null,
+            changePct: move?.changePct ?? null,
             name: null,
         }
     }
