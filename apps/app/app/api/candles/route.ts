@@ -20,12 +20,14 @@ const RANGES: Record<string, { timeframe: BarTimeframe; days: number; limit: num
     "1W": { timeframe: "30Min", days: 9, limit: 400 },
     "1M": { timeframe: "1Day", days: 32, limit: 40 },
     "1Y": { timeframe: "1Day", days: 370, limit: 400 },
-    // Five years, weekly. This is the longest window the app offers, and it
-    // is deliberately a promise we can keep rather than an open-ended one:
-    // the free plan's history stops around July 2020 for every older listing
-    // checked, so "ALL" was never all of anything. Five years sits inside
-    // that floor with room to spare, and about 260 weekly bars is well under
-    // the limit.
+    // Five years, weekly: the longest window the app offers, and a promise
+    // we can keep. The free plan's history runs out around July 2020 for
+    // every older listing checked, so a pill reading "all time" would be a
+    // lie next to a company that listed in 1980. Five years sits inside that
+    // floor with room to spare, and about 260 weekly bars is well under the
+    // limit. Whether five years happens to BE a given symbol's whole life is
+    // answered per symbol below, since anything that listed recently really
+    // is complete.
     "5Y": { timeframe: "1Week", days: 365 * 5 + 7, limit: 300 },
     // Kept so app builds already shipping "ALL" keep working. New callers
     // should ask for 5Y and say five years.
@@ -162,14 +164,42 @@ export async function GET(request: NextRequest) {
             }))
             .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.c));
 
+        // On the long window, say whether this is the symbol's whole life or
+        // just as far back as the plan reaches.
+        //
+        // It differs per symbol and the difference is not cosmetic. Every
+        // listing older than the free plan's floor comes back starting on the
+        // same week (AAPL, KO, GE, XOM and IBM all begin 2020-07-27), so for
+        // those "all time" would be a plain lie: Apple listed in 1980.
+        // Symbols that listed after the floor really do come back complete,
+        // which is why RDDT starts at its 2024 IPO and HOOD at its 2021 one.
+        //
+        // Decided from the request rather than a hardcoded floor date, so it
+        // cannot rot if the plan's horizon moves: a symbol whose first bar
+        // sits at the edge of the window we asked for was already trading
+        // before it, and one whose first bar is well inside the window began
+        // there. The tolerance leans toward reporting "not complete", because
+        // over-disclosing costs a sentence and under-disclosing is a false
+        // claim about what the user is looking at.
+        let coversAllHistory: boolean | undefined;
+        let earliest: string | undefined;
+        if ((served === "5Y" || served === "ALL") && points.length > 0) {
+            const firstBar = points[0].t * 1000;
+            const TOLERANCE_MS = 14 * 24 * 60 * 60 * 1000;
+            coversAllHistory = firstBar > start.getTime() + TOLERANCE_MS;
+            earliest = exchangeDate(new Date(firstBar));
+        }
+
         // `session` and `previousClose` ride along on 1D only. The app needs
         // both to be honest: which day it is actually drawing, and the close
         // the day's move is measured against.
-        return NextResponse.json(
-            chosen
-                ? { symbol, range: served, points, session: chosen.date, previousClose: chosen.previousClose }
-                : { symbol, range: served, points }
-        );
+        return NextResponse.json({
+            symbol,
+            range: served,
+            points,
+            ...(chosen ? { session: chosen.date, previousClose: chosen.previousClose } : {}),
+            ...(coversAllHistory === undefined ? {} : { coversAllHistory, earliest }),
+        });
     } catch (err: any) {
         return NextResponse.json({ error: err.message || "Failed to fetch candles." }, { status: 500 });
     }
