@@ -58,9 +58,22 @@ export async function GET(request: NextRequest) {
 
     const quotes = await fetchQuotes(symbols, revalidate);
 
+    // A symbol whose day move we cannot state is left out of `stats`
+    // entirely, rather than included with changePct: null.
+    //
+    // Not a style choice, a compatibility one. `stats` is decoded into a Swift
+    // array whose changePct was a non-optional Double until this change, and
+    // one null anywhere in the array fails the decode for the WHOLE response,
+    // not just that row. An app already on someone's phone would lose its
+    // markets row and every holding quote the moment a BRK.A turned up. Being
+    // absent is the case every version has always handled: the client draws
+    // the no-value glyph and says nothing about the day.
+    //
+    // Once no build older than this is in use, these can come back as rows
+    // carrying a price with a null move, which is strictly more information.
     const stats = await Promise.all(
         symbols
-            .filter((symbol) => quotes[symbol])
+            .filter((symbol) => quotes[symbol] && quotes[symbol].changePct !== null)
             .map(async (symbol) => {
                 const quote = quotes[symbol];
                 // Names are day-cached asset lookups, and only equities have one.
@@ -68,7 +81,14 @@ export async function GET(request: NextRequest) {
                     wantNames && !isCryptoSymbol(symbol)
                         ? ((await asset(symbol))?.name ?? null)
                         : null;
-                return { symbol, name, price: quote.price, changePct: quote.changePct };
+                // `change` rides along because the caller cannot reliably
+                // recover it: deriving a previous close as
+                // price / (1 + changePct / 100) divides by a figure that
+                // approaches zero for a stock that nearly halved. The
+                // subtraction price - change is exact, and the day chart
+                // needs that reference to colour itself against the previous
+                // close rather than against its own first bar.
+                return { symbol, name, price: quote.price, change: quote.change, changePct: quote.changePct };
             })
     );
 
