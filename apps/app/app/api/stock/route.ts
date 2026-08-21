@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { asset, bars, isCryptoSymbol } from "@/lib/alpaca";
 import { fetchQuote } from "@/lib/quotes";
+import { symbolProfile } from "@/lib/investing/catalog";
 
 // Everything one symbol's page needs, from Alpaca.
 //
@@ -46,11 +47,21 @@ export async function GET(request: NextRequest) {
         const quote = {
             "01. symbol": symbol,
             "05. price": String(quoteSrc.price),
-            "09. change": String(quoteSrc.change),
-            "10. change percent": `${quoteSrc.changePct}%`,
+            // This block keeps the legacy string shape the app decodes, where
+            // "0"/"N/A" already mean "not known" (see MarketCapitalization
+            // below). A null move stays on that convention rather than
+            // stringifying to the literal "null", which would not parse.
+            "09. change": String(quoteSrc.change ?? 0),
+            "10. change percent": `${quoteSrc.changePct ?? 0}%`,
         };
 
-        const name = info?.name || quoteSrc.name || symbol;
+        // The hand-kept sector universe knows the company name and sector for
+        // the large caps people hold. It is the same list /api/market-overview
+        // has always used; this route simply never consulted it, which is why
+        // AAPL came back as "AAPL" with a null sector here and as "Apple Inc.",
+        // "Technology" one route over.
+        const profile = symbolProfile(symbol);
+        const name = profile?.name || info?.name || quoteSrc.name || symbol;
         const overview = {
             Name: name,
             // Market cap and P/E need shares outstanding and earnings, which
@@ -77,7 +88,7 @@ export async function GET(request: NextRequest) {
         const company = {
             exchange: info?.exchange ?? null,
             industry: null,
-            sector: null,
+            sector: profile?.sector ?? null,
             ceo: null,
             employees: null,
             ipo: null,
