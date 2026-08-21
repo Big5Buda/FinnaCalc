@@ -20,6 +20,15 @@ const RANGES: Record<string, { timeframe: BarTimeframe; days: number; limit: num
     "1W": { timeframe: "30Min", days: 9, limit: 400 },
     "1M": { timeframe: "1Day", days: 32, limit: 40 },
     "1Y": { timeframe: "1Day", days: 370, limit: 400 },
+    // Five years, weekly. This is the longest window the app offers, and it
+    // is deliberately a promise we can keep rather than an open-ended one:
+    // the free plan's history stops around July 2020 for every older listing
+    // checked, so "ALL" was never all of anything. Five years sits inside
+    // that floor with room to spare, and about 260 weekly bars is well under
+    // the limit.
+    "5Y": { timeframe: "1Week", days: 365 * 5 + 7, limit: 300 },
+    // Kept so app builds already shipping "ALL" keep working. New callers
+    // should ask for 5Y and say five years.
     ALL: { timeframe: "1Week", days: 365 * 20, limit: 1100 },
 };
 
