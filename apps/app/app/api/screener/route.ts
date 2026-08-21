@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { companyNames } from "@/lib/investing/names";
 import {
     activeAssets,
     isAlpacaConfigured,
@@ -151,6 +152,12 @@ export async function GET(request: NextRequest) {
             multiBars(symbols, "1Day", start, BARS_PER_SYMBOL * symbols.length, revalidate),
         ]);
         const info = new Map(assets.map((entry) => [entry.symbol, entry]));
+        // Resolved for the whole universe up front rather than per surviving
+        // row: the SEC ticker file is fetched once and cached for a day, so
+        // the size of this list costs nothing beyond map lookups. Alpaca's
+        // asset list stays as the fallback, and it is empty in production
+        // today, which is why this column showed the ticker as the company.
+        const resolvedNames = await companyNames(symbols);
 
         const rows: ScreenerRow[] = [];
         for (const symbol of symbols) {
@@ -177,7 +184,7 @@ export async function GET(request: NextRequest) {
             const asset = info.get(symbol);
             rows.push({
                 symbol,
-                company: asset?.name ?? symbol,
+                company: resolvedNames[symbol] ?? asset?.name ?? symbol,
                 exchange: asset?.exchange ?? "",
                 price,
                 change: move?.change ?? null,
