@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { asset, bars, isCryptoSymbol } from "@/lib/alpaca";
 import { fetchQuote } from "@/lib/quotes";
 import { symbolProfile } from "@/lib/investing/catalog";
+import { companyName } from "@/lib/investing/names";
 
 // Everything one symbol's page needs, from Alpaca.
 //
@@ -61,7 +62,11 @@ export async function GET(request: NextRequest) {
         // AAPL came back as "AAPL" with a null sector here and as "Apple Inc.",
         // "Technology" one route over.
         const profile = symbolProfile(symbol);
-        const name = profile?.name || info?.name || quoteSrc.name || symbol;
+        // companyName layers the curated list over the SEC's free ticker file,
+        // so this covers roughly 10,400 issuers rather than the 105 the
+        // curated universe carries. Falling back to the symbol is last, and
+        // it is why every page used to be titled with its own ticker.
+        const name = (await companyName(symbol)) || info?.name || quoteSrc.name || symbol;
         const overview = {
             Name: name,
             // Market cap and P/E need shares outstanding and earnings, which
