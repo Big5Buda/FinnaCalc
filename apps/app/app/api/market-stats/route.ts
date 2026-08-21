@@ -68,7 +68,14 @@ export async function GET(request: NextRequest) {
                     wantNames && !isCryptoSymbol(symbol)
                         ? ((await asset(symbol))?.name ?? null)
                         : null;
-                return { symbol, name, price: quote.price, changePct: quote.changePct };
+                // `change` rides along because the caller cannot reliably
+                // recover it: deriving a previous close as
+                // price / (1 + changePct / 100) divides by a figure that
+                // approaches zero for a stock that nearly halved. The
+                // subtraction price - change is exact, and the day chart
+                // needs that reference to colour itself against the previous
+                // close rather than against its own first bar.
+                return { symbol, name, price: quote.price, change: quote.change, changePct: quote.changePct };
             })
     );
 
