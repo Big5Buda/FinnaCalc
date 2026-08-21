@@ -34,7 +34,7 @@
  * rule as everywhere else here: we would rather leave a gap than invent.
  */
 
-import { symbolProfile } from "@/lib/investing/catalog"
+import { SECTOR_UNIVERSE, symbolProfile } from "@/lib/investing/catalog"
 
 /** A day. The SEC file changes when companies list or rename, not hourly. */
 const REVALIDATE = 86400
@@ -288,4 +288,88 @@ export async function companyNames(symbols: string[]): Promise<Record<string, st
         if (hit) out[symbol] = prettyName(hit)
     }
     return out
+}
+
+// MARK: - Search
+
+export type SymbolMatch = { symbol: string; name: string }
+
+/**
+ * Typeahead over everything we can name.
+ *
+ * The old search ranked Alpaca's active-asset list, and that list comes back
+ * empty in production, so /api/stock-search answered `[]` for every query
+ * including exact tickers. Search was dead app-wide: the Investing tab's box,
+ * and the simulator's symbol picker, which is why a symbol had to be typed
+ * exactly to be found at all.
+ *
+ * This searches the same three layers the name resolver uses, none of which
+ * depend on Alpaca. The SEC file alone is about 10,400 issuers, and it is
+ * fetched once and cached for a day, so a keystroke costs a map scan rather
+ * than a request.
+ *
+ * Ranking, best first: exact ticker, then ticker prefix (shorter wins, so "V"
+ * beats "VOO" when someone types V), then name prefix, then name substring,
+ * then ticker substring. Typing "app" puts AAPL above every company with
+ * "app" buried in its name, which is the behaviour the old route documented
+ * and never delivered.
+ */
+export async function searchSymbols(keywords: string, limit = 10): Promise<SymbolMatch[]> {
+    const query = keywords.trim().toUpperCase()
+    if (!query) return []
+
+    const pool = new Map<string, string>()
+    const curated = new Set<string>()
+    // Curated first so its nicer names win a duplicate key.
+    for (const sector of SECTOR_UNIVERSE) {
+        for (const stock of sector.stocks) {
+            const symbol = stock.symbol.toUpperCase()
+            pool.set(symbol, stock.name)
+            curated.add(symbol)
+        }
+    }
+    for (const [symbol, name] of Object.entries(FUND_NAMES)) {
+        if (!pool.has(symbol)) pool.set(symbol, name)
+    }
+    for (const [rawSymbol, title] of Object.entries(await secTickers())) {
+        // EDGAR writes class shares with a dash where the tape uses a dot, and
+        // every other route in this app speaks the tape's form.
+        const symbol = rawSymbol.includes("-") ? rawSymbol.replace("-", ".") : rawSymbol
+        if (!pool.has(symbol)) pool.set(symbol, prettyName(title))
+    }
+
+    const scored: { symbol: string; name: string; score: number }[] = []
+    for (const [symbol, name] of pool) {
+        const upperName = name.toUpperCase()
+        let score = 0
+        if (symbol === query) score = 1000
+        else if (symbol.startsWith(query)) score = 800 - symbol.length
+        else if (upperName.startsWith(query)) score = 600
+        else if (upperName.includes(query)) score = 400
+        else if (symbol.includes(query)) score = 200
+        if (score === 0) continue
+
+        // A name people recognise beats a name that merely matches. Without
+        // this, typing "coca" answered with COCA-COLA EUROPACIFIC PARTNERS and
+        // COCA COLA FEMSA before Coca-Cola itself, because all three begin
+        // with the same four letters and the tiebreak was alphabetical.
+        if (curated.has(symbol)) score += 60
+
+        // Warrants, units and rights carry a fifth letter and are almost never
+        // what someone typing a company name is looking for. Demoted rather
+        // than hidden, so a user who does want one can still find it.
+        if (symbol.length === 5 && /[WUR]$/.test(symbol)) score -= 120
+
+        scored.push({ symbol, name, score })
+    }
+
+    // Shorter ticker first within a tie: the primary listing is nearly always
+    // the short one, so KO lands above COKE and CCEP.
+    scored.sort(
+        (a, b) =>
+            b.score - a.score ||
+            a.symbol.length - b.symbol.length ||
+            a.symbol.localeCompare(b.symbol)
+    )
+    return scored.slice(0, limit).map(({ symbol, name }) => ({ symbol, name }))
 }

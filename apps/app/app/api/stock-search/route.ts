@@ -1,52 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeAssets, isAlpacaConfigured } from "@/lib/alpaca";
+import { searchSymbols } from "@/lib/investing/names";
 
-// Symbol search over Alpaca's asset list.
+// Symbol search.
 //
-// Alpaca has no query endpoint, so this ranks the full active US-equity list,
-// which is fetched once and cached for a day (it barely moves). Ranking is
-// exact symbol, then symbol prefix, then name prefix, then name substring, so
-// typing "app" puts AAPL above every company with "app" buried in its name.
+// This used to rank Alpaca's active-asset list. That list comes back empty in
+// production, so the route answered `[]` for every query, including exact
+// tickers, and search was dead everywhere it appears: the Investing tab's box
+// and the simulator's symbol picker both. It looked like a route that worked
+// and found nothing, rather than a broken one, because an empty array is a
+// perfectly valid answer to "no matches".
+//
+// It now searches the SEC's free ticker file plus the curated universe and the
+// hand-kept fund list (see lib/investing/names.ts), none of which depend on
+// Alpaca. That is roughly 10,400 US issuers plus the popular ETFs, matched on
+// ticker and on company name, fetched once and cached for a day.
+//
+// No isAlpacaConfigured gate any more: there is nothing here Alpaca serves, so
+// refusing the request when its keys are missing would fail for a reason that
+// no longer applies.
 
 export const revalidate = 86400;
 
 export async function GET(request: NextRequest) {
-    if (!isAlpacaConfigured) {
-        return NextResponse.json({ error: "Market data is not configured." }, { status: 503 });
-    }
-
     const keywords = request.nextUrl.searchParams.get("keywords")?.trim();
     if (!keywords) {
         return NextResponse.json({ error: "Keywords are required." }, { status: 400 });
     }
 
     try {
-        const query = keywords.toUpperCase();
-        const assets = await activeAssets();
-
-        const scored = assets
-            .filter((entry) => entry.tradable && entry.status === "active" && !entry.symbol.includes("."))
-            .map((entry) => {
-                const symbol = entry.symbol.toUpperCase();
-                const name = (entry.name ?? "").toUpperCase();
-                let score = 0;
-                if (symbol === query) score = 100;
-                else if (symbol.startsWith(query)) score = 80 - symbol.length;
-                else if (name.startsWith(query)) score = 60;
-                else if (name.includes(query)) score = 40;
-                else if (symbol.includes(query)) score = 20;
-                return { entry, score };
-            })
-            .filter((row) => row.score > 0)
-            .sort((a, b) => b.score - a.score || a.entry.symbol.localeCompare(b.entry.symbol))
-            .slice(0, 10);
+        const matches = await searchSymbols(keywords, 10);
 
         // The response keys are Alpha Vantage's original shape, which the iOS
         // StockSearchResult still decodes.
         return NextResponse.json(
-            scored.map(({ entry }) => ({
-                "1. symbol": entry.symbol,
-                "2. name": entry.name,
+            matches.map((match) => ({
+                "1. symbol": match.symbol,
+                "2. name": match.name,
                 "4. region": "United States",
             }))
         );

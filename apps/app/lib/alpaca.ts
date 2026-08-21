@@ -355,3 +355,70 @@ export async function mostActives(
     )
     return json?.most_actives ?? []
 }
+
+// MARK: - Corporate actions
+
+/** One announced cash dividend. Dates are "YYYY-MM-DD". */
+export type AlpacaCashDividend = {
+    symbol: string
+    /** Amount per share. Alpaca calls it `rate`. */
+    rate: number
+    ex_date?: string
+    record_date?: string
+    payable_date?: string
+    process_date?: string
+    /** "cash_dividend" for a regular one, "special_cash_dividend" otherwise. */
+    special?: boolean
+}
+
+/**
+ * Cash dividends for a set of symbols over a window.
+ *
+ * This is the only source in reach that carries dividend DATES. The SEC's XBRL
+ * data has the amounts (94 quarters of them for KO) but stamps each one with a
+ * fiscal period rather than an ex or payable date, so it can total a year and
+ * cannot place a single dot on a calendar. Alpaca's corporate actions carry
+ * ex_date, record_date and payable_date, and asking for a window that ends in
+ * the future returns dividends that have been declared but not yet paid, which
+ * is the upcoming half.
+ *
+ * Paged: the endpoint returns a next_page_token and the app asks for several
+ * holdings over a year, so a single page would silently truncate the oldest
+ * or newest depending on order. This is the bug that has bitten this codebase
+ * four times in other routes; it is not being written a fifth time.
+ */
+export async function cashDividends(
+    symbols: string[],
+    start: Date,
+    end: Date,
+    revalidate = 21600
+): Promise<AlpacaCashDividend[]> {
+    const wanted = [...new Set(symbols.map((s) => s.toUpperCase().trim()).filter(Boolean))]
+    if (wanted.length === 0) return []
+
+    const day = (d: Date) => d.toISOString().slice(0, 10)
+    const out: AlpacaCashDividend[] = []
+    let pageToken: string | undefined
+    // A guard, not an expectation: five pages is far more than a handful of
+    // holdings over a couple of years, and it stops a malformed token from
+    // looping forever.
+    for (let page = 0; page < 5; page++) {
+        const params = new URLSearchParams({
+            symbols: wanted.join(","),
+            types: "cash_dividend",
+            start: day(start),
+            end: day(end),
+            limit: "1000",
+        })
+        if (pageToken) params.set("page_token", pageToken)
+        const json = await get<{
+            corporate_actions?: { cash_dividends?: AlpacaCashDividend[] }
+            next_page_token?: string | null
+        }>(`${DATA_BASE}/v1/corporate-actions?${params.toString()}`, revalidate)
+        if (!json) break
+        out.push(...(json.corporate_actions?.cash_dividends ?? []))
+        if (!json.next_page_token) break
+        pageToken = json.next_page_token
+    }
+    return out
+}
