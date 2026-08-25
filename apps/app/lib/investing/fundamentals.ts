@@ -73,6 +73,8 @@ export type Fundamentals = {
     grossMargin: number | null
     revenueGrowth: number | null
     dividendYield: number | null
+    /** Kept alongside the yield so a cached entry can be re-priced. */
+    dividendsPerShareTTM: number | null
     /** Where the figures stop, so a caller can say "as of". */
     fiscalYear: number | null
     sharesAsOf: string | null
@@ -87,6 +89,7 @@ export const NO_FUNDAMENTALS: Fundamentals = {
     grossMargin: null,
     revenueGrowth: null,
     dividendYield: null,
+    dividendsPerShareTTM: null,
     fiscalYear: null,
     sharesAsOf: null,
 }
@@ -333,7 +336,80 @@ export function fundamentalsFrom(doc: any, price: number | null, now: Date = new
             usablePrice && dividendsTTM !== null && dividendsTTM > 0
                 ? (dividendsTTM / usablePrice) * 100
                 : null,
+        dividendsPerShareTTM: dividendsTTM,
         fiscalYear: latestYearEnd ? Number(latestYearEnd.slice(0, 4)) : null,
+    }
+}
+
+/**
+ * The derived figures per CIK, so a warm instance reads the 4 MB document once.
+ *
+ * Next's data cache does not store a fetch response over 2 MB, and company
+ * facts is 3.8 MB for Apple and 7.9 MB for JPMorgan. Without this every stock
+ * page view on a large filer would pull the whole document again, against a
+ * limit of ten requests per second shared across the entire deployment.
+ *
+ * What is kept is the DERIVED object, ten numbers, not the document. So the
+ * memory cost is bytes rather than megabytes and the 2 MB ceiling stops
+ * mattering. Small filers stay inside Next's cache as well and get both.
+ *
+ * Deliberately a plain Map and not a KV store. It is per-instance and empty
+ * after a cold start, which is the honest limit of it: this reduces repeat
+ * work, it does not guarantee a single fetch across a fleet. It also needs no
+ * service, no credentials and no configuration, which is what makes it
+ * shippable now. If stock pages ever carry enough traffic for the SEC to
+ * rate-limit us anyway, the fix is a real shared cache in front of `secJson`,
+ * and every route benefits rather than only this one.
+ *
+ * Everything below is priced against the live quote OUTSIDE the cache, so a
+ * cached entry never serves a stale market cap or P/E.
+ */
+type CacheEntry = { at: number; value: Fundamentals }
+const derived = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = FACTS_REVALIDATE * 1000
+/** Filings do not change often; this is a working set, not a database. */
+const CACHE_MAX = 500
+
+function cached(cik: string, now: number): Fundamentals | null {
+    const hit = derived.get(cik)
+    if (!hit) return null
+    if (now - hit.at > CACHE_TTL_MS) {
+        derived.delete(cik)
+        return null
+    }
+    // Re-inserted so the eviction below drops the least recently READ, not the
+    // least recently written.
+    derived.delete(cik)
+    derived.set(cik, hit)
+    return hit.value
+}
+
+function remember(cik: string, value: Fundamentals, now: number): void {
+    derived.set(cik, { at: now, value })
+    while (derived.size > CACHE_MAX) {
+        const oldest = derived.keys().next()
+        if (oldest.done) break
+        derived.delete(oldest.value)
+    }
+}
+
+/**
+ * Everything except the price, which is why this is cacheable at all.
+ *
+ * Splitting the filed half from the priced half is the whole trick: the filed
+ * half changes quarterly and the priced half changes every second, so they
+ * cannot share a lifetime.
+ */
+function priced(base: Fundamentals, price: number | null): Fundamentals {
+    const usable = price !== null && Number.isFinite(price) && price > 0 ? price : null
+    if (!usable) return { ...base, marketCap: null, peRatio: null, dividendYield: base.dividendYield }
+    return {
+        ...base,
+        marketCap: base.sharesOutstanding !== null ? base.sharesOutstanding * usable : null,
+        peRatio: base.epsTTM !== null && base.epsTTM > 0 ? usable / base.epsTTM : null,
+        dividendYield: base.dividendsPerShareTTM !== null && base.dividendsPerShareTTM > 0
+            ? (base.dividendsPerShareTTM / usable) * 100
+            : null,
     }
 }
 
@@ -341,10 +417,20 @@ export function fundamentalsFrom(doc: any, price: number | null, now: Date = new
 export async function fundamentalsFor(symbol: string, price: number | null): Promise<Fundamentals> {
     const cik = await cikFor(symbol)
     if (cik.status !== "ok") return NO_FUNDAMENTALS
+
+    const now = Date.now()
+    const hit = cached(cik.data, now)
+    if (hit) return priced(hit, price)
+
     const facts: SecResult<any> = await secJson<any>(
         `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.data}.json`,
         FACTS_REVALIDATE
     )
+    // A refusal is not cached. "The SEC rate-limited us" must not become this
+    // symbol's answer for the next day.
     if (facts.status !== "ok") return NO_FUNDAMENTALS
-    return fundamentalsFrom(facts.data, price)
+
+    const base = fundamentalsFrom(facts.data, null)
+    remember(cik.data, base, now)
+    return priced(base, price)
 }
