@@ -3,6 +3,7 @@ import { asset, bars, isCryptoSymbol } from "@/lib/alpaca";
 import { fetchQuote } from "@/lib/quotes";
 import { symbolProfile } from "@/lib/investing/catalog";
 import { companyName } from "@/lib/investing/names";
+import { fundamentalsFor } from "@/lib/investing/fundamentals";
 
 // Everything one symbol's page needs, from Alpaca.
 //
@@ -15,6 +16,13 @@ import { companyName } from "@/lib/investing/names";
 //
 // The two stats that ARE derivable from price history are: the 52-week high and
 // low, summed here from a year of daily bars.
+//
+// The rest now come from the company's own SEC filings, via lib/investing/
+// fundamentals, which reads the same company facts document /api/statements
+// already downloads. See that file for what is derivable and what is not: in
+// short, a filed figure is a fiscal year old at worst, a market cap is a live
+// price against a filed share count, and a multi-class issuer whose share
+// count the XBRL API drops gets null rather than a wrong number.
 
 export const revalidate = 60;
 
@@ -45,6 +53,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: `No data found for symbol "${symbol}".` }, { status: 404 });
         }
 
+        // After the quote, because a market cap and a P/E are a live price
+        // against a filed denominator. Crypto has no filings, and neither do
+        // funds; both come back as every-field-null and every row hides.
+        const filings = isCryptoSymbol(symbol)
+            ? null
+            : await fundamentalsFor(symbol, quoteSrc.price);
+
         const quote = {
             "01. symbol": symbol,
             "05. price": String(quoteSrc.price),
@@ -69,25 +84,33 @@ export async function GET(request: NextRequest) {
         const name = (await companyName(symbol)) || info?.name || quoteSrc.name || symbol;
         const overview = {
             Name: name,
-            // Market cap and P/E need shares outstanding and earnings, which
-            // Alpaca doesn't carry. "0"/"N/A" are the values the app already
-            // treats as "not known".
-            MarketCapitalization: "0",
+            // "0" and "N/A" are what the app already reads as "not known", so
+            // an issuer whose filings don't support a figure keeps the old
+            // value and the row keeps hiding itself.
+            MarketCapitalization: filings?.marketCap != null ? String(Math.round(filings.marketCap)) : "0",
             Description: "No description available.",
             Logo: "",
-            PERatio: "N/A",
+            // Sent pre-formatted because the app prints this one verbatim.
+            PERatio: filings?.peRatio != null ? filings.peRatio.toFixed(2) : "N/A",
         };
 
         const stats = {
             high52: window.high,
             low52: window.low,
+            // Beta is a regression of this symbol's returns against an index.
+            // Nothing in a filing carries it and Alpaca doesn't publish one,
+            // so it stays null until something computes it from bars.
             beta: null,
-            epsTTM: null,
-            dividendYield: null,
-            netMargin: null,
-            revenueGrowth: null,
-            grossMargin: null,
-            sharesOutstanding: null,
+            epsTTM: filings?.epsTTM ?? null,
+            dividendYield: filings?.dividendYield ?? null,
+            netMargin: filings?.netMargin ?? null,
+            revenueGrowth: filings?.revenueGrowth ?? null,
+            grossMargin: filings?.grossMargin ?? null,
+            // MILLIONS of shares. The app's formatter divides by 1000 again
+            // above 1000 to print "B", which is the Finnhub convention this
+            // field was written against and which the iOS side still expects.
+            sharesOutstanding:
+                filings?.sharesOutstanding != null ? filings.sharesOutstanding / 1_000_000 : null,
         };
 
         const company = {
