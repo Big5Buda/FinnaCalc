@@ -4,6 +4,7 @@ import { fetchQuote } from "@/lib/quotes";
 import { symbolProfile } from "@/lib/investing/catalog";
 import { companyName } from "@/lib/investing/names";
 import { fundamentalsFor } from "@/lib/investing/fundamentals";
+import { symbolAbout } from "@/lib/investing/profiles";
 
 // Everything one symbol's page needs, from Alpaca.
 //
@@ -77,6 +78,10 @@ export async function GET(request: NextRequest) {
         // AAPL came back as "AAPL" with a null sector here and as "Apple Inc.",
         // "Technology" one route over.
         const profile = symbolProfile(symbol);
+        // Written by us, not filed. The SEC publishes no business description
+        // in structured form, so this is a hand-kept list covering the same
+        // large caps the sector universe does. See lib/investing/profiles.
+        const about = symbolAbout(symbol);
         // companyName layers the curated list over the SEC's free ticker file,
         // so this covers roughly 10,400 issuers rather than the 105 the
         // curated universe carries. Falling back to the symbol is last, and
@@ -88,7 +93,9 @@ export async function GET(request: NextRequest) {
             // an issuer whose filings don't support a figure keeps the old
             // value and the row keeps hiding itself.
             MarketCapitalization: filings?.marketCap != null ? String(Math.round(filings.marketCap)) : "0",
-            Description: "No description available.",
+            // The app treats this exact string as "nothing to show", so a
+            // symbol outside the curated list keeps hiding its paragraph.
+            Description: about?.description ?? "No description available.",
             Logo: "",
             // Sent pre-formatted because the app prints this one verbatim.
             PERatio: filings?.peRatio != null ? filings.peRatio.toFixed(2) : "N/A",
@@ -118,10 +125,15 @@ export async function GET(request: NextRequest) {
             industry: null,
             sector: profile?.sector ?? null,
             ceo: null,
+            // Not in SEC structured data. `dei` carries two facts per filer,
+            // the cover-page share count and the public float; a headcount
+            // lives in the 10-K's prose. Typing one by hand would print a
+            // real, checkable figure that goes stale every February.
             employees: null,
             ipo: null,
             website: null,
             country: null,
+            headquarters: about?.headquarters ?? null,
         };
 
         // Retired-ticker resolution came from a vendor feed that has been
