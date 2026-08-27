@@ -106,6 +106,12 @@ function movedRoutes(origin) {
         { source: "/tax-calculator", destination: "/taxes", permanent: true },
         // /premium became /plans when billing moved to Stripe.
         { source: "/premium", destination: `${origin}/plans`, permanent: true },
+        // /investing/safe-investments was retired, not moved: it ranked three
+        // hand-picked instruments as the "safest" with app-assigned risk
+        // grades and unsourced average returns. There is no equivalent page to
+        // send people to, so this lands on the investing index rather than
+        // pretending a replacement exists.
+        { source: "/investing/safe-investments", destination: "/investing", permanent: true },
 
         // Both the section index and everything under it.
         ...APPLICATION_PATHS.flatMap((path) => [

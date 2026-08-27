@@ -124,11 +124,6 @@ export const MENUS: Menu[] = [
                 href: "/investing/bonds",
                 blurb: "Yields, and what they mean right now",
             },
-            {
-                label: "Safe investments",
-                href: "/investing/safe-investments",
-                blurb: "Where cash goes when it shouldn't move",
-            },
         ],
     },
     {
