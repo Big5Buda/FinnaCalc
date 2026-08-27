@@ -262,6 +262,27 @@ export const FEATURE_PAGES: Record<string, FeaturePage> = {
             },
         ],
     },
+    "investing/cash-options": {
+        family: "investing",
+        title: "Where cash sits",
+        headline: "Where money goes when it isn't buying securities.",
+        lede: "Savings accounts, CDs, Treasuries and money market funds, described by how they actually work — who stands behind each one, how its rate gets set, and when you can have the money back.",
+        points: [
+            {
+                title: "Insurance, stated exactly",
+                body: "FDIC and NCUA limits, what per ownership category means for a joint account, and why SIPC is not deposit insurance at all.",
+            },
+            {
+                title: "Terms and what leaving early costs",
+                body: "Which options lock money up, for how long, and what it costs to get out — so you can match them against your own timeline.",
+            },
+            {
+                title: "No products, no rates, no ranking",
+                body: "Nothing here names a bank, fund or issuer, and no yield is quoted. It explains the structures so you can compare the ones you find.",
+            },
+        ],
+    },
+
     /* ── Taxes ──────────────────────────────────────────────────────── */
 
     "taxes/estimator": {
