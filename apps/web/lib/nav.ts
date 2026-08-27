@@ -124,6 +124,11 @@ export const MENUS: Menu[] = [
                 href: "/investing/bonds",
                 blurb: "Yields, and what they mean right now",
             },
+            {
+                label: "Where cash sits",
+                href: "/investing/cash-options",
+                blurb: "Savings, CDs, Treasuries and money market funds, compared",
+            },
         ],
     },
     {

@@ -110,6 +110,7 @@ export default function InvestingPage() {
                     { href: "/investing/tracker", label: "Trade Tracker" },
                     { href: "/investing/screener", label: "Screener" },
                     { href: "/investing/etfs", label: "ETFs & index funds" },
+                    { href: "/investing/cash-options", label: "Where cash sits" },
                     { href: "/investing/bonds", label: "Bonds" },
                 ].map((link) => (
                     <Link

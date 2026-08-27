@@ -17,15 +17,17 @@ const nextConfig = {
    * a curated shortlist of named securities reads as a recommendation however
    * the surrounding notice is worded. Two of the three were stock ETFs.
    *
-   * There is no equivalent page, so this lands on the investing index rather
-   * than implying a replacement. The marketing site carries the same rule in
-   * its movedRoutes list; both are needed because both apps served the path.
+   * It now lands on /investing/cash-options, which is the successor: the same
+   * subject — where money sits when it is not buying securities — described by
+   * instrument class, with no product named, no rate quoted and no ranking.
+   * The marketing site carries the same rule in its movedRoutes list; both are
+   * needed because both apps served the path.
    */
   async redirects() {
     return [
       {
         source: "/investing/safe-investments",
-        destination: "/investing",
+        destination: "/investing/cash-options",
         permanent: true,
       },
     ]
