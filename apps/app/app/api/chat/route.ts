@@ -56,23 +56,90 @@ export async function POST(req: Request) {
     }
 
     try {
+        let failure: unknown = null;
+
         const result = streamText({
             // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
-            // current free-tier flash model (15 RPM / 1,500 RPD).
+            // current free-tier flash model. Free-tier limits are applied PER
+            // PROJECT, not per key or per user (Google's rate-limit docs), so
+            // every reader of the app draws on one shared allowance and the
+            // ceiling arrives sooner than the numbers suggest.
             model: google("gemini-3.5-flash"),
             system: SYSTEM_PROMPT,
             messages,
             temperature: 0.7,
             onError: ({ error }) => {
-                // Streaming errors (quota, auth, etc.) are masked from the client
-                // by the SDK — log them server-side so they're diagnosable.
                 console.error("[/api/chat] streamText error:", error);
+                failure = error;
             },
         });
 
-        // Plain UTF-8 text stream — no version-specific data-stream protocol.
-        return result.toTextStreamResponse();
+        // NOT toTextStreamResponse(). It ends the stream silently when the
+        // model errors, so a quota refusal reached the app as a 200 with an
+        // empty body, and the app's only possible reading of that was "No
+        // response received. Please try again." — which describes nothing and
+        // is what an outage looked like from the outside.
+        //
+        // Written out by hand instead so a failure that produced no text can
+        // say what happened. Anything already streamed is left alone: half an
+        // answer plus an explanation beats half an answer plus silence.
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+                let wrote = false;
+                try {
+                    for await (const chunk of result.textStream) {
+                        if (chunk.length > 0) wrote = true;
+                        controller.enqueue(encoder.encode(chunk));
+                    }
+                } catch (err) {
+                    console.error("[/api/chat] stream aborted:", err);
+                    failure = failure ?? err;
+                }
+                if (!wrote) {
+                    controller.enqueue(encoder.encode(explain(failure)));
+                }
+                controller.close();
+            },
+        });
+
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "no-store",
+            },
+        });
     } catch (err: any) {
         return new Response(err?.message ?? "Failed to generate a response.", { status: 500 });
     }
+}
+
+/**
+ * What to say when the model produced nothing.
+ *
+ * Plain text on purpose: the app renders this stream straight into the chat
+ * bubble, so whatever is written here is what the reader sees. It names the
+ * likely cause without naming a provider, a quota or an environment variable,
+ * none of which mean anything to somebody asking about their budget.
+ */
+function explain(failure: unknown): string {
+    const text = String(
+        (failure as { message?: string } | null)?.message ?? failure ?? ""
+    ).toLowerCase();
+
+    // Google returns 429 RESOURCE_EXHAUSTED when the project's shared free-tier
+    // allowance is spent. It is the most common way this endpoint fails and the
+    // only one where waiting genuinely helps.
+    if (
+        text.includes("429") ||
+        text.includes("resource_exhausted") ||
+        text.includes("quota") ||
+        text.includes("rate limit")
+    ) {
+        return "FinnaBot is handling a lot of questions right now and has reached its limit for the moment. Try again in a minute.";
+    }
+    if (text.includes("api key") || text.includes("permission") || text.includes("401") || text.includes("403")) {
+        return "FinnaBot is not available right now. This is our end, not yours, and we can see it.";
+    }
+    return "FinnaBot could not answer that just now. Try asking again.";
 }
