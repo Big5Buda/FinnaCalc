@@ -1,7 +1,7 @@
 /**
  * Static investing metadata — sectors, curated ETFs, and the safe-investment
  * reference list. Ported from Features/Investing/SectorCatalog.swift,
- * ETFListView.swift and SafeInvestmentsView.swift.
+ * ETFListView.swift.
  */
 
 export type SectorMeta = {
@@ -96,47 +96,6 @@ export const CURATED_ETFS: ETFEntry[] = [
     { symbol: "BND", name: "Vanguard Total Bond", blurb: "The broad US bond market" },
     { symbol: "VNQ", name: "Vanguard Real Estate", blurb: "US REITs" },
     { symbol: "GLD", name: "SPDR Gold Shares", blurb: "Physical gold" },
-]
-
-export type SafeInvestment = {
-    name: string
-    symbol: string
-    avgReturn: string
-    risk: string
-    description: string
-    minInvestment: string
-    link: string
-}
-
-/** A static reference list. It drives no calculation and is not advice. */
-export const SAFE_INVESTMENTS: SafeInvestment[] = [
-    {
-        name: "S&P 500 Index Fund (IVV)",
-        symbol: "IVV",
-        avgReturn: "10.5%",
-        risk: "Low-Medium",
-        description: "Tracks the 500 largest US companies.",
-        minInvestment: "$1",
-        link: "https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf",
-    },
-    {
-        name: "Total Stock Market (VTI)",
-        symbol: "VTI",
-        avgReturn: "10.2%",
-        risk: "Low-Medium",
-        description: "Owns the entire US stock market.",
-        minInvestment: "$1",
-        link: "https://investor.vanguard.com/investment-products/etfs/profile/vti",
-    },
-    {
-        name: "High-Yield Savings",
-        symbol: "HYSA",
-        avgReturn: "4.5%+",
-        risk: "None",
-        description: "FDIC insured savings account.",
-        minInvestment: "$0",
-        link: "https://www.nerdwallet.com/best/banking/high-yield-online-savings-accounts",
-    },
 ]
 
 /**

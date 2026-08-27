@@ -262,27 +262,6 @@ export const FEATURE_PAGES: Record<string, FeaturePage> = {
             },
         ],
     },
-    "investing/safe-investments": {
-        family: "investing",
-        title: "Safe investments",
-        headline: "Where cash goes when it shouldn't be moving.",
-        lede: "Emergency funds and short-horizon money don't belong in stocks. This is the map of the alternatives — HYSAs, CDs, Treasuries, money market funds.",
-        points: [
-            {
-                title: "The safe options, compared",
-                body: "What each one pays, how locked up your money is, and what's actually guaranteed versus merely stable.",
-            },
-            {
-                title: "Insurance limits, stated",
-                body: "FDIC and NCUA limits explained plainly, because “safe” should mean something specific.",
-            },
-            {
-                title: "Matched to the timeline",
-                body: "Money you need in six months, two years, five years — each horizon has a right shelf, and the page walks the shelves.",
-            },
-        ],
-    },
-
     /* ── Taxes ──────────────────────────────────────────────────────── */
 
     "taxes/estimator": {
