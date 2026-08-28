@@ -9,7 +9,13 @@ export interface BrokerageAccount {
     institution: string
     number: string
     totalValue: number | null
-    /** Available cash in the account's currency (buying power for the order ticket). */
+    /**
+     * Cash in the account's currency, as the brokerage reports it.
+     *
+     * Not buying power. SnapTrade carries those separately and they differ on
+     * a margin account, so calling this one buying power was wrong wherever
+     * it was written down.
+     */
     cash: number | null
     currency: string
     /** The connection this account belongs to — maps to a SnapTradeConnection's
@@ -68,31 +74,48 @@ export async function GET(req: NextRequest) {
         })
         const accountList = Array.isArray(accountData) ? accountData : []
 
-        // Positions and cash balances come from the per-account holdings
-        // endpoint. Fetch all accounts in parallel; a single failing account
-        // shouldn't blank the rest.
+        // Positions and balances, per account, in parallel; one failing
+        // account must not blank the rest.
+        //
+        // The balance is asked for in its OWN right rather than read off the
+        // holdings payload. getUserHoldings serves the daily holdings cache,
+        // so an account whose holdings have not synced returns no balances
+        // either, and cash fails whenever positions do. That is what left a
+        // Schwab account reporting a real total, no cash figure, and a client
+        // with no way to fill the row except by subtracting its own
+        // quote-priced holdings from the brokerage's own total. Those two
+        // numbers are different vintages from different price sources, so the
+        // difference is cash plus whatever the market did since the last
+        // sync, and it drifted by cents from one refresh to the next.
+        //
+        // Asking for the balance separately means an account can report its
+        // cash even while its holdings are still stale, which is the common
+        // case on a plan without real-time data.
         const holdingsByAccount = await Promise.all(
             accountList.map(async (a: any) => {
-                try {
-                    const { data } = await st.accountInformation.getUserHoldings({
+                const positions = await st.accountInformation
+                    .getUserHoldings({
                         accountId: a.id,
                         userId: session.userId,
                         userSecret: session.userSecret,
                     })
-                    return {
-                        accountId: a.id ?? "",
-                        positions: data?.positions ?? [],
-                        balances: data?.balances ?? [],
-                    }
-                } catch {
-                    return { accountId: a.id ?? "", positions: [], balances: [] }
-                }
+                    .then(({ data }) => data?.positions ?? [])
+                    .catch(() => [])
+                const balances = await st.accountInformation
+                    .getUserAccountBalance({
+                        accountId: a.id,
+                        userId: session.userId,
+                        userSecret: session.userSecret,
+                    })
+                    .then(({ data }) => (Array.isArray(data) ? data : []))
+                    .catch(() => [])
+                return { accountId: a.id ?? "", positions, balances }
             })
         )
 
-        // Available cash in the account's own currency — the order ticket's
-        // "buying power" line. Multi-currency accounts may hold several cash
-        // balances; take the one matching the account currency.
+        // Cash in the account's own currency. A multi-currency account holds
+        // several cash balances, so the one matching the account's currency
+        // wins; anything else would add pounds to dollars.
         const cashByAccount = new Map<string, number | null>(
             holdingsByAccount.map(({ accountId, balances }) => {
                 const accountCurrency = accountList.find((a: any) => a.id === accountId)?.balance?.total
