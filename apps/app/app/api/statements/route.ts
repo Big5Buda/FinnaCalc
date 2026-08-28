@@ -242,6 +242,38 @@ function isAnnualForm(u: Fact): boolean {
     return u.form !== undefined && ANNUAL_FORMS.has(u.form);
 }
 
+/**
+ * The forms a discrete quarter can arrive on.
+ *
+ * 10-Q is the domestic filer. 6-K is the foreign private issuer's interim
+ * report, and it belongs here for the same reason 40-F belongs on the annual
+ * list: a Canadian MJDS filer tags its quarters there and nowhere else. Royal
+ * Bank of Canada publishes twenty-five quarter ends that way.
+ *
+ * This does NOT invent quarters for a filer that has none. Spotify, SAP,
+ * Sony, ASML and Toyota tag no interim statements at all, because the SEC has
+ * never required XBRL in a 6-K and none of them volunteers it, so they return
+ * exactly what they returned before, which is nothing. Spotify has 94 filings
+ * on 6-K and not one carries a fact.
+ */
+const QUARTERLY_FORMS = new Set(["10-Q", "10-Q/A", "6-K", "6-K/A"]);
+
+function isQuarterlyForm(u: Fact): boolean {
+    return u.form !== undefined && QUARTERLY_FORMS.has(u.form);
+}
+
+/**
+ * How far behind a company's own newest figure a quarter rail may fall.
+ *
+ * A rail that stopped years before the company last reported is history, not
+ * the current shape of the business, and drawing it beside a current annual
+ * table reads as though the data were fresh. Canadian National is the live
+ * example: the only quarters it ever tagged end 2009-09-30, on 6-K, while it
+ * reports to this day. A filer sitting between its annual report and its next
+ * quarter shows a gap of about ninety days, so both stay well inside this.
+ */
+const QUARTER_STALE_DAYS = 450;
+
 /** The month a company closes its books, read off its own annual balances. */
 function fiscalYearEndMonth(facts: Record<string, any>, currency: string): number {
     for (const tag of ["Assets", "StockholdersEquity", "Liabilities"]) {
@@ -352,6 +384,10 @@ const QUARTER_YEARS = 5;
 
 type QuarterPart = "Q1" | "Q2" | "Q3" | "Q4";
 type Quarter = { fy: number; fp: QuarterPart; label: string; end: string };
+type QuarterlyStatement = {
+    name: string;
+    rows: { label: string; values: (number | null)[] }[];
+};
 
 /** Rows by label, so the tag lists stay defined in exactly one place. */
 function pick(rows: Row[], labels: string[]): Row[] {
@@ -382,7 +418,7 @@ function pick(rows: Row[], labels: string[]): Row[] {
  *             something, and subtracting it the way revenue is subtracted
  *             produces a confident, entirely fictional number.
  */
-const QUARTERLY_FLOWS = pick(INCOME, ["Revenue", "Operating income", "Net income"]);
+const QUARTERLY_FLOW_LABELS = ["Revenue", "Operating income", "Net income"];
 
 /**
  * Lines whose Q4 residual cannot legitimately come out negative.
@@ -407,8 +443,16 @@ const QUARTERLY_FLOWS = pick(INCOME, ["Revenue", "Operating income", "Net income
  * the annual figure to the vintage of the quarters, which is a larger change.
  */
 const NON_NEGATIVE_FLOWS = new Set(["Revenue"]);
-const QUARTERLY_RATIOS = pick(INCOME, ["Earnings per share (diluted)"]);
-const QUARTERLY_INSTANTS = pick(BALANCE, ["Cash & equivalents"]);
+/**
+ * Labels, not resolved rows, because which tag list they resolve against
+ * depends on the taxonomy the filer used. These were bound to the us-gaap
+ * INCOME and BALANCE lists at module load, so an ifrs-full filer had every
+ * quarterly lookup miss, the same way the annual table missed before
+ * pickTaxonomy existed. The labels are identical in both row lists, so `pick`
+ * and NON_NEGATIVE_FLOWS keep working untouched.
+ */
+const QUARTERLY_RATIO_LABELS = ["Earnings per share (diluted)"];
+const QUARTERLY_INSTANT_LABELS = ["Cash & equivalents"];
 
 function daysBetween(start: string, end: string): number {
     return Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000);
@@ -457,7 +501,7 @@ function quarterCalendar(facts: Record<string, any>, tags: string[], currency: s
     for (const tag of tags) {
         if (!facts[tag]) continue;
         for (const u of unitsOf(facts[tag], currency)) {
-            if (u.form !== "10-Q" || !u.start || !u.accn) continue;
+            if (!isQuarterlyForm(u) || !u.start || !u.accn) continue;
             if (typeof u.fy !== "number") continue;
             if (u.fp !== "Q1" && u.fp !== "Q2" && u.fp !== "Q3") continue;
             // A cumulative six- or nine-month figure is not a quarter.
@@ -485,7 +529,7 @@ function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<str
         if (!facts[tag]) continue;
         const best = new Map<string, Fact>();
         for (const u of unitsOf(facts[tag], currency)) {
-            if (u.form !== "10-Q" || !u.start || !ends.has(u.end)) continue;
+            if (!isQuarterlyForm(u) || !u.start || !ends.has(u.end)) continue;
             if (daysBetween(u.start, u.end) > QUARTER_MAX_DAYS) continue;
             const prev = best.get(u.end);
             if (!prev || (u.filed ?? "") > (prev.filed ?? "")) best.set(u.end, u);
@@ -520,8 +564,17 @@ function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<str
  * three quarters are present. A residual against a missing input is not a
  * quarter, it's a guess, so the cell stays null instead.
  */
-function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency: string) {
-    const durationTags = [...QUARTERLY_FLOWS, ...QUARTERLY_RATIOS].flatMap(([, tags]) => tags);
+function quarterlyReport(
+    facts: Record<string, any>,
+    fyeMonth: number,
+    currency: string,
+    income: Row[],
+    balance: Row[],
+) {
+    const flows = pick(income, QUARTERLY_FLOW_LABELS);
+    const ratios = pick(income, QUARTERLY_RATIO_LABELS);
+    const instants = pick(balance, QUARTERLY_INSTANT_LABELS);
+    const durationTags = [...flows, ...ratios].flatMap(([, tags]) => tags);
     const calendar = quarterCalendar(facts, durationTags, currency);
     const closes = fiscalYearEnds(facts, durationTags, fyeMonth, currency);
 
@@ -559,6 +612,24 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency:
     }
 
     quarters.sort((a, b) => (a.end < b.end ? -1 : 1));
+
+    // Quarters that stop long before the company's own newest reported figure
+    // are history, not the current shape of the business, and a rail of them
+    // beside a current annual table reads as though the data were fresh.
+    // Canadian National is the live case: admitting 6-K brings back quarters
+    // that end in 2009 for a company still reporting today.
+    const newestQuarter = quarters[quarters.length - 1]?.end ?? "";
+    let newestReported = "";
+    for (const tag of durationTags) {
+        if (!facts[tag]) continue;
+        for (const u of unitsOf(facts[tag], currency)) {
+            if (u.end > newestReported) newestReported = u.end;
+        }
+    }
+    if (!newestQuarter || daysBetween(newestQuarter, newestReported) > QUARTER_STALE_DAYS) {
+        return { quarters: [] as Quarter[], quarterlyStatements: [] as QuarterlyStatement[] };
+    }
+
     // Whole fiscal years, newest first, then filtered in place so the values
     // arrays stay in the chronological order the annual keys use.
     const orderedYears = [...new Set(quarters.map((quarter) => quarter.fy))].sort((a, b) => b - a);
@@ -568,9 +639,9 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency:
     // window still nets off three quarters that fall outside it.
     const known = new Set(quarters.map((quarter) => quarter.end));
 
-    const flowRows = QUARTERLY_FLOWS.map(([label, tags]) => {
+    const flowRows = flows.map(([label, tags]) => {
         const filed = quarterSeries(facts, tags, known, currency);
-        const annual = series(facts, tags, fyeMonth);
+        const annual = series(facts, tags, fyeMonth, currency);
         return {
             label,
             values: shown.map((quarter) => {
@@ -591,7 +662,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency:
         };
     });
 
-    const ratioRows = QUARTERLY_RATIOS.map(([label, tags]) => {
+    const ratioRows = ratios.map(([label, tags]) => {
         const filed = quarterSeries(facts, tags, known, currency);
         // Deliberately no Q4 here. See the note above QUARTERLY_RATIOS.
         return {
@@ -602,7 +673,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency:
         };
     });
 
-    const instantRows = QUARTERLY_INSTANTS.map(([label, tags]) => {
+    const instantRows = instants.map(([label, tags]) => {
         const balances = instantSeries(facts, tags, known, currency);
         return { label, values: shown.map((quarter) => balances.get(quarter.end) ?? null) };
     });
@@ -731,7 +802,8 @@ export async function GET(req: NextRequest) {
         // statement with nothing in it is dropped rather than shown empty.
         .filter((statement) => statement.rows.length > 0);
 
-    const { quarters, quarterlyStatements } = quarterlyReport(facts, fyeMonth, currency);
+    const { quarters, quarterlyStatements } = quarterlyReport(
+        facts, fyeMonth, currency, taxonomy.income, taxonomy.balance);
 
     return NextResponse.json({
         symbol,
