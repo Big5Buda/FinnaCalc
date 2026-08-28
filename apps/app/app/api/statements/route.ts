@@ -274,6 +274,28 @@ function isQuarterlyForm(u: Fact): boolean {
  */
 const QUARTER_STALE_DAYS = 450;
 
+/**
+ * How long after a quarter ends a filing may still be reporting it as its
+ * own current quarter.
+ *
+ * quarterCalendar takes the newest quarter in an accession to be the one the
+ * filing is about, and labels it with that fact's own fy and fp. That holds
+ * for a 10-Q, which always tags its current period. It does not hold for a
+ * 6-K, which need not: a foreign issuer can tag only cumulative figures for
+ * the period it is reporting and leave last year's comparative as the newest
+ * DISCRETE quarter in the document, still stamped with this year's fy.
+ *
+ * Genmab's half-year 2025 filing is the case. Every discrete quarter it
+ * carries ends 2024-06-30 or earlier, and all of them are stamped fy 2025
+ * fp Q2, so a real figure from 2024 was about to be drawn in a 2025 column.
+ * ARM does the same thing at 405 days.
+ *
+ * A genuine current quarter is filed within roughly 45 to 90 days of its
+ * end. 180 leaves generous room for a late or amended filing while putting
+ * both of those well outside.
+ */
+const QUARTER_FILING_LAG_DAYS = 180;
+
 /** The month a company closes its books, read off its own annual balances. */
 function fiscalYearEndMonth(facts: Record<string, any>, currency: string): number {
     for (const tag of ["Assets", "StockholdersEquity", "Liabilities"]) {
@@ -506,6 +528,10 @@ function quarterCalendar(facts: Record<string, any>, tags: string[], currency: s
             if (u.fp !== "Q1" && u.fp !== "Q2" && u.fp !== "Q3") continue;
             // A cumulative six- or nine-month figure is not a quarter.
             if (daysBetween(u.start, u.end) > QUARTER_MAX_DAYS) continue;
+            // Nor is last year's comparative the filing's own quarter, even
+            // when the filing stamps it with this year's fy. See
+            // QUARTER_FILING_LAG_DAYS.
+            if (u.filed && daysBetween(u.end, u.filed) > QUARTER_FILING_LAG_DAYS) continue;
             const prev = current.get(u.accn);
             if (!prev || u.end > prev.end) current.set(u.accn, u);
         }
@@ -591,12 +617,27 @@ function quarterlyReport(
         byYear.set(close[0], bucket);
     }
 
-    const quarters: Quarter[] = [...calendar.entries()].map(([end, { fy, fp }]) => ({
-        fy,
-        fp,
-        label: `FY${fy} ${fp}`,
-        end,
-    }));
+    // The fiscal year a quarter is LABELLED with has to be the one it rolls
+    // into, not the one stamped on the fact.
+    //
+    // Those agree on a 10-Q and can disagree on a 6-K, where a foreign issuer
+    // may stamp a comparative period with the year of the filing rather than
+    // the year the period belongs to. The bucketing below already derives the
+    // year from the company's own fiscal closes, so taking the stamp here put
+    // a quarter under one year in the rail and under a different one in the
+    // Q4 residual that nets it off. Deriving both the same way is the only
+    // version where the label and the arithmetic agree.
+    const derivedYear = new Map<string, number>();
+    for (const [year, bucket] of byYear) {
+        for (const end of bucket.values()) derivedYear.set(end, year);
+    }
+    const quarters: Quarter[] = [...calendar.entries()].flatMap(([end, { fp }]) => {
+        const fy = derivedYear.get(end);
+        // A quarter that rolls into no known fiscal close cannot be labelled,
+        // and an unlabelled column is not worth guessing at.
+        if (fy === undefined) return [];
+        return [{ fy, fp, label: `FY${fy} ${fp}`, end }];
+    });
 
     /** Q4 end date -> the annual figure to start from and the quarters to net off. */
     const residuals = new Map<string, { year: number; parts: string[] }>();
@@ -604,11 +645,8 @@ function quarterlyReport(
         const close = closes.get(year);
         const parts = (["Q1", "Q2", "Q3"] as const).map((fp) => bucket.get(fp));
         if (!close || parts.some((end) => end === undefined)) continue;
-        // The company's own year label, carried over from its own third quarter.
-        const fy = calendar.get(bucket.get("Q3") as string)?.fy;
-        if (fy === undefined) continue;
         residuals.set(close, { year, parts: parts as string[] });
-        quarters.push({ fy, fp: "Q4", label: `FY${fy} Q4`, end: close });
+        quarters.push({ fy: year, fp: "Q4", label: `FY${year} Q4`, end: close });
     }
 
     quarters.sort((a, b) => (a.end < b.end ? -1 : 1));
