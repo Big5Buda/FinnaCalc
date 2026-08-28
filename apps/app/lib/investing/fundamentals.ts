@@ -362,6 +362,8 @@ export function fundamentalsFrom(doc: any, price: number | null, now: Date = new
     // growth, divide same-currency figures and are unaffected.
     const currency = reportingCurrency(gaap)
     const comparableToPrice = currency === "USD"
+
+    return {
         sharesOutstanding: shares?.value ?? null,
         sharesAsOf: shares?.asOf ?? null,
         marketCap: shares && usablePrice ? shares.value * usablePrice : null,
