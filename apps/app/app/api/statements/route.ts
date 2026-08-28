@@ -613,12 +613,54 @@ function quarterlyReport(
 
     quarters.sort((a, b) => (a.end < b.end ? -1 : 1));
 
+    const nothing = () => ({
+        quarters: [] as Quarter[],
+        quarterlyStatements: [] as QuarterlyStatement[],
+    });
+
+    // A rail has to be an unbroken RUN of quarters, not a scatter.
+    //
+    // Admitting 6-K on form alone lets in the half-year filers, and this is
+    // what catches them. A company that tags XBRL only in its interim report
+    // contributes the single quarter that report happens to carry, so the
+    // rail becomes Q2, once a year, drawn as adjacent columns. Unilever
+    // reports half-yearly and would otherwise appear in a quarterly rail.
+    // Vale's read FY2020 Q2, FY2021 Q2, FY2024 Q2, FY2025 Q2: a three year
+    // hole drawn as neighbours. BP, Petrobras and BCE are the same shape.
+    //
+    // It also protects a company that already works. Brookfield returns six
+    // contiguous quarters and on form alone gained two orphans from the
+    // pre-restructuring entity, which is not the same reporter: the rail
+    // then carried an EPS row with a single value in it and cash of twelve
+    // million beside sixteen hundred million.
+    //
+    // Two rules, and the first has to be a GAP test rather than a count per
+    // fiscal year. Counting per year looked equivalent and quietly cost
+    // Apple and Microsoft their oldest quarter, because the five year window
+    // cuts their run mid-year and that year then has one quarter in it.
+    // Walking back from the newest and stopping at the first hole keeps a
+    // real run whole and drops anything marooned before it.
+    const gapDays = 200;
+    const runQuarters: Quarter[] = [];
+    for (let i = quarters.length - 1; i >= 0; i--) {
+        const next = runQuarters[0];
+        if (next && daysBetween(quarters[i].end, next.end) > gapDays) break;
+        runQuarters.unshift(quarters[i]);
+    }
+    // And a run of one quarter a year is not a quarterly rail at all, however
+    // unbroken the survivor looks once the holes are cut out.
+    const perYear = new Map<number, number>();
+    for (const quarter of runQuarters) {
+        perYear.set(quarter.fy, (perYear.get(quarter.fy) ?? 0) + 1);
+    }
+    if (![...perYear.values()].some((n) => n >= 3)) return nothing();
+
     // Quarters that stop long before the company's own newest reported figure
     // are history, not the current shape of the business, and a rail of them
     // beside a current annual table reads as though the data were fresh.
     // Canadian National is the live case: admitting 6-K brings back quarters
     // that end in 2009 for a company still reporting today.
-    const newestQuarter = quarters[quarters.length - 1]?.end ?? "";
+    const newestQuarter = runQuarters[runQuarters.length - 1]?.end ?? "";
     let newestReported = "";
     for (const tag of durationTags) {
         if (!facts[tag]) continue;
@@ -627,17 +669,17 @@ function quarterlyReport(
         }
     }
     if (!newestQuarter || daysBetween(newestQuarter, newestReported) > QUARTER_STALE_DAYS) {
-        return { quarters: [] as Quarter[], quarterlyStatements: [] as QuarterlyStatement[] };
+        return nothing();
     }
 
     // Whole fiscal years, newest first, then filtered in place so the values
     // arrays stay in the chronological order the annual keys use.
-    const orderedYears = [...new Set(quarters.map((quarter) => quarter.fy))].sort((a, b) => b - a);
+    const orderedYears = [...new Set(runQuarters.map((quarter) => quarter.fy))].sort((a, b) => b - a);
     const keptYears = new Set(orderedYears.slice(0, QUARTER_YEARS));
-    const shown = quarters.filter((quarter) => keptYears.has(quarter.fy));
+    const shown = runQuarters.filter((quarter) => keptYears.has(quarter.fy));
     // Every quarter, not just the ones shown: an old Q4 at the top of the
     // window still nets off three quarters that fall outside it.
-    const known = new Set(quarters.map((quarter) => quarter.end));
+    const known = new Set(runQuarters.map((quarter) => quarter.end));
 
     const flowRows = flows.map(([label, tags]) => {
         const filed = quarterSeries(facts, tags, known, currency);
