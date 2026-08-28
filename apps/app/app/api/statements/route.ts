@@ -176,10 +176,19 @@ type Fact = {
 const CURRENCY_KEY = /^[A-Z]{3}$/;
 const PER_SHARE_KEY = /^[A-Z]{3}\/shares$/;
 
-function unitsOf(node: any): Fact[] {
+function unitsOf(node: any, currency?: string): Fact[] {
     const units = (node?.units ?? {}) as Record<string, Fact[]>;
     const keys = Object.keys(units);
     if (!keys.length) return [];
+    // The document's own currency first, wherever the caller knows it.
+    // Deciding per tag instead would mix two currencies inside one table:
+    // Alibaba and NIO tag most lines in CNY and publish a USD convenience
+    // translation beside them, so "whichever list is longer" can answer CNY
+    // for revenue and USD for the line under it.
+    if (currency) {
+        if (units[currency]) return units[currency];
+        if (units[`${currency}/shares`]) return units[`${currency}/shares`];
+    }
     const longest = (list: string[]) =>
         list.sort((a, b) => units[b].length - units[a].length)[0];
     const money = keys.filter((k) => CURRENCY_KEY.test(k));
@@ -234,9 +243,9 @@ function isAnnualForm(u: Fact): boolean {
 }
 
 /** The month a company closes its books, read off its own annual balances. */
-function fiscalYearEndMonth(facts: Record<string, any>): number {
+function fiscalYearEndMonth(facts: Record<string, any>, currency: string): number {
     for (const tag of ["Assets", "StockholdersEquity", "Liabilities"]) {
-        const months = unitsOf(facts[tag])
+        const months = unitsOf(facts[tag], currency)
             .filter((u) => isAnnualForm(u) && u.fp === "FY")
             .map((u) => Number(u.end.slice(5, 7)));
         if (months.length) {
@@ -266,12 +275,12 @@ function fiscalYear(end: string, fyeMonth: number): number {
 }
 
 /** Annual values by fiscal year, merged across tags; newest filing wins. */
-function series(facts: Record<string, any>, tags: string[], fyeMonth: number) {
+function series(facts: Record<string, any>, tags: string[], fyeMonth: number, currency: string) {
     const merged = new Map<number, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<number, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (!isAnnualForm(u)) continue;
             if (u.start) {
                 // A duration fact must cover the year, not a quarter inside it.
@@ -412,11 +421,11 @@ function daysBetween(start: string, end: string): number {
  * quarters rolls up into, and the date the year ended on, which is Q4's own
  * end date. Both are read off the filings rather than guessed from a month.
  */
-function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: number) {
+function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: number, currency: string) {
     const closes = new Map<number, string>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (!isAnnualForm(u) || !u.start) continue;
             if (daysBetween(u.start, u.end) < 330) continue;
             const fy = fiscalYear(u.end, fyeMonth);
@@ -442,12 +451,12 @@ function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: nu
  * current period exactly once, so one pass over the filings names them all,
  * and the comparatives inherit by end date.
  */
-function quarterCalendar(facts: Record<string, any>, tags: string[]) {
+function quarterCalendar(facts: Record<string, any>, tags: string[], currency: string) {
     // Accession -> the newest quarter it reports, i.e. the one it is about.
     const current = new Map<string, Fact>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.form !== "10-Q" || !u.start || !u.accn) continue;
             if (typeof u.fy !== "number") continue;
             if (u.fp !== "Q1" && u.fp !== "Q2" && u.fp !== "Q3") continue;
@@ -470,12 +479,12 @@ function quarterCalendar(facts: Record<string, any>, tags: string[]) {
 }
 
 /** Discrete quarterly values by period end, merged across tags; newest filing wins. */
-function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<string>) {
+function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<string>, currency: string) {
     const merged = new Map<string, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<string, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.form !== "10-Q" || !u.start || !ends.has(u.end)) continue;
             if (daysBetween(u.start, u.end) > QUARTER_MAX_DAYS) continue;
             const prev = best.get(u.end);
@@ -487,12 +496,12 @@ function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<str
 }
 
 /** Balances by date: instants (no `start`), read at the date and never differenced. */
-function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<string>) {
+function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<string>, currency: string) {
     const merged = new Map<string, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<string, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.start || !ends.has(u.end)) continue;
             const prev = best.get(u.end);
             if (!prev || (u.filed ?? "") > (prev.filed ?? "")) best.set(u.end, u);
@@ -511,10 +520,10 @@ function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<str
  * three quarters are present. A residual against a missing input is not a
  * quarter, it's a guess, so the cell stays null instead.
  */
-function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
+function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency: string) {
     const durationTags = [...QUARTERLY_FLOWS, ...QUARTERLY_RATIOS].flatMap(([, tags]) => tags);
-    const calendar = quarterCalendar(facts, durationTags);
-    const closes = fiscalYearEnds(facts, durationTags, fyeMonth);
+    const calendar = quarterCalendar(facts, durationTags, currency);
+    const closes = fiscalYearEnds(facts, durationTags, fyeMonth, currency);
 
     // A quarter belongs to the fiscal year whose books close next. That holds
     // for any closing month without consulting the calendar: Apple's quarter
@@ -560,7 +569,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     const known = new Set(quarters.map((quarter) => quarter.end));
 
     const flowRows = QUARTERLY_FLOWS.map(([label, tags]) => {
-        const filed = quarterSeries(facts, tags, known);
+        const filed = quarterSeries(facts, tags, known, currency);
         const annual = series(facts, tags, fyeMonth);
         return {
             label,
@@ -583,7 +592,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     });
 
     const ratioRows = QUARTERLY_RATIOS.map(([label, tags]) => {
-        const filed = quarterSeries(facts, tags, known);
+        const filed = quarterSeries(facts, tags, known, currency);
         // Deliberately no Q4 here. See the note above QUARTERLY_RATIOS.
         return {
             label,
@@ -594,7 +603,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     });
 
     const instantRows = QUARTERLY_INSTANTS.map(([label, tags]) => {
-        const balances = instantSeries(facts, tags, known);
+        const balances = instantSeries(facts, tags, known, currency);
         return { label, values: shown.map((quarter) => balances.get(quarter.end) ?? null) };
     });
 
@@ -636,8 +645,8 @@ const empty = (symbol: string, report: SourceReport) =>
  *
  * Presence alone is not enough. Toyota and Sony carry both taxonomies,
  * because both moved to IFRS and their old us-gaap tags stayed in the
- * document: Toyota's newest us-gaap balance sheet ends in 2013 and Sony's in
- * 2021, while both file IFRS to this day. "Prefer us-gaap when present" would
+ * document: Toyota's newest us-gaap annual fact ends 2020-03-31 and Sony's
+ * 2021-03-31, while both file IFRS to this day. "Prefer us-gaap when present" would
  * put a twelve-year-old year at the head of Toyota's table and label it the
  * latest. So the newest annual fact wins, and ties go to us-gaap because
  * that is the larger and better-tested path here.
@@ -692,7 +701,7 @@ export async function GET(req: NextRequest) {
     const facts = taxonomy.facts;
     const currency = reportingCurrency(facts);
 
-    const fyeMonth = fiscalYearEndMonth(facts);
+    const fyeMonth = fiscalYearEndMonth(facts, currency);
     const built = [
         { name: "Income statement", rows: taxonomy.income },
         { name: "Balance sheet", rows: taxonomy.balance },
@@ -701,7 +710,7 @@ export async function GET(req: NextRequest) {
         name: statement.name,
         rows: statement.rows.map(([label, tags]) => ({
             label,
-            data: series(facts, tags, fyeMonth),
+            data: series(facts, tags, fyeMonth, currency),
         })),
     }));
 
@@ -722,7 +731,7 @@ export async function GET(req: NextRequest) {
         // statement with nothing in it is dropped rather than shown empty.
         .filter((statement) => statement.rows.length > 0);
 
-    const { quarters, quarterlyStatements } = quarterlyReport(facts, fyeMonth);
+    const { quarters, quarterlyStatements } = quarterlyReport(facts, fyeMonth, currency);
 
     return NextResponse.json({
         symbol,
