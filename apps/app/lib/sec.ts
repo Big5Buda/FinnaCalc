@@ -128,7 +128,7 @@ export async function cikFor(symbol: string): Promise<SecResult<string>> {
     if (!hit) {
         return {
             status: "no-data",
-            reason: `${symbol} doesn't file with the SEC — most ETFs and foreign listings don't.`,
+            reason: `${symbol} isn't in the SEC's ticker-to-company map, so we can't look up its filings.`,
         }
     }
     return { status: "ok", data: String(hit.cik_str).padStart(10, "0") }

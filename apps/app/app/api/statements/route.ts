@@ -82,6 +82,73 @@ const CASHFLOW: Row[] = [
     ["Share buybacks", ["PaymentsForRepurchaseOfCommonStock"]],
 ];
 
+/**
+ * The same three statements, tagged the way a company reporting under IFRS
+ * tags them.
+ *
+ * A foreign private issuer publishes ifrs-full tags, not us-gaap ones, so
+ * every lookup in the lists above finds nothing for it. That is not a gap in
+ * what the SEC holds. Spotify's company facts carry ten full years of
+ * revenue, cost of sales, gross profit, R&D, operating profit, net income,
+ * diluted EPS, the balance sheet and all three cash flows, every one of them
+ * filed on a 20-F. They are simply under different names.
+ *
+ * Rows a filer does not tag are dropped by the existing all-null filter, the
+ * same way a bank drops gross profit under us-gaap.
+ */
+const IFRS_INCOME: Row[] = [
+    ["Revenue", [
+        "Revenue",
+        "RevenueFromContractsWithCustomers",
+        "RevenueFromSaleOfGoods",
+        "RevenueFromRenderingOfServices",
+    ]],
+    ["Cost of revenue", ["CostOfSales", "CostOfMerchandiseSold"]],
+    ["Gross profit", ["GrossProfit"]],
+    ["Research & development", ["ResearchAndDevelopmentExpense"]],
+    ["Selling, general & admin", [
+        "SellingGeneralAndAdministrativeExpense",
+        "AdministrativeExpense",
+        "GeneralAndAdministrativeExpense",
+    ]],
+    ["Operating income", ["ProfitLossFromOperatingActivities", "OperatingIncomeLoss"]],
+    ["Pretax income", ["ProfitLossBeforeTax"]],
+    ["Income tax", ["IncomeTaxExpenseContinuingOperations"]],
+    ["Net income", ["ProfitLoss", "ProfitLossAttributableToOwnersOfParent"]],
+    ["Earnings per share (diluted)", ["DilutedEarningsLossPerShare"]],
+];
+
+const IFRS_BALANCE: Row[] = [
+    ["Cash & equivalents", ["CashAndCashEquivalents"]],
+    ["Total current assets", ["CurrentAssets"]],
+    ["Total assets", ["Assets"]],
+    ["Total current liabilities", ["CurrentLiabilities"]],
+    ["Long-term debt", [
+        "NoncurrentPortionOfNoncurrentBorrowings",
+        "LongtermBorrowings",
+        "NoncurrentBorrowings",
+    ]],
+    ["Total liabilities", ["Liabilities"]],
+    ["Shareholders equity", ["EquityAttributableToOwnersOfParent", "Equity"]],
+];
+
+const IFRS_CASHFLOW: Row[] = [
+    ["Operating cash flow", ["CashFlowsFromUsedInOperatingActivities"]],
+    ["Capital expenditure", [
+        "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
+    ]],
+    ["Investing cash flow", ["CashFlowsFromUsedInInvestingActivities"]],
+    ["Financing cash flow", ["CashFlowsFromUsedInFinancingActivities"]],
+    ["Dividends paid", [
+        "DividendsPaidClassifiedAsFinancingActivities",
+        "DividendsPaidToEquityHoldersOfParentClassifiedAsFinancingActivities",
+    ]],
+    ["Share buybacks", [
+        "PaymentsToAcquireOrRedeemEntitysShares",
+        "PurchaseOfTreasuryShares",
+    ]],
+];
+
 type Fact = {
     start?: string;
     end: string;
@@ -93,25 +160,92 @@ type Fact = {
     accn?: string;
 };
 
-function unitsOf(node: any): Fact[] {
+/**
+ * The facts for one tag, in the currency the company actually reports in.
+ *
+ * It used to name USD outright. That is right for a domestic filer and wrong
+ * for the 20-F and 40-F crowd: Spotify reports in EUR, Sony in JPY, Canadian
+ * National in CAD, and none of them has a USD key at all, so every lookup fell
+ * through to "whichever list is longest" and worked by luck.
+ *
+ * Preferring a currency unit still does the job the old code was written for.
+ * Walmart's diluted EPS carries three stray `pure` facts ahead of its 300-odd
+ * real ones; `USD/shares` is a per-share currency key and `pure` is not, so
+ * the real ones still win.
+ */
+const CURRENCY_KEY = /^[A-Z]{3}$/;
+const PER_SHARE_KEY = /^[A-Z]{3}\/shares$/;
+
+function unitsOf(node: any, currency?: string): Fact[] {
     const units = (node?.units ?? {}) as Record<string, Fact[]>;
-    // Money is USD and per-share lines are USD/shares. Naming them beats taking
-    // whichever key the JSON happened to list first: Walmart's diluted EPS
-    // carries three stray `pure` facts ahead of its 300-odd real ones, and
-    // first-key-wins reads the three.
-    const preferred = units.USD ?? units["USD/shares"];
-    if (preferred) return preferred;
+    const keys = Object.keys(units);
+    if (!keys.length) return [];
+    // The document's own currency first, wherever the caller knows it.
+    // Deciding per tag instead would mix two currencies inside one table:
+    // Alibaba and NIO tag most lines in CNY and publish a USD convenience
+    // translation beside them, so "whichever list is longer" can answer CNY
+    // for revenue and USD for the line under it.
+    if (currency) {
+        if (units[currency]) return units[currency];
+        if (units[`${currency}/shares`]) return units[`${currency}/shares`];
+    }
+    const longest = (list: string[]) =>
+        list.sort((a, b) => units[b].length - units[a].length)[0];
+    const money = keys.filter((k) => CURRENCY_KEY.test(k));
+    if (money.length) return units[longest(money)];
+    const perShare = keys.filter((k) => PER_SHARE_KEY.test(k));
+    if (perShare.length) return units[longest(perShare)];
     return Object.values(units).sort((a, b) => b.length - a.length)[0] ?? [];
 }
 
+/**
+ * The three-letter code the statements are denominated in.
+ *
+ * Read off the tags most companies report rather than assumed, and sent to
+ * the client so a table of euros is never drawn with a dollar sign on it.
+ * Falls back to USD only when nothing monetary is tagged at all.
+ */
+function reportingCurrency(facts: Record<string, any>): string {
+    const tally = new Map<string, number>();
+    for (const tag of ["Assets", "Revenue", "Revenues", "Liabilities", "Equity",
+                       "StockholdersEquity", "ProfitLoss", "NetIncomeLoss"]) {
+        const units = (facts[tag]?.units ?? {}) as Record<string, Fact[]>;
+        for (const [key, list] of Object.entries(units)) {
+            if (!CURRENCY_KEY.test(key)) continue;
+            tally.set(key, (tally.get(key) ?? 0) + list.length);
+        }
+    }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "USD";
+}
+
+/**
+ * The annual report forms, and their amendments.
+ *
+ * 10-K is the US domestic filer. 20-F is the foreign private issuer, which is
+ * Spotify, ASML and Toyota. 40-F is the Canadian MJDS filer, which is Royal
+ * Bank and Canadian National. All three are the same document for this
+ * purpose: one audited year. Leaving 40-F out cost Shopify its entire revenue
+ * history, every one of whose twelve annual facts is tagged under a 40-F.
+ *
+ * Amendments count. `series` resolves a period by filing date, so a 20-F/A
+ * restating a year displaces the 20-F it amends, which is the right answer.
+ * Excluding them was never a safeguard; it just dropped restated years.
+ *
+ * 6-K is deliberately absent. It is the foreign issuer's interim report and
+ * carries part-years, and this decides what a WHOLE year is.
+ */
+const ANNUAL_FORMS = new Set([
+    "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A",
+]);
+
 function isAnnualForm(u: Fact): boolean {
-    return u.form === "10-K" || u.form === "20-F";
+    return u.form !== undefined && ANNUAL_FORMS.has(u.form);
 }
 
 /** The month a company closes its books, read off its own annual balances. */
-function fiscalYearEndMonth(facts: Record<string, any>): number {
+function fiscalYearEndMonth(facts: Record<string, any>, currency: string): number {
     for (const tag of ["Assets", "StockholdersEquity", "Liabilities"]) {
-        const months = unitsOf(facts[tag])
+        const months = unitsOf(facts[tag], currency)
             .filter((u) => isAnnualForm(u) && u.fp === "FY")
             .map((u) => Number(u.end.slice(5, 7)));
         if (months.length) {
@@ -141,12 +275,12 @@ function fiscalYear(end: string, fyeMonth: number): number {
 }
 
 /** Annual values by fiscal year, merged across tags; newest filing wins. */
-function series(facts: Record<string, any>, tags: string[], fyeMonth: number) {
+function series(facts: Record<string, any>, tags: string[], fyeMonth: number, currency: string) {
     const merged = new Map<number, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<number, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (!isAnnualForm(u)) continue;
             if (u.start) {
                 // A duration fact must cover the year, not a quarter inside it.
@@ -287,11 +421,11 @@ function daysBetween(start: string, end: string): number {
  * quarters rolls up into, and the date the year ended on, which is Q4's own
  * end date. Both are read off the filings rather than guessed from a month.
  */
-function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: number) {
+function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: number, currency: string) {
     const closes = new Map<number, string>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (!isAnnualForm(u) || !u.start) continue;
             if (daysBetween(u.start, u.end) < 330) continue;
             const fy = fiscalYear(u.end, fyeMonth);
@@ -317,12 +451,12 @@ function fiscalYearEnds(facts: Record<string, any>, tags: string[], fyeMonth: nu
  * current period exactly once, so one pass over the filings names them all,
  * and the comparatives inherit by end date.
  */
-function quarterCalendar(facts: Record<string, any>, tags: string[]) {
+function quarterCalendar(facts: Record<string, any>, tags: string[], currency: string) {
     // Accession -> the newest quarter it reports, i.e. the one it is about.
     const current = new Map<string, Fact>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.form !== "10-Q" || !u.start || !u.accn) continue;
             if (typeof u.fy !== "number") continue;
             if (u.fp !== "Q1" && u.fp !== "Q2" && u.fp !== "Q3") continue;
@@ -345,12 +479,12 @@ function quarterCalendar(facts: Record<string, any>, tags: string[]) {
 }
 
 /** Discrete quarterly values by period end, merged across tags; newest filing wins. */
-function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<string>) {
+function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<string>, currency: string) {
     const merged = new Map<string, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<string, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.form !== "10-Q" || !u.start || !ends.has(u.end)) continue;
             if (daysBetween(u.start, u.end) > QUARTER_MAX_DAYS) continue;
             const prev = best.get(u.end);
@@ -362,12 +496,12 @@ function quarterSeries(facts: Record<string, any>, tags: string[], ends: Set<str
 }
 
 /** Balances by date: instants (no `start`), read at the date and never differenced. */
-function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<string>) {
+function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<string>, currency: string) {
     const merged = new Map<string, number>();
     for (const tag of tags) {
         if (!facts[tag]) continue;
         const best = new Map<string, Fact>();
-        for (const u of unitsOf(facts[tag])) {
+        for (const u of unitsOf(facts[tag], currency)) {
             if (u.start || !ends.has(u.end)) continue;
             const prev = best.get(u.end);
             if (!prev || (u.filed ?? "") > (prev.filed ?? "")) best.set(u.end, u);
@@ -386,10 +520,10 @@ function instantSeries(facts: Record<string, any>, tags: string[], ends: Set<str
  * three quarters are present. A residual against a missing input is not a
  * quarter, it's a guess, so the cell stays null instead.
  */
-function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
+function quarterlyReport(facts: Record<string, any>, fyeMonth: number, currency: string) {
     const durationTags = [...QUARTERLY_FLOWS, ...QUARTERLY_RATIOS].flatMap(([, tags]) => tags);
-    const calendar = quarterCalendar(facts, durationTags);
-    const closes = fiscalYearEnds(facts, durationTags, fyeMonth);
+    const calendar = quarterCalendar(facts, durationTags, currency);
+    const closes = fiscalYearEnds(facts, durationTags, fyeMonth, currency);
 
     // A quarter belongs to the fiscal year whose books close next. That holds
     // for any closing month without consulting the calendar: Apple's quarter
@@ -435,7 +569,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     const known = new Set(quarters.map((quarter) => quarter.end));
 
     const flowRows = QUARTERLY_FLOWS.map(([label, tags]) => {
-        const filed = quarterSeries(facts, tags, known);
+        const filed = quarterSeries(facts, tags, known, currency);
         const annual = series(facts, tags, fyeMonth);
         return {
             label,
@@ -458,7 +592,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     });
 
     const ratioRows = QUARTERLY_RATIOS.map(([label, tags]) => {
-        const filed = quarterSeries(facts, tags, known);
+        const filed = quarterSeries(facts, tags, known, currency);
         // Deliberately no Q4 here. See the note above QUARTERLY_RATIOS.
         return {
             label,
@@ -469,7 +603,7 @@ function quarterlyReport(facts: Record<string, any>, fyeMonth: number) {
     });
 
     const instantRows = QUARTERLY_INSTANTS.map(([label, tags]) => {
-        const balances = instantSeries(facts, tags, known);
+        const balances = instantSeries(facts, tags, known, currency);
         return { label, values: shown.map((quarter) => balances.get(quarter.end) ?? null) };
     });
 
@@ -505,6 +639,42 @@ const empty = (symbol: string, report: SourceReport) =>
         ...report,
     });
 
+/**
+ * Which set of books to build from, chosen by which one is CURRENT rather
+ * than by which one exists.
+ *
+ * Presence alone is not enough. Toyota and Sony carry both taxonomies,
+ * because both moved to IFRS and their old us-gaap tags stayed in the
+ * document: Toyota's newest us-gaap annual fact ends 2020-03-31 and Sony's
+ * 2021-03-31, while both file IFRS to this day. "Prefer us-gaap when present" would
+ * put a twelve-year-old year at the head of Toyota's table and label it the
+ * latest. So the newest annual fact wins, and ties go to us-gaap because
+ * that is the larger and better-tested path here.
+ */
+function pickTaxonomy(doc: any) {
+    const candidates = [
+        { name: "us-gaap", facts: doc?.facts?.["us-gaap"],
+          income: INCOME, balance: BALANCE, cashflow: CASHFLOW },
+        { name: "ifrs-full", facts: doc?.facts?.["ifrs-full"],
+          income: IFRS_INCOME, balance: IFRS_BALANCE, cashflow: IFRS_CASHFLOW },
+    ].filter((c) => c.facts);
+    if (!candidates.length) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    const newest = (facts: Record<string, any>) => {
+        let end = "";
+        for (const tag of ["Assets", "Liabilities", "Equity", "StockholdersEquity",
+                           "Revenue", "Revenues", "ProfitLoss", "NetIncomeLoss"]) {
+            for (const u of unitsOf(facts[tag])) {
+                if (isAnnualForm(u) && u.end > end) end = u.end;
+            }
+        }
+        return end;
+    };
+    const [a, b] = candidates;
+    return newest(b.facts) > newest(a.facts) ? b : a;
+}
+
 export async function GET(req: NextRequest) {
     const symbol = (req.nextUrl.searchParams.get("symbol") ?? "").toUpperCase().trim();
     if (!symbol) {
@@ -521,24 +691,26 @@ export async function GET(req: NextRequest) {
     if (companyFacts.status !== "ok") return empty(symbol, reportOf(companyFacts));
 
     const doc = companyFacts.data;
-    const facts = doc?.facts?.["us-gaap"];
-    if (!facts) {
+    const taxonomy = pickTaxonomy(doc);
+    if (!taxonomy) {
         return empty(symbol, {
             status: "no-data",
-            reason: `${symbol} files with the SEC but doesn't tag its statements in US GAAP.`,
+            reason: `${symbol} files with the SEC but doesn't tag its statements in a taxonomy we read.`,
         });
     }
+    const facts = taxonomy.facts;
+    const currency = reportingCurrency(facts);
 
-    const fyeMonth = fiscalYearEndMonth(facts);
+    const fyeMonth = fiscalYearEndMonth(facts, currency);
     const built = [
-        { name: "Income statement", rows: INCOME },
-        { name: "Balance sheet", rows: BALANCE },
-        { name: "Cash flow", rows: CASHFLOW },
+        { name: "Income statement", rows: taxonomy.income },
+        { name: "Balance sheet", rows: taxonomy.balance },
+        { name: "Cash flow", rows: taxonomy.cashflow },
     ].map((statement) => ({
         name: statement.name,
         rows: statement.rows.map(([label, tags]) => ({
             label,
-            data: series(facts, tags, fyeMonth),
+            data: series(facts, tags, fyeMonth, currency),
         })),
     }));
 
@@ -559,13 +731,18 @@ export async function GET(req: NextRequest) {
         // statement with nothing in it is dropped rather than shown empty.
         .filter((statement) => statement.rows.length > 0);
 
-    const { quarters, quarterlyStatements } = quarterlyReport(facts, fyeMonth);
+    const { quarters, quarterlyStatements } = quarterlyReport(facts, fyeMonth, currency);
 
     return NextResponse.json({
         symbol,
         companyName: doc.entityName ?? symbol,
         cik: cik.data,
         fiscalYearEndMonth: fyeMonth,
+        // What the numbers are denominated in, and which book they come from.
+        // Both are facts about the filing, and a client that draws a currency
+        // symbol needs the first one to avoid printing euros as dollars.
+        currency,
+        taxonomy: taxonomy.name,
         years,
         statements,
         quarters,
