@@ -112,16 +112,53 @@ const DIVIDEND_PER_SHARE_TAGS = [
  *  is inflated by options and convertibles; it is never a market-cap input. */
 const SHARE_COUNT_TAGS = ["CommonStockSharesOutstanding"]
 
-/** The USD or per-share facts for one tag, never whichever unit came first. */
+/** The money or per-share facts for one tag, never whichever unit came first. */
+const CURRENCY_KEY = /^[A-Z]{3}$/
+const PER_SHARE_KEY = /^[A-Z]{3}\/shares$/
+
 function unitsOf(node: any): Fact[] {
     const units = (node?.units ?? {}) as Record<string, Fact[]>
-    const preferred = units.USD ?? units["USD/shares"] ?? units.shares
-    if (preferred) return preferred
+    const keys = Object.keys(units)
+    if (!keys.length) return []
+    const longest = (list: string[]) => list.sort((a, b) => units[b].length - units[a].length)[0]
+    const money = keys.filter((k) => CURRENCY_KEY.test(k))
+    if (money.length) return units[longest(money)]
+    const perShare = keys.filter((k) => PER_SHARE_KEY.test(k))
+    if (perShare.length) return units[longest(perShare)]
+    if (units.shares) return units.shares
     return Object.values(units).sort((a, b) => b.length - a.length)[0] ?? []
 }
 
+/**
+ * The currency the filer reports in.
+ *
+ * It matters because `price` is US dollars off a US exchange, and half the
+ * figures below divide one by the other. ASML files us-gaap tags in EUROS:
+ * its EPS is euros, its price is dollars, and price divided by EPS was
+ * printing a P/E wrong by the whole exchange rate.
+ */
+function reportingCurrency(facts: Record<string, any>): string {
+    const tally = new Map<string, number>()
+    for (const tag of ["Assets", "Revenues", "Liabilities", "StockholdersEquity",
+                       "NetIncomeLoss", "ProfitLoss"]) {
+        const units = (facts[tag]?.units ?? {}) as Record<string, Fact[]>
+        for (const [key, list] of Object.entries(units)) {
+            if (!CURRENCY_KEY.test(key)) continue
+            tally.set(key, (tally.get(key) ?? 0) + list.length)
+        }
+    }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "USD"
+}
+
+/**
+ * Every annual report form, and their amendments. 10-K is the domestic filer,
+ * 20-F the foreign private issuer, 40-F the Canadian MJDS filer. Amendments
+ * count because a restated year should displace the one it restates.
+ */
+const ANNUAL_FORMS = new Set(["10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"])
+
 function isAnnualForm(u: Fact): boolean {
-    return u.form === "10-K" || u.form === "20-F"
+    return u.form !== undefined && ANNUAL_FORMS.has(u.form)
 }
 
 /** Whole months a duration fact covers. */
@@ -318,14 +355,26 @@ export function fundamentalsFrom(doc: any, price: number | null, now: Date = new
 
     const usablePrice = price !== null && Number.isFinite(price) && price > 0 ? price : null
 
-    return {
+    // A filer reporting in its own currency cannot be divided by a US dollar
+    // price. The ratios below that mix the two are withheld rather than
+    // printed wrong: ASML's P/E was out by the whole EUR/USD rate, roughly
+    // 15%, and its dividend yield with it. The pure ratios, margins and
+    // growth, divide same-currency figures and are unaffected.
+    const currency = reportingCurrency(gaap)
+    const comparableToPrice = currency === "USD"
         sharesOutstanding: shares?.value ?? null,
         sharesAsOf: shares?.asOf ?? null,
         marketCap: shares && usablePrice ? shares.value * usablePrice : null,
-        epsTTM,
+        // Withheld rather than mislabelled when it is not in dollars: every
+        // reader of this field, the Key Stats row and the portfolio's
+        // "earnings behind your shares", treats it as dollars per share.
+        epsTTM: comparableToPrice ? epsTTM : null,
         // A negative or zero EPS has no meaningful price-to-earnings multiple;
         // the convention everywhere is to omit it rather than print a negative.
-        peRatio: usablePrice && epsTTM !== null && epsTTM > 0 ? usablePrice / epsTTM : null,
+        peRatio:
+            comparableToPrice && usablePrice && epsTTM !== null && epsTTM > 0
+                ? usablePrice / epsTTM
+                : null,
         netMargin: ratio(netIncomeSameYear, latestRevenue),
         grossMargin: ratio(grossProfitSameYear, latestRevenue),
         revenueGrowth:
@@ -333,10 +382,10 @@ export function fundamentalsFrom(doc: any, price: number | null, now: Date = new
                 ? (latestRevenue / priorRevenue - 1) * 100
                 : null,
         dividendYield:
-            usablePrice && dividendsTTM !== null && dividendsTTM > 0
+            comparableToPrice && usablePrice && dividendsTTM !== null && dividendsTTM > 0
                 ? (dividendsTTM / usablePrice) * 100
                 : null,
-        dividendsPerShareTTM: dividendsTTM,
+        dividendsPerShareTTM: comparableToPrice ? dividendsTTM : null,
         fiscalYear: latestYearEnd ? Number(latestYearEnd.slice(0, 4)) : null,
     }
 }
