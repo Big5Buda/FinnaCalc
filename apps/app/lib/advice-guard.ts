@@ -105,6 +105,20 @@ function mentionsTicker(sentence: string): boolean {
     return false
 }
 
+/** Ticker-shaped tokens in a text, upper-cased, deduplicated, sorted — the
+ *  same test mentionsTicker applies, line by line so a shouted heading yields
+ *  nothing. This is what the transcript store indexes on. */
+export function extractSymbols(text: string): string[] {
+    const found = new Set<string>()
+    for (const line of text.split("\n")) {
+        if (!/[a-z]/.test(line)) continue
+        for (const m of line.matchAll(/\b[A-Z]{2,5}\b/g)) {
+            if (!NOT_A_TICKER.has(m[0])) found.add(m[0])
+        }
+    }
+    return [...found].sort()
+}
+
 function hasSecuritiesContext(parts: Array<string | null>, mode: GuardMode): boolean {
     const nouns = mode === "budget" ? SEC_NOUN_BUDGET : SEC_NOUN_SECURITIES
     // Each part is judged on its own: a shouted heading concatenated with an
@@ -238,17 +252,31 @@ export function screenText(text: string, mode: GuardMode): ScreenResult {
     return { text: result, removed }
 }
 
+export type GuardFinish = {
+    /** Everything the model produced, before screening. */
+    full: string
+    /** What the reader was sent, after screening — without the tail. */
+    shown: string
+    /** The tail that followed it, or "". */
+    tail: string
+    removed: Removal[]
+    error: unknown
+}
+
 export type GuardStreamOptions = {
     mode: GuardMode
     /** "line": screen and emit each line as it completes — for long reports.
      *  "whole": buffer the answer, screen once, emit once — for short answers,
      *  and the only setting where a rule can see the whole answer at once. */
     granularity: "line" | "whole"
-    /** Called once the source is exhausted, before the stream closes. */
-    onFinish?: (info: { full: string; removed: Removal[]; error: unknown }) => void
+    /** Called once everything has been emitted, before the stream closes.
+     *  Awaited on purpose: a route that records the answer needs the write to
+     *  settle before the response ends — on a serverless host, work left
+     *  running after the response is not guaranteed to finish. */
+    onFinish?: (info: GuardFinish) => void | Promise<void>
     /** Text to append after the screened answer (an error explanation, a
      *  truncation notice). Emitted even when the source threw. */
-    tail?: (info: { full: string; removed: Removal[]; error: unknown }) => string | Promise<string>
+    tail?: (info: Omit<GuardFinish, "tail">) => string | Promise<string>
 }
 
 /**
@@ -267,8 +295,11 @@ export function guardTextStream(
             let buffer = ""
             let prev: string | null = null
             let error: unknown = null
+            let shown = ""
             const emit = (s: string) => {
-                if (s.length > 0) controller.enqueue(encoder.encode(s))
+                if (s.length === 0) return
+                shown += s
+                controller.enqueue(encoder.encode(s))
             }
             const flushLine = (line: string, newline: boolean) => {
                 const r = screenLine(line, opts.mode, prev)
@@ -299,9 +330,9 @@ export function guardTextStream(
                 if (buffer.length > 0) flushLine(buffer, false)
                 if (removed.length > 0) emit(`\n\n${REMOVED_NOTE}`)
             }
-            const info = { full, removed, error }
-            if (opts.tail) emit(await opts.tail(info))
-            opts.onFinish?.(info)
+            const tail = opts.tail ? await opts.tail({ full, shown, removed, error }) : ""
+            if (tail.length > 0) controller.enqueue(encoder.encode(tail))
+            await opts.onFinish?.({ full, shown, tail, removed, error })
             controller.close()
         },
     })

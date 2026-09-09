@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
 import { deleteAllItems } from "@/lib/plaid-items"
+import { deleteAllTranscripts } from "@/lib/ai-transcript"
 
 // Permanently deletes the caller's Supabase account. Deletion can only be done
 // with the service_role key, which must never reach the client — so the app
@@ -59,6 +60,15 @@ export async function POST(req: NextRequest) {
         await deleteAllItems(userData.user.id)
     } catch (err) {
         console.error("[/api/account/delete] Plaid item teardown failed:", err)
+    }
+
+    // Forget every AI answer recorded for this user. Same reasoning as the
+    // Plaid rows: they cascade with the auth user, but deleting first means a
+    // failed user deletion never leaves a person's conversations behind.
+    try {
+        await deleteAllTranscripts(userData.user.id)
+    } catch (err) {
+        console.error("[/api/account/delete] transcript teardown failed:", err)
     }
 
     const { error: delErr } = await admin.auth.admin.deleteUser(userData.user.id)

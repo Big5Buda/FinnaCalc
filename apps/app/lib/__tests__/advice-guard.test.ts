@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { guardTextStream, screenText, splitSentences } from "../advice-guard"
+import { extractSymbols, guardTextStream, screenText, splitSentences } from "../advice-guard"
 
 /**
  * This corpus is the specification. It was written before the patterns, and a
@@ -179,7 +179,7 @@ describe("guardTextStream", () => {
         const seen: string[] = []
         const stream = guardTextStream(
             chunks(["## Plan\n- Cut din", "ing by $100.\n- Invest the surplus in an index fund.\n- Add $50 to the cushion."]),
-            { mode: "budget", granularity: "line", onFinish: (r) => seen.push(...r.removed.map((x) => x.sentence)) }
+            { mode: "budget", granularity: "line", onFinish: (r) => { seen.push(...r.removed.map((x) => x.sentence)) } }
         )
         const out = await drain(stream)
         expect(out).toContain("## Plan")
@@ -198,6 +198,23 @@ describe("guardTextStream", () => {
         expect(out).toContain("NVDA is 34%.")
         expect(out).not.toContain("You should sell it.")
     })
+    it("reports what was shown and the tail separately, for the record", async () => {
+        let info: any
+        const stream = guardTextStream(chunks(["NVDA is 34%. ", "You should sell it."]), {
+            mode: "securities",
+            granularity: "whole",
+            tail: () => "\n\n(tail)",
+            onFinish: (i) => {
+                info = i
+            },
+        })
+        const out = await drain(stream)
+        expect(info.full).toBe("NVDA is 34%. You should sell it.")
+        expect(info.shown).not.toContain("You should sell it.")
+        expect(info.tail).toBe("\n\n(tail)")
+        expect(out).toBe(info.shown + info.tail)
+        expect(info.removed.map((r: any) => r.rule)).toEqual(["second-person-recommendation"])
+    })
     it("emits the tail after the screened text", async () => {
         const stream = guardTextStream(chunks(["Fine."]), {
             mode: "securities",
@@ -205,5 +222,13 @@ describe("guardTextStream", () => {
             tail: () => "\n\n— cut off",
         })
         expect(await drain(stream)).toBe("Fine.\n\n— cut off")
+    })
+})
+
+describe("extractSymbols", () => {
+    it("finds tickers and ignores acronyms and shouted headings", () => {
+        expect(extractSymbols("NVDA is 34%, AAPL 30%. Your IRA and HOA dues are separate.")).toEqual(["AAPL", "NVDA"])
+        expect(extractSymbols("## YOUR NEXT 3 MOVES\nCut the gym membership.")).toEqual([])
+        expect(extractSymbols("Nothing to see.")).toEqual([])
     })
 })

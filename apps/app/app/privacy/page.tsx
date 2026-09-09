@@ -34,7 +34,7 @@ export default function PrivacyPage() {
                             "Optional account details (name, email) if you sign up, stored with our authentication provider (Supabase)",
                             "Calculator, budgeting, and tax-estimator inputs, which are saved on your device, not on our servers",
                             "Bank statements you import, which are parsed and stored only on your device",
-                            "Messages you send to FinnaBot and the Budget Analysis assistant",
+                            "Messages you send to FinnaBot and the Budget Analysis assistant, the answers you receive, and any budget summary or portfolio holdings and weights the app attaches to a message — kept as a record of each conversation (see Data Security below)",
                             "Contact information and feedback when you reach out",
                         ]}
                     />
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Bank and brokerage links run through Plaid and SnapTrade. Your bank credentials go to them directly and never touch FinnaCalc's servers",
-                            "Imported transactions and holdings are stored on your device",
+                            "Imported transactions and holdings are stored on your device; the ticker symbols and weights the Portfolio Analysis chat attaches to a message are kept with that conversation\u2019s record",
                         ]}
                     />
                     <Callout tone="info">
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
                     <LeadBullets
                         items={[
                             ["Service Provision:", "To provide calculators, budgeting, market data, tax estimation, and the AI assistant"],
-                            ["Personalization:", "To answer FinnaBot and Budget Analysis questions using the budget snapshot you share in that conversation"],
+                            ["Personalization:", "To answer FinnaBot and Budget Analysis questions using what you share in that conversation \u2014 a budget snapshot in Budget Analysis, and the ticker symbols and portfolio weights on screen in the Portfolio Analysis chat"],
                             ["Improvement:", "To understand usage and improve the app"],
                             ["Communication:", "To respond to inquiries and provide support"],
                             ["Security:", "To detect, prevent, and address technical issues and security threats"],
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                     </P>
                     <LeadBullets
                         items={[
-                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot), and market-data providers that receive the ticker symbols you view"],
+                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view"],
                             ["Purchases:", "Payment is handled by whichever processor you subscribe through, Apple for in-app purchases or Stripe on our website. They hold your card details; FinnaCalc only learns which plan is active"],
                             ["Legal Requirements:", "When required by law or to protect rights and safety"],
                             ["Business Transfers:", "In connection with a merger, acquisition, or sale of assets"],
@@ -98,6 +98,7 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Personal finance data (budget, goals, tax answers) stays on your device",
+                            "AI conversation records \u2014 your message, any context the app attached, and the answer as shown \u2014 are kept on our servers, linked to your account when you are signed in, and deleted when you delete your account. Conversations from signed-out use are kept without any link to you",
                             "SSL/TLS encryption for everything sent to our services",
                             "Bank credentials handled only by Plaid and SnapTrade, never by FinnaCalc",
                             "Limited access to personal information on a need-to-know basis",
