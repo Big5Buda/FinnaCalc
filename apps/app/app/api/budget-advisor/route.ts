@@ -1,7 +1,7 @@
 import { generateObject, streamText } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
-import { SECURITIES_FENCE } from "@/lib/advice-guard"
+import { SECURITIES_FENCE, guardTextStream, screenText } from "@/lib/advice-guard"
 
 const BASE_PROMPT = `You are FinnaCalc's budget analysis assistant. You explain a household budget clearly, in plain English, and you are given a user's REAL monthly budget data to do it with. You are not a financial adviser and FinnaCalc is not a registered investment adviser: you review how money is coming in and going out, and you stay off the question of what to invest it in.
 
@@ -69,9 +69,19 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[]) {
         temperature: 0.4,
     })
 
-    // Only echo fixes for ids that were actually asked about.
+    // Only echo fixes for ids that were actually asked about — and screen
+    // each one. This is model copy rendered straight into a finding row, and
+    // it was the one model-output path in the app nothing inspected.
     const asked = new Set(findings.map((f) => f.id))
-    const fixes = object.fixes.filter((f) => asked.has(f.id))
+    const fixes = object.fixes
+        .filter((f) => asked.has(f.id))
+        .map((f) => {
+            const screened = screenText(f.fix, "budget")
+            for (const r of screened.removed) {
+                console.warn("[/api/budget-advisor] advice-guard removed (fix)", r.rule, JSON.stringify(r.sentence))
+            }
+            return { id: f.id, fix: screened.text }
+        })
     return Response.json({ fixes })
 }
 
@@ -134,7 +144,30 @@ export async function POST(req: Request) {
                 console.error("[/api/budget-advisor] streamText error:", error)
             },
         })
-        return result.toTextStreamResponse()
+        // Screened line by line as it streams. The deep report runs to
+        // several hundred words under headings and bullets, so buffering it
+        // whole would hold the whole page; each line is a unit the reader
+        // sees the moment it completes. In budget mode the screen touches a
+        // sentence only when it names a security in the same breath — the
+        // report is REQUIRED to say "increase", "cut" and "reallocate" about
+        // budget lines, and an earlier draft of this filter would have eaten
+        // those and truncated the paid report mid-stream.
+        const stream = guardTextStream(result.textStream, {
+            mode: "budget",
+            granularity: "line",
+            onFinish: ({ removed, error }) => {
+                if (error) console.error("[/api/budget-advisor] stream aborted:", error)
+                for (const r of removed) {
+                    console.warn("[/api/budget-advisor] advice-guard removed", r.rule, JSON.stringify(r.sentence))
+                }
+            },
+        })
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "no-store",
+            },
+        })
     } catch (err: any) {
         return new Response(err?.message ?? "Failed to generate analysis.", { status: 500 })
     }
