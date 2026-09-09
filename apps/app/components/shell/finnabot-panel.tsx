@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
 import { SendHorizonal, X } from "lucide-react"
-import { useChat, type ChatMessage } from "@/components/providers/chat-provider"
+import { useChat, type ChatMessage, WELCOME_ID } from "@/components/providers/chat-provider"
 import { Wordmark } from "@/components/shell/wordmark"
 
 /**
@@ -133,9 +133,10 @@ function Bubble({ message }: { message: ChatMessage }) {
             <div className="max-w-[92%] rounded-2xl bg-brand px-3.5 py-2.5 text-sm leading-relaxed text-white">
                 {renderMarkdown(message.content)}
             </div>
-            {/* Only on answers to "what should I do with my money" questions, so it
-                stays meaningful instead of becoming wallpaper. */}
-            {message.needsAdviceDisclaimer && message.content !== "" && (
+            {/* Under every answer, not only the ones a cue list guessed were about
+                money. The welcome is the one exception: nothing has been asked
+                yet, so there is nothing to disclaim. */}
+            {message.content !== "" && message.id !== WELCOME_ID && (
                 <p className="pl-1 text-[10.5px] text-muted-foreground">
                     FinnaBot is AI — this isn’t financial advice.
                 </p>

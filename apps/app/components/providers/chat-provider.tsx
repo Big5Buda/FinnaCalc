@@ -12,33 +12,24 @@ import { ApiError, postTextStream } from "@/lib/api-client"
 const WELCOME =
     "Hi! I'm FinnaBot. Ask me about budgeting, investing, taxes, or any of the calculators in the app."
 
-const WELCOME_ID = "welcome"
+/** Exported so the panel can leave the not-advice line off the welcome. */
+export const WELCOME_ID = "welcome"
 
-/**
- * Phrases that make a question a request for a recommendation rather than an
- * explanation. Deliberately broad — over-disclaiming is harmless, a missed one
- * isn't.
- */
-const ADVICE_CUES = [
-    "should i", "should we", "should my", "advice", "advise", "recommend",
-    "what should", "which should", "worth it", "is it worth", "better to",
-    "which is better", "is it smart", "good idea", "do you think i",
-    "invest in", "buy", "sell", "pick", "portfolio", "allocate", "allocation",
-    "how much should", "can i afford", "pay off", "payoff", "refinance",
-    "roth", "401k", "ira", "retire", "best stock", "what stock", "which stock",
-]
-
-export function seeksAdvice(text: string): boolean {
-    const lower = text.toLowerCase()
-    return ADVICE_CUES.some((cue) => lower.includes(cue))
-}
+// There used to be a cue list here — "should i", "buy", "sell", "roth" and
+// thirty others — and a reply carried the not-advice line only when the
+// USER's question had tripped it. Wrong trigger: a neutrally worded question
+// can still draw an answer about what to own, and read as evidence rather
+// than as a control the list was the app's own definition of "a request for
+// a recommendation", followed by the app answering it. The line now renders
+// under every answer (finnabot-panel.tsx). Whether the answer itself stays
+// inside the fence is the server's job (lib/advice-guard.ts), not something
+// a substring match on the question could decide. Same change as the iOS
+// app, FinnaCalcIOS#338.
 
 export type ChatMessage = {
     id: string
     role: "user" | "assistant"
     content: string
-    /** Reply to a "what should I do with my money" question — carries fine print. */
-    needsAdviceDisclaimer?: boolean
 }
 
 type ChatContextValue = {
@@ -89,7 +80,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             setMessages((prev) => [...prev, userMessage])
 
             const assistantId = `a-${Date.now()}`
-            const disclaim = seeksAdvice(trimmed)
             let appended = false
 
             postTextStream("/api/chat", { messages: payload }, (text) => {
@@ -97,7 +87,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                     appended = true
                     setMessages((prev) => [
                         ...prev,
-                        { id: assistantId, role: "assistant", content: text, needsAdviceDisclaimer: disclaim },
+                        { id: assistantId, role: "assistant", content: text },
                     ])
                     return
                 }
