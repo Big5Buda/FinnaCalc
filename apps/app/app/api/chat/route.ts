@@ -101,13 +101,14 @@ export async function POST(req: Request) {
             },
         });
 
-        // The answer is buffered, screened once, and emitted once. Whole
-        // rather than line by line because this is the one surface that can
-        // be seeded with the reader's real tickers, and a recommendation can
-        // span sentences ("NVDA is 34%. That's a lot. Trim it.") — a rule that
-        // sees the whole answer catches what a rule that sees one line cannot.
-        // The cost is the typing indicator the app already draws, for the
-        // second or two a 2-6 sentence answer takes.
+        // Screened and emitted line by line as it streams. This first shipped
+        // buffering the whole answer, on the theory that a recommendation can
+        // span sentences and a rule that sees everything catches more. It
+        // does not: every rule reads at most one sentence back, and that
+        // window is carried across lines, so "whole" caught nothing "line"
+        // misses — and it cost the reader nine to sixteen seconds of a typing
+        // indicator on production where there used to be text. Paragraphs
+        // now appear as they complete.
         //
         // Still NOT toTextStreamResponse(), for the reason that replaced it:
         // it ends the stream silently when the model errors, so a quota
@@ -116,7 +117,7 @@ export async function POST(req: Request) {
         // happened, and anything the model did produce is left alone.
         const stream = guardTextStream(result.textStream, {
             mode: "securities",
-            granularity: "whole",
+            granularity: "line",
             tail: async ({ full, error }) => {
                 if (error) {
                     console.error("[/api/chat] stream aborted:", error);

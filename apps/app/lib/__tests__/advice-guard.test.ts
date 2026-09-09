@@ -42,6 +42,8 @@ const BLOCK_SECURITIES: Case[] = [
     { text: "An index fund is suitable for your age and timeline." },
     { text: "Given your goals, VOO makes sense for you." },
     { text: "Honestly, I can't advise, but historically buying the dip in SPY has paid off." },
+    // A definition that ends in an instruction is still an instruction.
+    { text: "A high P/E often means a stock is pricey, so you should sell that stock." },
 ]
 
 const PASS_SECURITIES: Case[] = [
@@ -62,6 +64,12 @@ const PASS_SECURITIES: Case[] = [
     { text: "Choosing what to own is your call and outside what FinnaCalc does." },
     { text: "## Your next 3 moves" },
     { text: "That sector is 40% of the portfolio, which the card shows as a measurement." },
+    // Definitions — what a figure generally means, with no specific subject.
+    // The first of these was removed from a live answer on production.
+    { text: "A high P/E ratio can suggest a stock is overvalued or that investors expect strong growth, while a low P/E may indicate it is undervalued." },
+    { text: "Beta above 1 means a stock tends to swing more than the market as a whole." },
+    { text: "A yield that looks high can be a sign the price has fallen, not that the payout is safe." },
+    { text: "Analysts often describe a stock trading below book value as undervalued; that is a label, not a fact." },
 ]
 
 const BLOCK_BUDGET: Case[] = [
