@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
-import { SECURITIES_FENCE } from "@/lib/advice-guard";
+import { SECURITIES_FENCE, guardTextStream } from "@/lib/advice-guard";
 
 const SYSTEM_PROMPT = `You are FinnaBot, the friendly in-app assistant for FinnaCalc, a personal-finance app with budgeting, investing, a tax estimator, financial education, and calculators.
 
@@ -71,38 +71,46 @@ export async function POST(req: Request) {
             system: SYSTEM_PROMPT,
             messages,
             temperature: 0.7,
+            // Answers are screened whole (below), so a runaway generation is
+            // a runaway wait. 1500 tokens is several times the prompt's own
+            // "2-6 sentences unless asked for depth"; a hit is reported to the
+            // reader rather than delivered as if complete.
+            maxOutputTokens: 1500,
             onError: ({ error }) => {
                 console.error("[/api/chat] streamText error:", error);
                 failure = error;
             },
         });
 
-        // NOT toTextStreamResponse(). It ends the stream silently when the
-        // model errors, so a quota refusal reached the app as a 200 with an
-        // empty body, and the app's only possible reading of that was "No
-        // response received. Please try again." — which describes nothing and
-        // is what an outage looked like from the outside.
+        // The answer is buffered, screened once, and emitted once. Whole
+        // rather than line by line because this is the one surface that can
+        // be seeded with the reader's real tickers, and a recommendation can
+        // span sentences ("NVDA is 34%. That's a lot. Trim it.") — a rule that
+        // sees the whole answer catches what a rule that sees one line cannot.
+        // The cost is the typing indicator the app already draws, for the
+        // second or two a 2-6 sentence answer takes.
         //
-        // Written out by hand instead so a failure that produced no text can
-        // say what happened. Anything already streamed is left alone: half an
-        // answer plus an explanation beats half an answer plus silence.
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream<Uint8Array>({
-            async start(controller) {
-                let wrote = false;
-                try {
-                    for await (const chunk of result.textStream) {
-                        if (chunk.length > 0) wrote = true;
-                        controller.enqueue(encoder.encode(chunk));
-                    }
-                } catch (err) {
-                    console.error("[/api/chat] stream aborted:", err);
-                    failure = failure ?? err;
+        // Still NOT toTextStreamResponse(), for the reason that replaced it:
+        // it ends the stream silently when the model errors, so a quota
+        // refusal reached the app as a 200 with an empty body. The tail below
+        // keeps that behaviour — a failure that produced no text says what
+        // happened, and anything the model did produce is left alone.
+        const stream = guardTextStream(result.textStream, {
+            mode: "securities",
+            granularity: "whole",
+            onFinish: ({ removed }) => {
+                for (const r of removed) {
+                    console.warn("[/api/chat] advice-guard removed", r.rule, JSON.stringify(r.sentence));
                 }
-                if (!wrote) {
-                    controller.enqueue(encoder.encode(explain(failure)));
+            },
+            tail: async ({ full, error }) => {
+                if (error) {
+                    console.error("[/api/chat] stream aborted:", error);
+                    failure = failure ?? error;
                 }
-                controller.close();
+                if (full.trim().length === 0) return explain(failure);
+                const reason = await result.finishReason.catch(() => undefined);
+                return reason === "length" ? "\n\n(Cut off here — ask me to continue.)" : "";
             },
         });
 
