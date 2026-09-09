@@ -1,6 +1,10 @@
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { SECURITIES_FENCE, guardTextStream } from "@/lib/advice-guard";
+import { lastUserMessage, recordTranscript, type TranscriptSurface } from "@/lib/ai-transcript";
+import { verifiedAppUserId } from "@/lib/supabase-auth";
+
+const MODEL = "gemini-3.5-flash";
 
 const SYSTEM_PROMPT = `You are FinnaBot, the friendly in-app assistant for FinnaCalc, a personal-finance app with budgeting, investing, a tax estimator, financial education, and calculators.
 
@@ -58,8 +62,23 @@ export async function POST(req: Request) {
         return new Response("No messages provided.", { status: 400 });
     }
 
+    // Identity is read, not required. FinnaBot sits on the signed-out Home
+    // screen on purpose, so a missing token is a signed-out reader, not an
+    // error. The app already sends the token on every request; reading it is
+    // what lets the record below say WHO was told what.
+    const userId = await verifiedAppUserId(req);
+    // The Portfolio Analysis thread seeds its opening turn with a fixed phrase
+    // (PortfolioAnalyticsViews.seedChatContext). It is the one surface fed a
+    // reader's real holdings, so the record tells it apart.
+    const surface: TranscriptSurface = messages.some(
+        (m) => m.role === "user" && m.content.includes("embedded at the bottom of Portfolio Analysis")
+    )
+        ? "portfolio_chat"
+        : "finnabot";
+
     try {
         let failure: unknown = null;
+        let finishReason: string | undefined;
 
         const result = streamText({
             // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
@@ -67,7 +86,7 @@ export async function POST(req: Request) {
             // PROJECT, not per key or per user (Google's rate-limit docs), so
             // every reader of the app draws on one shared allowance and the
             // ceiling arrives sooner than the numbers suggest.
-            model: google("gemini-3.5-flash"),
+            model: google(MODEL),
             system: SYSTEM_PROMPT,
             messages,
             temperature: 0.7,
@@ -98,19 +117,33 @@ export async function POST(req: Request) {
         const stream = guardTextStream(result.textStream, {
             mode: "securities",
             granularity: "whole",
-            onFinish: ({ removed }) => {
-                for (const r of removed) {
-                    console.warn("[/api/chat] advice-guard removed", r.rule, JSON.stringify(r.sentence));
-                }
-            },
             tail: async ({ full, error }) => {
                 if (error) {
                     console.error("[/api/chat] stream aborted:", error);
                     failure = failure ?? error;
                 }
                 if (full.trim().length === 0) return explain(failure);
-                const reason = await result.finishReason.catch(() => undefined);
-                return reason === "length" ? "\n\n(Cut off here — ask me to continue.)" : "";
+                finishReason = await result.finishReason.catch(() => undefined);
+                return finishReason === "length" ? "\n\n(Cut off here — ask me to continue.)" : "";
+            },
+            // The record is what the reader saw — screened answer plus tail —
+            // with what the screen removed kept alongside. Awaited so the
+            // write settles before the response closes.
+            onFinish: async ({ shown, tail, removed }) => {
+                for (const r of removed) {
+                    console.warn("[/api/chat] advice-guard removed", r.rule, JSON.stringify(r.sentence));
+                }
+                await recordTranscript({
+                    userId,
+                    route: "chat",
+                    surface,
+                    turnCount: messages.length,
+                    question: lastUserMessage(messages),
+                    answer: shown + tail,
+                    removed,
+                    model: MODEL,
+                    finishReason: finishReason ?? null,
+                });
             },
         });
 

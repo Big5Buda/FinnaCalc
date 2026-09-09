@@ -1,7 +1,11 @@
 import { generateObject, streamText } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
-import { SECURITIES_FENCE, guardTextStream, screenText } from "@/lib/advice-guard"
+import { SECURITIES_FENCE, guardTextStream, screenText, type Removal } from "@/lib/advice-guard"
+import { lastUserMessage, recordTranscript } from "@/lib/ai-transcript"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
+
+const MODEL = "gemini-3.5-flash"
 
 const BASE_PROMPT = `You are FinnaCalc's budget analysis assistant. You explain a household budget clearly, in plain English, and you are given a user's REAL monthly budget data to do it with. You are not a financial adviser and FinnaCalc is not a registered investment adviser: you review how money is coming in and going out, and you stay off the question of what to invest it in.
 
@@ -44,7 +48,7 @@ type IncomingFinding = { id?: unknown; title?: unknown; detail?: unknown; status
 // show AI-written copy instead of one undifferentiated analysis blob.
 const FIXES_PROMPT = `For EACH finding below, write the "fix" copy: 1–2 sentences, grounded in the user's actual numbers from the budget JSON, quantified in dollars per month where possible, telling them exactly what to do about THAT finding. For findings whose status is "good", write one sentence of specific reinforcement (what they're doing right, with their number) — no manufactured advice. Bold the key figures with **…**. Return one fix per finding id, nothing else.`
 
-async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[]) {
+async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[], userId: string | null) {
     const findings = rawFindings
         .filter(
             (f): f is { id: string; title: string; detail: string; status: string } =>
@@ -57,7 +61,7 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[]) {
     }
 
     const { object } = await generateObject({
-        model: google("gemini-3.5-flash"),
+        model: google(MODEL),
         schema: z.object({
             fixes: z.array(z.object({
                 id: z.string().describe("the finding id, copied exactly"),
@@ -73,6 +77,7 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[]) {
     // each one. This is model copy rendered straight into a finding row, and
     // it was the one model-output path in the app nothing inspected.
     const asked = new Set(findings.map((f) => f.id))
+    const removed: Removal[] = []
     const fixes = object.fixes
         .filter((f) => asked.has(f.id))
         .map((f) => {
@@ -80,8 +85,21 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[]) {
             for (const r of screened.removed) {
                 console.warn("[/api/budget-advisor] advice-guard removed (fix)", r.rule, JSON.stringify(r.sentence))
             }
+            removed.push(...screened.removed)
             return { id: f.id, fix: screened.text }
         })
+    // Recorded like any other answer. The findings are the question; the
+    // snapshot is not stored.
+    await recordTranscript({
+        userId,
+        route: "budget-fixes",
+        surface: "budget_analysis",
+        turnCount: 1,
+        question: findings.map((f) => `${f.id}: ${f.title} — ${f.detail} (${f.status})`).join("\n"),
+        answer: JSON.stringify(fixes),
+        removed,
+        model: MODEL,
+    })
     return Response.json({ fixes })
 }
 
@@ -109,10 +127,14 @@ export async function POST(req: Request) {
         return new Response("Budget snapshot is required.", { status: 400 })
     }
 
+    // Read, not required: quick analysis gates on the StoreKit entitlement,
+    // not on a session, so a missing token is a legitimate reader.
+    const userId = await verifiedAppUserId(req)
+
     // Findings mode: structured per-finding fix copy, JSON response.
     if (Array.isArray(body.findings)) {
         try {
-            return await findingFixes(body.snapshot, body.findings)
+            return await findingFixes(body.snapshot, body.findings, userId)
         } catch (err: any) {
             console.error("[/api/budget-advisor] findingFixes error:", err)
             return new Response(err?.message ?? "Failed to generate fixes.", { status: 500 })
@@ -136,7 +158,7 @@ export async function POST(req: Request) {
         const result = streamText({
             // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
             // current free-tier flash model (15 RPM / 1,500 RPD).
-            model: google("gemini-3.5-flash"),
+            model: google(MODEL),
             system: `${BASE_PROMPT}${format}\n\n=== THE USER'S CURRENT MONTHLY BUDGET (JSON) ===\n${JSON.stringify(body.snapshot, null, 2)}`,
             messages,
             temperature: 0.6,
@@ -155,11 +177,24 @@ export async function POST(req: Request) {
         const stream = guardTextStream(result.textStream, {
             mode: "budget",
             granularity: "line",
-            onFinish: ({ removed, error }) => {
+            onFinish: async ({ shown, removed, error }) => {
                 if (error) console.error("[/api/budget-advisor] stream aborted:", error)
                 for (const r of removed) {
                     console.warn("[/api/budget-advisor] advice-guard removed", r.rule, JSON.stringify(r.sentence))
                 }
+                // The question is the reader's latest turn; the budget
+                // snapshot that rides alongside it is deliberately not kept.
+                await recordTranscript({
+                    userId,
+                    route: "budget-advisor",
+                    surface: "budget_analysis",
+                    turnCount: messages.length,
+                    question: lastUserMessage(messages),
+                    answer: shown,
+                    removed,
+                    model: MODEL,
+                    finishReason: (await result.finishReason.catch(() => undefined)) ?? null,
+                })
             },
         })
         return new Response(stream, {
