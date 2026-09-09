@@ -17,6 +17,8 @@ export interface StockQuote {
     price: number;
     change: number;
     changesPercentage: number;
+    /** Shares traded today on IEX, the one venue this feed sees. */
+    volume: number;
     high: number;
     low: number;
     open: number;
@@ -64,6 +66,7 @@ export async function GET() {
                 price,
                 change: move?.change ?? 0,
                 changesPercentage: move?.changePct ?? 0,
+                volume: snapshot?.dailyBar?.v ?? 0,
                 high: snapshot?.dailyBar?.h ?? price,
                 low: snapshot?.dailyBar?.l ?? price,
                 open: snapshot?.dailyBar?.o ?? price,
@@ -84,8 +87,14 @@ export async function GET() {
             .sort((a, b) => a.changesPercentage - b.changesPercentage)
             .slice(0, 10);
 
+        // By shares traded, which is what "most active" means. This used to
+        // sort by absolute percentage move, so the card the app labelled
+        // "Most Active" with the blurb "the most-traded stocks on the market
+        // right now" was a third movers list and the blurb was false on both
+        // halves. The volume is IEX's alone — one venue, well below the
+        // consolidated tape — and the app's copy says so.
         const mostActive = [...stocks]
-            .sort((a, b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage))
+            .sort((a, b) => b.volume - a.volume)
             .slice(0, 10);
 
         const sectorSummary: SectorSummary[] = SECTORS.map(sector => {
