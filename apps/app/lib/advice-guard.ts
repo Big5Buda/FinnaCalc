@@ -184,13 +184,34 @@ const RULES: Array<{ name: string; re: RegExp }> = [
 const REFUSAL =
     /\b(?:your (?:call|decision|choice)|up to you|only you can|you decide|i can'?t (?:tell|say)|not (?:something|a call) (?:i|finnacalc)|outside what finnacalc)\b/i
 
+// A sentence explaining what a figure generally means is a definition, not a
+// label on a holding: "a high P/E can suggest a stock is overvalued, a low one
+// undervalued" is the textbook line, and the first live answer on production
+// lost it to the merit-label rule. A definition needs BOTH a generic subject
+// ("a stock", "a high P/E", "any fund") and a hedged, general verb ("can
+// suggest", "often means"), and must name no ticker — "NVDA looks overvalued"
+// has a specific subject and stays caught. The exemption covers only the rules
+// that judge a security; a definition that ends in "so you should sell" is
+// still a recommendation and the second-person rule still sees it.
+const GENERIC_SUBJECT =
+    /\b(?:a|an|any)\s+(?:(?:high|low|higher|lower|rising|falling|large|small)\s+)?(?:p\/e(?: ratio)?|pe ratio|ratio|multiple|yield|beta|stock|share|fund|etf|bond|company|holding|position|price)\b/i
+const GENERAL_VERB =
+    /\b(?:may|might|can|could|often|typically|generally|usually|sometimes|commonly|tends? to|is (?:often|generally|typically|sometimes|commonly) (?:used|seen|taken|read|considered|described))\b/i
+const DEFINITION_EXEMPT = new Set(["merit-label", "prediction", "concentration-verdict"])
+
+function isDefinition(sentence: string): boolean {
+    return GENERIC_SUBJECT.test(sentence) && GENERAL_VERB.test(sentence) && !mentionsTicker(sentence)
+}
+
 /** The rule a sentence trips, or null. `context` is the sentence itself plus,
  *  in securities mode, the previous one. */
 function offendingRule(sentence: string, context: Array<string | null>, mode: GuardMode): string | null {
     if (!hasSecuritiesContext(context, mode)) return null
     if (RULES[0].re.test(sentence)) return RULES[0].name
     if (REFUSAL.test(sentence)) return null
+    const definition = isDefinition(sentence)
     for (let i = 1; i < RULES.length; i++) {
+        if (definition && DEFINITION_EXEMPT.has(RULES[i].name)) continue
         if (RULES[i].re.test(sentence)) return RULES[i].name
     }
     return null
