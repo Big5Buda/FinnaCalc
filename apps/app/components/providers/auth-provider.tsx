@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Session, User } from "@supabase/supabase-js"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 import { clearSessionHint, setSessionHint } from "@/lib/session-hint"
+import { revokeGoogleAIConsent, setAIConsentAccount } from "@/lib/ai-consent"
 
 /**
  * Auth state for the site — the browser twin of the iOS app's
@@ -33,7 +34,7 @@ type AuthContextValue = {
     resetPassword: (email: string) => Promise<void>
     updatePassword: (password: string) => Promise<void>
     signOut: () => Promise<void>
-    deleteAccount: () => Promise<void>
+    deleteAccount: () => Promise<{ requiresAppleRevocation: boolean }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
             if (!active) return
             const restored = toAuthUser(data.session?.user)
+            setAIConsentAccount(restored?.id ?? null)
             setUser(restored)
             // One bit for the marketing site's header — never the session
             // itself; see lib/session-hint.ts.
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
             const next = toAuthUser(session?.user)
+            setAIConsentAccount(next?.id ?? null)
             setUser(next)
             if (next) setSessionHint()
             else clearSessionHint()
@@ -149,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const signOut = useCallback(async () => {
+        revokeGoogleAIConsent()
         await getSupabase().auth.signOut()
         clearSessionHint()
         setUser(null)
@@ -161,10 +165,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      */
     const deleteAccount = useCallback(async () => {
         const { apiPost } = await import("@/lib/api-client")
-        await apiPost("/api/account/delete")
+        const result = await apiPost<{ deleted: boolean; appleRevocation?: string }>("/api/account/delete")
+        if (result.deleted !== true) throw new Error("The server did not confirm account deletion.")
+        revokeGoogleAIConsent()
         await getSupabase().auth.signOut()
         clearSessionHint()
         setUser(null)
+        return { requiresAppleRevocation: result.appleRevocation === "manual_required" }
     }, [])
 
     const value = useMemo<AuthContextValue>(

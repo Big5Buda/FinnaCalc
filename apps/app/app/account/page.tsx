@@ -10,6 +10,7 @@ import { useAppearance, type Appearance } from "@/components/providers/appearanc
 import { Badge, Button, IconChip, Notice, SectionLabel } from "@/components/ui/primitives"
 import { planFor, type BillingInterval, type PlanTier } from "@/lib/plans"
 import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
+import { AI_CONSENT_CHANGED_EVENT, hasGoogleAIConsent, revokeGoogleAIConsent } from "@/lib/ai-consent"
 
 /**
  * Account — the web port of Features/Auth/AccountView.swift: sign-in hero or
@@ -26,6 +27,13 @@ export default function AccountPage() {
     } | null>(null)
     const [deleting, setDeleting] = useState(false)
     const [deleteError, setDeleteError] = useState<string | null>(null)
+    const [aiSharing, setAISharing] = useState(hasGoogleAIConsent)
+
+    useEffect(() => {
+        const updateConsent = () => setAISharing(hasGoogleAIConsent())
+        window.addEventListener(AI_CONSENT_CHANGED_EVENT, updateConsent)
+        return () => window.removeEventListener(AI_CONSENT_CHANGED_EVENT, updateConsent)
+    }, [])
 
     useEffect(() => {
         if (!user) {
@@ -53,7 +61,10 @@ export default function AccountPage() {
         setDeleting(true)
         setDeleteError(null)
         try {
-            await deleteAccount()
+            const result = await deleteAccount()
+            if (result.requiresAppleRevocation) {
+                window.alert("Your FinnaCalc account was deleted. To remove Apple's authorization, open account.apple.com, choose Sign-In & Security, then Sign in with Apple, select FinnaCalc and stop using Sign in with Apple. Any App Store subscription must be canceled separately.")
+            }
         } catch (err) {
             setDeleteError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
         }
@@ -103,6 +114,20 @@ export default function AccountPage() {
                     </Link>
                 </section>
             )}
+
+            <section className="flex flex-col gap-2.5">
+                <SectionLabel>AI data sharing</SectionLabel>
+                <p className="text-sm text-muted-foreground">
+                    AI features require age 18 or older and your permission to share messages and financial context with Google.
+                    FinnaCalc schedules conversation records for automatic deletion after 30 days; Google applies its own provider policies.
+                </p>
+                <Button variant="outline" disabled={!aiSharing} onClick={() => {
+                    revokeGoogleAIConsent()
+                    setAISharing(false)
+                }}>
+                    {aiSharing ? "Turn off Google AI sharing" : "Google AI sharing is off"}
+                </Button>
+            </section>
 
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>Plan</SectionLabel>

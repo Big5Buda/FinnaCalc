@@ -3,6 +3,7 @@ import { google } from "@ai-sdk/google";
 import { SECURITIES_FENCE, guardTextStream } from "@/lib/advice-guard";
 import { lastUserMessage, recordTranscript, type TranscriptSurface } from "@/lib/ai-transcript";
 import { verifiedAppUserId } from "@/lib/supabase-auth";
+import { requireAIConsentHeader } from "@/lib/ai-consent";
 
 const MODEL = "gemini-3.5-flash";
 
@@ -36,6 +37,8 @@ ${SECURITIES_FENCE}`;
 type IncomingMessage = { role?: string; content?: unknown };
 
 export async function POST(req: Request) {
+    const consentError = requireAIConsentHeader(req);
+    if (consentError) return consentError;
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
         return new Response(
             "Chatbot is not configured. Please add GOOGLE_GENERATIVE_AI_API_KEY to your environment variables.",
@@ -82,10 +85,8 @@ export async function POST(req: Request) {
 
         const result = streamText({
             // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
-            // current free-tier flash model. Free-tier limits are applied PER
-            // PROJECT, not per key or per user (Google's rate-limit docs), so
-            // every reader of the app draws on one shared allowance and the
-            // ceiling arrives sooner than the numbers suggest.
+            // configured model on the owner's billing-enabled Google project.
+            // Personal financial data must not be sent through unpaid services.
             model: google(MODEL),
             system: SYSTEM_PROMPT,
             messages,
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
             // write settles before the response closes.
             onFinish: async ({ shown, tail, removed }) => {
                 for (const r of removed) {
-                    console.warn("[/api/chat] advice-guard removed", r.rule, JSON.stringify(r.sentence));
+                    console.warn("[/api/chat] advice-guard removed", r.rule);
                 }
                 await recordTranscript({
                     userId,

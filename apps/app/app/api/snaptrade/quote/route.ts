@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Live brokerage quote for one symbol in a connected account — feeds the
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
         }
+        const denied = await brokerageLimitError(appUserId, session)
+        if (denied) return denied
         const st = getSnapTrade()
         const { data } = await st.trading.getUserAccountQuotes({
             userId: session.userId,

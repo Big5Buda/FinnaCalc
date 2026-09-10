@@ -1,4 +1,5 @@
 import { supabaseAuthHeader } from "@/lib/supabase"
+import { AI_CONSENT_HEADER, AI_CONSENT_VALUE, googleAIConsentRevision, hasGoogleAIConsent } from "@/lib/ai-consent"
 
 /**
  * Thin client for our own API routes — the browser twin of the iOS app's
@@ -44,13 +45,18 @@ export async function apiGet<T>(path: string, query: Record<string, string> = {}
 }
 
 export async function apiPost<T>(path: string, body: unknown = {}): Promise<T> {
+    const consentRevision = googleAIConsentRevision()
+    const consent = aiConsentHeaders(path, consentRevision)
+    const auth = await supabaseAuthHeader()
+    aiConsentHeaders(path, consentRevision)
     const res = await fetch(path, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await supabaseAuthHeader()) },
+        headers: { "Content-Type": "application/json", ...auth, ...consent },
         body: JSON.stringify(body),
     })
     if (!res.ok) throw await errorFrom(res)
     const text = await res.text()
+    aiConsentHeaders(path, consentRevision)
     return (text ? JSON.parse(text) : {}) as T
 }
 
@@ -64,13 +70,18 @@ export async function postTextStream(
     onText: (accumulated: string) => void,
     signal?: AbortSignal
 ): Promise<void> {
+    const consentRevision = googleAIConsentRevision()
+    const consent = aiConsentHeaders(path, consentRevision)
+    const auth = await supabaseAuthHeader()
+    aiConsentHeaders(path, consentRevision)
     const res = await fetch(path, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await supabaseAuthHeader()) },
+        headers: { "Content-Type": "application/json", ...auth, ...consent },
         body: JSON.stringify(body),
         signal,
     })
     if (!res.ok) throw await errorFrom(res)
+    aiConsentHeaders(path, consentRevision)
     if (!res.body) throw new ApiError("No response from the server.", 500)
 
     const reader = res.body.getReader()
@@ -78,8 +89,18 @@ export async function postTextStream(
     let accumulated = ""
     for (;;) {
         const { done, value } = await reader.read()
+        try { aiConsentHeaders(path, consentRevision) } catch (error) {
+            await reader.cancel().catch(() => {})
+            throw error
+        }
         if (done) break
         accumulated += decoder.decode(value, { stream: true })
         onText(accumulated)
     }
+}
+
+function aiConsentHeaders(path: string, expectedRevision: number): Record<string, string> {
+    if (path !== "/api/chat" && path !== "/api/budget-advisor") return {}
+    if (!hasGoogleAIConsent() || googleAIConsentRevision() !== expectedRevision) throw new ApiError("AI sharing is off. Confirm that you are 18 or older and consent to sharing with Google before using AI.", 403)
+    return { [AI_CONSENT_HEADER]: AI_CONSENT_VALUE }
 }

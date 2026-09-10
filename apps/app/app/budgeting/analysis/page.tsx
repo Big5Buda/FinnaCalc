@@ -6,6 +6,7 @@ import { Loader2, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fixed, int } from "@/lib/format"
 import { ApiError, apiPost, postTextStream } from "@/lib/api-client"
+import { ensureGoogleAIConsent } from "@/lib/ai-consent"
 import { useBudget } from "@/components/providers/budget-provider"
 import { measureGoal } from "@/lib/budget/goals"
 import {
@@ -119,6 +120,7 @@ export default function BudgetAnalysisPage() {
     }, [budget, input])
 
     async function runReport() {
+        if (!ensureGoogleAIConsent()) return
         setRunning(true)
         setError(null)
         setReport("")
@@ -141,6 +143,7 @@ export default function BudgetAnalysisPage() {
     }
 
     async function loadFixes() {
+        if (!ensureGoogleAIConsent()) return
         try {
             const { fixes: rows } = await apiPost<{ fixes: { id: string; fix: string }[] }>(
                 "/api/budget-advisor",

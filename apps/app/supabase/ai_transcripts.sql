@@ -7,30 +7,21 @@
 -- question about everyone. That is the question this table exists to answer,
 -- which is why `symbols` is indexed the way it is.
 --
--- What a row holds. The reader's latest message as it reached the server —
--- including any context the app attached to it, such as the ticker list and
--- weights the Portfolio Analysis chat sends — and the answer AS SHOWN, after
--- the output screen. Anything the screen removed is kept alongside, with the
--- rule that caught it, so the record shows both what the model produced and
--- what the reader saw. The budget snapshot is deliberately NOT stored: the
--- privacy policy says a reader's budget lives on their device, and this table
--- keeps that true.
+-- A row contains the latest question (or budget-finding text), the answer
+-- shown after screening, removed text and metadata. Portfolio context embedded
+-- in the latest message is stored with it. The full structured budget snapshot
+-- is sent to Google as model context but is not separately written here;
+-- questions, findings and answers can still contain budget or identifying data.
+-- A null user_id means no account association, not anonymized content.
 --
--- user_id is null for signed-out use. FinnaBot sits on the signed-out Home
--- screen and quick budget analysis needs no session, so those rows exist but
--- cannot be linked to a person; they serve review of the assistant, not the
--- per-reader question above.
+-- RLS is enabled with no client policies. Only the backend service_role and
+-- database administrators access this table. Routes resolve the account from
+-- a verified Supabase token, never a client-supplied user id.
 --
--- Same shape and same guarantees as plaid_items and snaptrade_users: RLS is
--- enabled with NO policies on purpose, so anon and authenticated clients get
--- zero access and only the server's service_role key can read or write. The
--- app reaches this exclusively through the two routes, which resolve the user
--- from a verified Supabase token and never trust a client-supplied id.
---
--- Deletion. Rows cascade with the auth user, and /api/account/delete also
--- removes them explicitly first, for the same reason it does with Plaid rows.
--- There is no automatic expiry: how long these are kept is a policy decision
--- recorded in the privacy policy, not a constant hidden here.
+-- Account deletion removes its rows, including via the auth-user cascade.
+-- Apply ai_transcript_retention.sql AFTER this file to install the hourly
+-- 30-day cleanup for both signed-in and signed-out rows. Applying this table
+-- script alone does not enable retention. See docs/ai-transcript-retention.md.
 
 create table if not exists public.ai_transcripts (
   id uuid primary key default gen_random_uuid(),

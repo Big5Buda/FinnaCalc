@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "build": "next build",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.13",
+    "@apple/app-store-server-library": "^3.1.0",
     "@finnacalc/shared": "*",
     "@hookform/resolvers": "^5.9.0",
     "@radix-ui/react-label": "^2.1.15",
@@ -30,7 +31,7 @@
     "autoprefixer": "^10.4.20",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
-    "next": "15.3.9",
+    "next": "15.5.25",
     "papaparse": "^5.5.3",
     "plaid": "^42.2.0",
     "react": "^19.0.0",
@@ -54,6 +55,6 @@
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.11"
   }
 }

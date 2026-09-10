@@ -11,12 +11,16 @@ import { extractSymbols, type Removal } from "./advice-guard"
  * anywhere, so "what did FinnaCalc tell me about NVDA on the 12th" had no
  * answer for the reader and none for anyone asking on their behalf.
  *
- * What goes in. The reader's latest message as it reached the server —
- * including context the app attached, such as the ticker list the Portfolio
- * Analysis chat sends — and the answer AS SHOWN, after the output screen,
- * with whatever the screen removed kept alongside. The budget snapshot is
- * never stored: the privacy policy says a budget lives on the reader's
- * device, and this module keeps that true.
+ * A row contains the latest question (or budget-finding text), the answer
+ * shown after screening, removed text and metadata. Portfolio context embedded
+ * in the latest message is stored too. The full structured budget snapshot is
+ * sent to Google as model context but is not separately stored in this table;
+ * questions, findings and answers may still contain budget or identifying data.
+ * A null user_id means no account association, not anonymized content.
+ *
+ * The 30-day cleanup is installed separately using
+ * supabase/ai_transcript_retention.sql. Application deployment alone does not
+ * activate it; see docs/ai-transcript-retention.md for verification.
  *
  * Failure here is logged and swallowed. A record that could not be written
  * must never turn into an answer that could not be given.
