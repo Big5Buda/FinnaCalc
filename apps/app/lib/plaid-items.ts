@@ -17,6 +17,13 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
  */
 
 const TABLE = "plaid_items"
+export const MAX_BANK_CONNECTIONS = 2
+export class BankConnectionLimitError extends Error {
+    constructor() { super("Your plan includes 2 bank logins. Disconnect a bank in Connected accounts before adding another.") }
+}
+export class BankConnectionOwnershipError extends Error {
+    constructor() { super("This bank connection belongs to another account. Connect your own bank login.") }
+}
 
 let admin: SupabaseClient | null = null
 
@@ -73,17 +80,22 @@ export async function saveItem(
     appUserId: string,
     item: PlaidItem
 ): Promise<void> {
-    const { error } = await adminClient().from(TABLE).upsert(
-        {
-            user_id: appUserId,
-            item_id: item.itemId,
-            access_token: item.accessToken,
-            institution: item.institution,
-            updated_at: new Date().toISOString(),
-        },
-        { onConflict: "item_id" }
-    )
+    // The SQL function serializes new links per account. A read/count followed
+    // by a client-side upsert would let simultaneous requests exceed the cap.
+    const { error } = await adminClient().rpc("save_plaid_item_with_limit", {
+        p_user_id: appUserId, p_item_id: item.itemId,
+        p_access_token: item.accessToken, p_institution: item.institution,
+    })
+    if (error?.message.includes("bank_connection_limit_reached")) throw new BankConnectionLimitError()
+    if (error?.message.includes("item_owned_by_another_account")) throw new BankConnectionOwnershipError()
     if (error) throw dbError(error)
+}
+
+/** Resolve an ambiguous save before deciding whether a vendor rollback is safe. */
+export async function loadItemOwner(itemId: string): Promise<string | null> {
+    const { data, error } = await adminClient().from(TABLE).select("user_id").eq("item_id", itemId).maybeSingle()
+    if (error) throw dbError(error)
+    return data?.user_id ?? null
 }
 
 /** Forgets one institution (the user disconnected it). */

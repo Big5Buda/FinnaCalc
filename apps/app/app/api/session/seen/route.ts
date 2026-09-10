@@ -18,12 +18,10 @@ import { verifiedAppUserId } from "@/lib/supabase-auth"
  * The flag is a hint for cost control and nothing else. It never grants access
  * to anything, so a client sending `true` gains nothing but its own bill.
  *
- * Bank connections are NOT tracked for pruning. They end when the subscription
- * that paid for them ends, which the app handles the moment it sees the
- * entitlement go. A Budgeting Plus subscriber who has not opened the app for
- * six weeks is still paying, and disconnecting their bank on a timer would be
- * wrong. `last_seen_at` is still stamped on plaid_items for support and
- * debugging; nothing acts on it.
+ * Bank connections are not tracked for pruning. Plan changes restrict data
+ * access without deleting links; users disconnect them explicitly.
+ * `last_seen_at` is still stamped on plaid_items for support and debugging;
+ * nothing acts on it.
  *
  * Deliberately cheap and quiet: two column touches and a 204. A failure must
  * never interrupt a launch, so this returns 204 even when the columns are

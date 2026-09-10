@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
-import { deleteAllItems, deleteItem, loadItems } from "@/lib/plaid-items"
+import { deleteItem, loadItems } from "@/lib/plaid-items"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 /**
@@ -19,8 +19,8 @@ import { verifiedAppUserId } from "@/lib/supabase-auth"
  *
  * Idempotent by design. Plaid answers ITEM_NOT_FOUND or INVALID_ACCESS_TOKEN
  * for something already gone, and both are treated as success, because the
- * caller asked for the Item to stop existing and it does not exist. This route
- * is called on subscription lapse, and a lapse can be noticed more than once.
+ * caller asked for the Item to stop existing and it does not exist. Users
+ * explicitly request disconnection; a plan change does not invoke this route.
  *
  * Body: {} removes every item for the user, {"itemId": "..."} removes one.
  */
@@ -56,8 +56,7 @@ export async function POST(req: NextRequest) {
         const targets = itemId ? items.filter((i) => i.itemId === itemId) : items
 
         // Nothing linked is a success: the caller wanted no live items and
-        // there are none. Saying otherwise would make a lapse handler retry
-        // forever against an account that never linked a bank.
+        // there are none. A repeated confirmed action is harmless.
         if (targets.length === 0) {
             return NextResponse.json({ removed: 0, remaining: items.length })
         }
@@ -79,11 +78,9 @@ export async function POST(req: NextRequest) {
             removed += 1
         }
 
-        // Belt and braces on the remove-everything path: if Plaid took all of
-        // them, make sure no orphan row survives a partial delete.
-        if (!itemId && failures.length === 0) {
-            await deleteAllItems(appUserId)
-        }
+        // Delete only items whose vendor revocation completed above. A new
+        // bank linked concurrently was not in this removal snapshot; deleting
+        // every row here would lose its live credential without revoking it.
 
         if (failures.length > 0) {
             return NextResponse.json(

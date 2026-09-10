@@ -1,6 +1,9 @@
+import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { paidFeatureError } from "@/lib/paid-feature-access"
 import { NextResponse } from "next/server"
 import { CountryCode, Products } from "plaid"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
+import { BankConnectionLimitError, loadItems, MAX_BANK_CONNECTIONS } from "@/lib/plaid-items"
 
 // Each feature links its own Item with just the product it needs.
 const PRODUCT_MAP: Record<string, Products> = {
@@ -27,10 +30,17 @@ export async function POST(req: Request) {
         /* no body → keep default */
     }
 
+    const userId = await verifiedAppUserId(req)
+    const accessError = await paidFeatureError(userId, product === "investments" ? "investing" : "budgeting")
+    if (accessError) return accessError
+
     try {
+        if (product !== "investments" && (await loadItems(userId!)).length >= MAX_BANK_CONNECTIONS) {
+            return NextResponse.json({ error: new BankConnectionLimitError().message }, { status: 409 })
+        }
         const client = getPlaidClient()
         const response = await client.linkTokenCreate({
-            user: { client_user_id: `finnacalc-${Date.now()}` },
+            user: { client_user_id: userId! },
             client_name: "FinnaCalc",
             products: [PRODUCT_MAP[product]],
             country_codes: [CountryCode.Us],

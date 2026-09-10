@@ -32,9 +32,9 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Optional account details (name, email) if you sign up, stored with our authentication provider (Supabase)",
-                            "Calculator, budgeting, and tax-estimator inputs, which are saved on your device, not on our servers",
+                            "Calculator, budgeting, and tax-estimator inputs are saved on your device. Optional AI analysis sends budget summaries and goals to Google; financial details included in messages or responses are retained as described below",
                             "Bank statements you import, which are parsed and stored only on your device",
-                            "Messages you send to FinnaBot and the Budget Analysis assistant, the answers you receive, and any budget summary or portfolio holdings and weights the app attaches to a message — kept as a record of each conversation (see Data Security below)",
+                            "Messages you send to FinnaBot and the Budget Analysis assistant, the answers you receive, including portfolio holdings and weights embedded in a message — kept as a record of each conversation (see Data Security below)",
                             "Contact information and feedback when you reach out",
                         ]}
                     />
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
                     />
                     <Callout tone="info">
                         <strong className="font-bold">Important:</strong> Your budget, goals, history, and
-                        tax-estimator answers live on your device. Sensitive tax fields (Social Security
+                        tax-estimator answers live on your device. Optional AI analysis sends budget summaries and goals to Google. FinnaCalc retains messages and responses, which may contain financial details; it does not separately store the structured budget snapshot. Sensitive tax fields (Social Security
                         numbers, bank details) are never saved, and the tax estimator does not transmit your
                         return, since e-filing isn&rsquo;t enabled yet.
                     </Callout>
@@ -82,12 +82,17 @@ export default function PrivacyPage() {
                     <LeadBullets
                         items={[
                             ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view"],
-                            ["Purchases:", "Payment is handled by whichever processor you subscribe through, Apple for in-app purchases or Stripe on our website. They hold your card details; FinnaCalc only learns which plan is active"],
+                            ["Purchases:", "Payment is handled by whichever processor you subscribe through, Apple for in-app purchases or Stripe on our website. They hold your card details. FinnaCalc stores subscription identifiers, product, status, and purchase or expiry dates linked to your account to verify access. Each Apple subscription belongs to one FinnaCalc account"],
                             ["Legal Requirements:", "When required by law or to protect rights and safety"],
                             ["Business Transfers:", "In connection with a merger, acquisition, or sale of assets"],
                             ["Consent:", "When you have given explicit consent for sharing"],
                         ]}
                     />
+                    <P>
+                        AI features require you to confirm you are 18 or older and give separate permission to
+                        share data with Google. You can decline and use other features, or stop future AI sharing
+                        in Account. Turning sharing off does not delete earlier conversation records.
+                    </P>
                 </Section>
 
                 <Section icon={Shield} tint="text-accent-orange" title="Data Security">
@@ -97,8 +102,9 @@ export default function PrivacyPage() {
                     </P>
                     <Bullets
                         items={[
-                            "Personal finance data (budget, goals, tax answers) stays on your device",
-                            "AI conversation records \u2014 your message, any context the app attached, and the answer as shown \u2014 are kept on our servers, linked to your account when you are signed in, and deleted when you delete your account. Conversations from signed-out use are kept without any link to you",
+                            "Budget, goals, and tax answers are stored on your device. Optional AI analysis shares budget summaries and goals with Google; financial details included in messages or responses are retained in conversation records. The tax estimator does not send your answers to our servers",
+                            "AI conversation records \u2014 your message, portfolio context embedded in it, and model responses including text screened out before display \u2014 are stored on our servers and scheduled for automatic deletion after 30 days by an hourly cleanup. Signed-in records are linked to your account and also deleted when you delete your account. Signed-out records have no account identifier but may contain details you include. This cleanup applies to our active transcript database; provider records and backups follow their separate retention policies",
+                            "We record the most recent use of connected accounts and whether an investing subscription is active to manage those connections. Feedback is sent to our team through Resend with the contact details you provide, app version, and your account identifier when signed in",
                             "SSL/TLS encryption for everything sent to our services",
                             "Bank credentials handled only by Plaid and SnapTrade, never by FinnaCalc",
                             "Limited access to personal information on a need-to-know basis",
@@ -115,7 +121,10 @@ export default function PrivacyPage() {
                 <Section title="On-Device Storage & Preferences">
                     <P>
                         The app stores your working data and preferences locally on your device rather than
-                        with tracking cookies:
+                        with tracking cookies. In the iOS app, saved financial records are separated by FinnaCalc
+                        account, with a separate guest space. Signing out hides that account's local records;
+                        signing back in on the same device restores access. These records do not sync between
+                        devices. Older device-wide records remain unassigned until you choose an account for them:
                     </P>
                     <LeadBullets
                         items={[
@@ -146,7 +155,7 @@ export default function PrivacyPage() {
 
                 <Section title="Children’s Privacy">
                     <P>
-                        The services are not intended for children under 13 years of age. Personal information
+                        AI features are restricted to adults 18 or older. The other services are not intended for children under 13 years of age. Personal information
                         from children under 13 is not knowingly collected. If you are a parent or guardian and
                         believe your child has provided personal information, please make contact immediately.
                     </P>

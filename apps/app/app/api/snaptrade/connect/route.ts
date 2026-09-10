@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { resolveOrCreateSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError, listConnections } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Registers the user with SnapTrade if needed, then returns a one-time
@@ -51,6 +52,17 @@ export async function POST(req: NextRequest) {
             // No body (the web client posts none) — falls through to the web redirect.
         }
 
+        const connections = await listConnections(session)
+        if (reconnect) {
+            // Never let a forged reconnect ID bypass the new-connection gate.
+            if (!connections.some((connection) => connection.id === reconnect)) {
+                return NextResponse.json({ error: "That brokerage connection does not belong to this account." }, { status: 404 })
+            }
+        } else {
+            const denied = await brokerageLimitError(appUserId, session, connections, true)
+            if (denied) return denied
+        }
+
         const origin = new URL(req.url).origin
         const customRedirect = platform === "ios" ? "finnacalc://snaptrade-callback" : `${origin}/investing`
 
@@ -69,6 +81,7 @@ export async function POST(req: NextRequest) {
             // the SAME connection: this route with { reconnect } + "trade".
             connectionType: access === "trade" ? "trade" : "read",
             customRedirect,
+            immediateRedirect: true,
             // Only set when repairing a disabled connection; the SDK ignores
             // an empty value for a fresh connect.
             ...(reconnect ? { reconnect } : {}),

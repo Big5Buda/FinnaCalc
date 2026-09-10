@@ -49,6 +49,47 @@ NEXT_PUBLIC_SITE_ORIGIN=https://www.finnacalc.com
 when the site is built, not per request. Change it and redeploy, or nothing
 happens.
 
+## AI transcript retention
+
+Before releasing the 30-day AI transcript policy, apply
+`apps/app/supabase/ai_transcript_retention.sql` after `ai_transcripts.sql` and
+verify a successful cleanup run. A Vercel deployment does not install the
+Supabase Cron job. The [retention deployment and monitoring guide](ai-transcript-retention.md)
+covers privileges, the exact cutoff, signed-out records and local SQL validation.
+
+## Bank connection limit
+
+Before deploying bank linking, run `apps/app/supabase/plaid_item_limit.sql` after
+the existing `plaid_items.sql` table setup. It atomically caps each account at
+two bank logins. Existing links can still refresh; adding a third requires
+disconnecting one first. No extra-login add-on is sold or charged.
+
+## Native Sign in with Apple account deletion
+
+The **app** server accepts a fresh native Apple authorization code at
+`POST /api/account/delete`. It exchanges the code, verifies Apple's signed
+identity against the authenticated user's Apple identity, then revokes the
+refresh token before removing the account. Configure these server-only values:
+
+- `APPLE_SIGN_IN_CLIENT_ID`: the native app bundle identifier, currently
+  `com.finnacalc.FinnaCalcIOS` (must be enabled for Sign in with Apple).
+- `APPLE_TEAM_ID`: the Apple Developer team that owns that identifier.
+- `APPLE_SIGN_IN_KEY_ID`: a Sign in with Apple key for that team.
+- `APPLE_SIGN_IN_PRIVATE_KEY`: that key's `.p8` PEM contents. Literal `\\n`
+  escapes are accepted. Never use a `NEXT_PUBLIC_` variable for this key.
+
+The server generates a five-minute ES256 client secret for each request. Codes
+and tokens are never logged or retained by this flow. No redirect URI is sent
+because native authorization does not use one. The Supabase Apple provider
+must also accept the native bundle identifier.
+
+When tokens or server credentials are unavailable, account deletion still
+completes and returns `appleRevocation: "manual_required"`; the native app
+directs the user to Apple's instructions for removing access. This fallback is
+required by [Apple TN3194](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple).
+Verify the configured flow with a disposable Apple-linked account before
+submission; unit tests cannot validate Apple Developer configuration.
+
 ## Redirects off the root domain
 
 Every path that used to be served by `www` and now lives on the subdomain

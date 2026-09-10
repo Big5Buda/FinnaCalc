@@ -1,9 +1,11 @@
+import { paidFeatureError } from "@/lib/paid-feature-access"
 import { generateObject, streamText } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import { SECURITIES_FENCE, guardTextStream, screenText, type Removal } from "@/lib/advice-guard"
 import { lastUserMessage, recordTranscript } from "@/lib/ai-transcript"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { requireAIConsentHeader } from "@/lib/ai-consent"
 
 const MODEL = "gemini-3.5-flash"
 
@@ -83,13 +85,14 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[], u
         .map((f) => {
             const screened = screenText(f.fix, "budget")
             for (const r of screened.removed) {
-                console.warn("[/api/budget-advisor] advice-guard removed (fix)", r.rule, JSON.stringify(r.sentence))
+                console.warn("[/api/budget-advisor] advice-guard removed (fix)", r.rule)
             }
             removed.push(...screened.removed)
             return { id: f.id, fix: screened.text }
         })
     // Recorded like any other answer. The findings are the question; the
-    // snapshot is not stored.
+    // structured snapshot is sent to Google but not stored separately;
+    // findings and generated answers can contain its financial details.
     await recordTranscript({
         userId,
         route: "budget-fixes",
@@ -104,6 +107,8 @@ async function findingFixes(snapshot: unknown, rawFindings: IncomingFinding[], u
 }
 
 export async function POST(req: Request) {
+    const consentError = requireAIConsentHeader(req)
+    if (consentError) return consentError
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
         return new Response(
             "Budget advisor is not configured. Please add GOOGLE_GENERATIVE_AI_API_KEY to your environment variables.",
@@ -130,6 +135,10 @@ export async function POST(req: Request) {
     // Read, not required: quick analysis gates on the StoreKit entitlement,
     // not on a session, so a missing token is a legitimate reader.
     const userId = await verifiedAppUserId(req)
+    if (body.depth === "deep" || Array.isArray(body.findings)) {
+        const accessError = await paidFeatureError(userId, "budgeting")
+        if (accessError) return accessError
+    }
 
     // Findings mode: structured per-finding fix copy, JSON response.
     if (Array.isArray(body.findings)) {
@@ -157,7 +166,8 @@ export async function POST(req: Request) {
     try {
         const result = streamText({
             // gemini-2.5-flash went paid-only Apr 2026; gemini-3.5-flash is the
-            // current free-tier flash model (15 RPM / 1,500 RPD).
+            // configured model on the owner's billing-enabled Google project.
+            // Personal financial data must not use unpaid processing.
             model: google(MODEL),
             system: `${BASE_PROMPT}${format}\n\n=== THE USER'S CURRENT MONTHLY BUDGET (JSON) ===\n${JSON.stringify(body.snapshot, null, 2)}`,
             messages,
@@ -180,10 +190,11 @@ export async function POST(req: Request) {
             onFinish: async ({ shown, removed, error }) => {
                 if (error) console.error("[/api/budget-advisor] stream aborted:", error)
                 for (const r of removed) {
-                    console.warn("[/api/budget-advisor] advice-guard removed", r.rule, JSON.stringify(r.sentence))
+                    console.warn("[/api/budget-advisor] advice-guard removed", r.rule)
                 }
                 // The question is the reader's latest turn; the budget
-                // snapshot that rides alongside it is deliberately not kept.
+                // structured snapshot is sent to Google but not separately persisted.
+                // The latest question and answer can still include budget details.
                 await recordTranscript({
                     userId,
                     route: "budget-advisor",

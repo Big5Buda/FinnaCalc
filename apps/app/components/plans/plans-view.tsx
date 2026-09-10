@@ -155,8 +155,8 @@ export function PlansView() {
                     subscribed on the web.
                 </p>
                 <p className="text-[10.5px] text-muted-foreground/85">
-                    Budgeting Plus and FinnaCalc Pro include 2 connected bank logins per account. Each extra
-                    login is $2 a month. Ad-free covers the pages the plan includes; FinnaCalc Pro covers the
+                    Budgeting Plus and FinnaCalc Pro include up to 2 connected bank logins per account.
+                    Disconnect a bank before adding a different one. Ad-free covers the pages the plan includes; FinnaCalc Pro covers the
                     whole app.
                 </p>
                 <div className="flex justify-center gap-4">

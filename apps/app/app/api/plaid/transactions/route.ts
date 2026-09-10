@@ -1,7 +1,10 @@
+import { paidFeatureError } from "@/lib/paid-feature-access"
 import { NextRequest, NextResponse } from "next/server"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
-import { loadItems, saveItem } from "@/lib/plaid-items"
+import { BankConnectionLimitError, BankConnectionOwnershipError, loadItems } from "@/lib/plaid-items"
+import { linkBankForUser } from "@/lib/plaid-bank-link"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { readTransactionPages } from "@/lib/plaid-transaction-pages"
 
 export interface BankTransaction {
     date: string
@@ -53,6 +56,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Sign in to connect a bank." }, { status: 401 })
     }
 
+    const accessError = await paidFeatureError(appUserId, "budgeting")
+    if (accessError) return accessError
+
     // No body at all is the refresh case, so a parse failure isn't an error.
     let body: { public_token?: string; institution?: string } = {}
     try {
@@ -68,12 +74,7 @@ export async function POST(req: NextRequest) {
         // this institution can be read again without another trip through
         // Plaid Link.
         if (body.public_token) {
-            const exchange = await client.itemPublicTokenExchange({ public_token: body.public_token })
-            await saveItem(appUserId, {
-                itemId: exchange.data.item_id,
-                accessToken: exchange.data.access_token,
-                institution: body.institution ?? null,
-            })
+            await linkBankForUser(appUserId, body.public_token, body.institution ?? null)
         }
 
         const items = await loadItems(appUserId)
@@ -92,11 +93,17 @@ export async function POST(req: NextRequest) {
 
         for (const item of items) {
             try {
-                const { data } = await client.transactionsGet({
-                    access_token: item.accessToken,
-                    start_date: fmt(start),
-                    end_date: fmt(now),
-                    options: { count: 250, offset: 0 },
+                // Publish only after every page is present. Appending each
+                // page immediately would retain an incomplete institution if
+                // a later page failed and mix it into a successful response.
+                const data = await readTransactionPages(async (offset, count) => {
+                    const response = await client.transactionsGet({
+                        access_token: item.accessToken,
+                        start_date: fmt(start),
+                        end_date: fmt(now),
+                        options: { count, offset },
+                    })
+                    return response.data
                 })
 
                 for (const t of data.transactions ?? []) {
@@ -147,6 +154,9 @@ export async function POST(req: NextRequest) {
             ...(failures.length > 0 ? { staleInstitutions: failures } : {}),
         })
     } catch (err: any) {
+        if (err instanceof BankConnectionLimitError || err instanceof BankConnectionOwnershipError) {
+            return NextResponse.json({ error: err.message }, { status: 409 })
+        }
         const message =
             err?.response?.data?.error_message || err?.message || "Failed to load transactions."
         // Transactions can take a moment to be ready right after linking.

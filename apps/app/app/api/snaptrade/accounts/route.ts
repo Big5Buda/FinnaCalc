@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 export interface BrokerageAccount {
@@ -62,6 +63,8 @@ export async function GET(req: NextRequest) {
             clearLegacySnapTradeCookie(res)
             return res
         }
+        const denied = await brokerageLimitError(appUserId, session)
+        if (denied) return denied
         const st = getSnapTrade()
 
         // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
@@ -74,8 +77,8 @@ export async function GET(req: NextRequest) {
         })
         const accountList = Array.isArray(accountData) ? accountData : []
 
-        // Positions and balances, per account, in parallel; one failing
-        // account must not blank the rest.
+        // Keep failure distinct from a genuinely empty holdings list. A
+        // partial portfolio would otherwise produce false totals and goals.
         //
         // The balance is asked for in its OWN right rather than read off the
         // holdings payload. getUserHoldings serves the daily holdings cache,
@@ -99,8 +102,13 @@ export async function GET(req: NextRequest) {
                         userId: session.userId,
                         userSecret: session.userSecret,
                     })
-                    .then(({ data }) => data?.positions ?? [])
-                    .catch(() => [])
+                    .then(({ data }) => {
+                        const positions = data?.positions
+                        const valid = Array.isArray(positions) && positions.every((position: any) =>
+                            position != null && typeof position.units === "number" && Number.isFinite(position.units))
+                        return { positions: valid ? positions : [], failed: !valid }
+                    })
+                    .catch(() => ({ positions: [], failed: true }))
                 const balances = await st.accountInformation
                     .getUserAccountBalance({
                         accountId: a.id,
@@ -109,9 +117,20 @@ export async function GET(req: NextRequest) {
                     })
                     .then(({ data }) => (Array.isArray(data) ? data : []))
                     .catch(() => [])
-                return { accountId: a.id ?? "", positions, balances }
+                return { accountId: a.id ?? "", positions: positions.positions, holdingsFailed: positions.failed, balances }
             })
         )
+
+        const failedHoldings = holdingsByAccount.filter((holding) => holding.holdingsFailed)
+        if (failedHoldings.length > 0) {
+            const names = failedHoldings.map(({ accountId }) => {
+                const account = accountList.find((a: any) => a.id === accountId)
+                return account?.name ?? account?.institution_name ?? "an account"
+            })
+            return NextResponse.json({
+                error: `Holdings could not be refreshed for ${names.join(", ")}. Your complete portfolio is unavailable. Please try again.`,
+            }, { status: 502 })
+        }
 
         // Cash in the account's own currency. A multi-currency account holds
         // several cash balances, so the one matching the account's currency
@@ -121,9 +140,9 @@ export async function GET(req: NextRequest) {
                 const accountCurrency = accountList.find((a: any) => a.id === accountId)?.balance?.total
                     ?.currency
                 const match = (balances as any[]).find(
-                    (b: any) => b?.currency?.code === accountCurrency || accountCurrency == null
+                    (b: any) => accountCurrency != null && b?.currency?.code === accountCurrency
                 )
-                const cash = match?.cash ?? (balances as any[])[0]?.cash ?? null
+                const cash = typeof match?.cash === "number" && Number.isFinite(match.cash) ? match.cash : null
                 return [accountId, cash != null ? round2(cash) : null]
             })
         )
@@ -133,16 +152,16 @@ export async function GET(req: NextRequest) {
             name: a.name ?? "Account",
             institution: a.institution_name ?? "Brokerage",
             number: a.number ?? "",
-            totalValue: a.balance?.total?.amount != null ? round2(a.balance.total.amount) : null,
+            totalValue: typeof a.balance?.total?.amount === "number" && Number.isFinite(a.balance.total.amount) ? round2(a.balance.total.amount) : null,
             cash: cashByAccount.get(a.id ?? "") ?? null,
-            currency: a.balance?.total?.currency ?? "USD",
+            currency: a.balance?.total?.currency ?? "",
             connectionId: a.brokerage_authorization ?? null,
         }))
 
         const positions: BrokeragePosition[] = holdingsByAccount.flatMap(({ accountId, positions: accountPositions }) =>
             (accountPositions ?? []).map((p: any) => {
-                const units = p.units ?? 0
-                const price = p.price ?? null
+                const units = p.units
+                const price = typeof p.price === "number" && Number.isFinite(p.price) ? p.price : null
                 return {
                     accountId,
                     symbol:
@@ -154,15 +173,18 @@ export async function GET(req: NextRequest) {
                     units,
                     price: price != null ? round2(price) : null,
                     marketValue: price != null ? round2(units * price) : null,
-                    openPnl: p.open_pnl != null ? round2(p.open_pnl) : null,
+                    openPnl: typeof p.open_pnl === "number" && Number.isFinite(p.open_pnl) ? round2(p.open_pnl) : null,
                     averagePurchasePrice:
-                        p.average_purchase_price != null ? round2(p.average_purchase_price) : null,
+                        typeof p.average_purchase_price === "number" && Number.isFinite(p.average_purchase_price) ? round2(p.average_purchase_price) : null,
                 }
             })
         )
 
-        const currency = accounts[0]?.currency ?? "USD"
-        const totalValue = round2(accounts.reduce((s, a) => s + (a.totalValue ?? 0), 0))
+        const currencies = new Set(accounts.map((a) => a.currency))
+        const currency = currencies.size === 1 && accounts[0]?.currency ? accounts[0].currency : null
+        const totalValue = currency && accounts.every((a) => a.totalValue != null && Number.isFinite(a.totalValue))
+            ? round2(accounts.reduce((sum, a) => sum + a.totalValue!, 0))
+            : null
 
         const res = NextResponse.json({
             configured: true,

@@ -1,3 +1,5 @@
+import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { paidFeatureError } from "@/lib/paid-feature-access"
 import { NextResponse } from "next/server"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
 
@@ -37,6 +39,9 @@ function titleCase(s: string) {
 }
 
 export async function POST(req: Request) {
+    const userId = await verifiedAppUserId(req)
+    const accessError = await paidFeatureError(userId, "investing")
+    if (accessError) return accessError
     if (!isPlaidConfigured()) {
         return NextResponse.json(
             { error: "Portfolio import is not configured. Add PLAID_CLIENT_ID and PLAID_SECRET to your environment variables." },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { paidFeatureError } from "@/lib/paid-feature-access"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 
 /**
@@ -19,8 +20,9 @@ import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
  * never on a clock. Do not add plaid_items to this file.
  *
  * Paying investing subscribers are exempt for the same reason. The app stamps
- * `has_investing` alongside the ping, so somebody paying for Investing Plus or
- * Pro keeps their brokerage however long they stay away. Only unpaid, unused
+ * `has_investing` alongside the ping as a conservative retention hint. Before
+ * any removal the server verifies current Apple/Stripe access independently;
+ * a failed subscription check retains the connection. Only unpaid, unused
  * connections are pruned, which is the only case that is pure cost.
  *
  * DORMANT_DAYS is generous on purpose. Someone who checks a portfolio
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
     if (!authorised(req)) {
         return NextResponse.json({ error: "Not authorised." }, { status: 401 })
     }
-    if (!isSnapTradeConfigured()) {
+    if (!isSnapTradeConfigured) {
         return NextResponse.json({ skipped: "SnapTrade not configured." })
     }
 
@@ -92,6 +94,16 @@ export async function GET(req: NextRequest) {
             exempt += 1
             continue
         }
+        // A device hint cannot prove a subscription ended. Apple/Stripe must
+        // explicitly confirm there is no investing access before deletion.
+        try {
+            const denied = await paidFeatureError(row.user_id, "investing")
+            if (!denied) { exempt += 1; continue }
+            if (denied.status !== 403) { errors.push(`entitlement ${row.user_id}`); continue }
+        } catch {
+            errors.push(`entitlement ${row.user_id}`)
+            continue
+        }
         try {
             await st.authentication.deleteSnapTradeUser({ userId: row.st_user_id })
         } catch (err: any) {
@@ -102,7 +114,8 @@ export async function GET(req: NextRequest) {
                 continue
             }
         }
-        await admin.from("snaptrade_users").delete().eq("user_id", row.user_id)
+        const { error: deleteError } = await admin.from("snaptrade_users").delete().eq("user_id", row.user_id)
+        if (deleteError) { errors.push(`session ${row.user_id}`); continue }
         removed += 1
     }
 

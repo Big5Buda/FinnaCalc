@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 const ACTIONS = ["BUY", "SELL"] as const
@@ -78,6 +79,8 @@ export async function POST(req: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
         }
+        const denied = await brokerageLimitError(appUserId, session)
+        if (denied) return denied
         const st = getSnapTrade()
 
         // Orders take a universal_symbol_id, not a ticker. Per SnapTrade's

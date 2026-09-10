@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Triggers a manual holdings sync for the user's active connections.
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
             userId: session.userId,
             userSecret: session.userSecret,
         })
+        const denied = await brokerageLimitError(appUserId, session, Array.isArray(data) ? data : undefined)
+        if (denied) return denied
         const active = (Array.isArray(data) ? data : []).filter((c: any) => c?.id && !c?.disabled)
 
         // Refresh each active connection; a single failure shouldn't block the

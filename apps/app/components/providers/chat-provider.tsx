@@ -1,7 +1,9 @@
 "use client"
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ApiError, postTextStream } from "@/lib/api-client"
+import { ensureGoogleAIConsent } from "@/lib/ai-consent"
+import { useAuth } from "@/components/providers/auth-provider"
 
 /**
  * FinnaBot's conversation, ported from the iOS ChatViewModel
@@ -47,6 +49,7 @@ type ChatContextValue = {
 const ChatContext = createContext<ChatContextValue | null>(null)
 
 export function ChatProvider({ children }: { children: ReactNode }) {
+    const { user } = useAuth()
     const [messages, setMessages] = useState<ChatMessage[]>([
         { id: WELCOME_ID, role: "assistant", content: WELCOME },
     ])
@@ -55,11 +58,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const [error, setError] = useState<string | null>(null)
     const [open, setOpen] = useState(false)
     const loadingRef = useRef(false)
+    const requestController = useRef<AbortController | null>(null)
+    const generation = useRef(0)
+
+    useEffect(() => {
+        generation.current += 1
+        requestController.current?.abort()
+        requestController.current = null
+        loadingRef.current = false
+        setMessages([{ id: WELCOME_ID, role: "assistant", content: WELCOME }])
+        setInput("")
+        setError(null)
+        setIsLoading(false)
+        return () => { generation.current += 1; requestController.current?.abort() }
+    }, [user?.id])
 
     const send = useCallback(
         (override?: string) => {
             const trimmed = (override ?? input).trim()
             if (!trimmed || loadingRef.current) return
+            if (!ensureGoogleAIConsent()) return
+            const requestGeneration = generation.current
+            const controller = new AbortController()
+            requestController.current = controller
 
             loadingRef.current = true
             setError(null)
@@ -83,6 +104,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             let appended = false
 
             postTextStream("/api/chat", { messages: payload }, (text) => {
+                if (generation.current !== requestGeneration) return
                 if (!appended) {
                     appended = true
                     setMessages((prev) => [
@@ -92,8 +114,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                     return
                 }
                 setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: text } : m)))
-            })
+            }, controller.signal)
                 .then(() => {
+                    if (generation.current !== requestGeneration) return
                     setMessages((prev) => {
                         const streamed = prev.find((m) => m.id === assistantId)
                         if (streamed && streamed.content.trim() === "") {
@@ -105,10 +128,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                     if (!appended) setError("No response received. Please try again.")
                 })
                 .catch((err: unknown) => {
+                    if (generation.current !== requestGeneration) return
                     setMessages((prev) => prev.filter((m) => m.id !== assistantId))
                     setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.")
                 })
                 .finally(() => {
+                    if (generation.current !== requestGeneration) return
+                    requestController.current = null
                     loadingRef.current = false
                     setIsLoading(false)
                 })

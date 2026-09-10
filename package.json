@@ -2,7 +2,7 @@
   "name": "finnacalc",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
   "workspaces": [
     "apps/*",
@@ -18,5 +18,11 @@
   "devDependencies": {
     "turbo": "^2.3.3"
   },
-  "packageManager": "npm@11.17.0"
+  "packageManager": "npm@11.17.0",
+  "overrides": {
+    "axios": "^1.20.0",
+    "undici": "^6.28.1",
+    "postcss": "^8.5.26",
+    "sharp": "^0.35.4"
+  }
 }

@@ -19,14 +19,18 @@ export async function POST(req: NextRequest) {
 
     try {
         const session = await loadSession(appUserId)
-        if (session && isSnapTradeConfigured) {
-            // Best-effort: a failed SnapTrade-side delete shouldn't stop the
-            // local disconnect, but log it — an orphaned SnapTrade user keeps
-            // its brokerage connections (and per-user billing) alive.
+        if (session && !isSnapTradeConfigured) {
+            return NextResponse.json({ error: "Brokerage disconnection is temporarily unavailable. Please try again or contact support." }, { status: 503 })
+        }
+        if (session) {
+            // Keep credentials on failure so revocation can be retried. Losing
+            // them would orphan a live brokerage authorization and vendor bill.
             try {
                 await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
-            } catch (err) {
-                console.error("[/api/snaptrade/disconnect] deleteSnapTradeUser failed:", err)
+            } catch (error: any) {
+                // A previous successful vendor deletion followed by a database
+                // failure must remain retryable.
+                if (error?.response?.status !== 404) throw error
             }
         }
         await deleteSession(appUserId)

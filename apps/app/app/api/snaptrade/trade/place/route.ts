@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSnapTrade, isSnapTradeConfigured, mapOrderRecord, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
+import { brokerageLimitError } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Step 2 of the two-step order flow: execute a trade previously validated by
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
         }
+        const denied = await brokerageLimitError(appUserId, session)
+        if (denied) return denied
         const st = getSnapTrade()
         const { data } = await st.trading.placeOrder({
             tradeId,
