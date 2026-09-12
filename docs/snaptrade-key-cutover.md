@@ -7,9 +7,35 @@ connections are unavailable on production keys. Sources:
 [terminology](https://docs.snaptrade.com/docs/terminology#snaptrade-user),
 [Sandbox](https://docs.snaptrade.com/docs/sandbox).
 
-The approved September 12 inventory is three existing `snaptrade_users` rows,
+The initial September 12 pre-migration inventory was three `snaptrade_users` rows,
 owned by `FINNACALC-TEST-PKUEY`. The newly created production Client ID is
 `FINNACALC-DRGER`. These IDs are public identifiers, not consumer secrets.
+
+## September 12 live cutover record
+
+- The approved additive migration preserved all three original rows. Live checks
+  found zero missing owners, RLS and the deletion guard enabled, and the
+  security-definer deletion RPC executable by service_role only.
+- Compatible backend `5ccdc97` was first deployed with the registration flag off.
+  The dedicated QA account created one empty Test mapping and a portal session;
+  browser authorization was canceled before connecting a brokerage. Vendor logs
+  confirmed registration, portal creation and authenticated reads returned 200.
+- Production-only `SNAPTRADE_USE_PRODUCTION_KEY=true` was then saved and the same
+  revision redeployed. [Activation deployment](https://vercel.com/felipe-project/finnacalc-app/C2yMRtAxckjKwhstHGYE2xTkjriW)
+  is Ready with current domain `app.finnacalc.com`.
+- The production key's `/brokerages` request returned HTTP 200 at
+  **22:07:55 UTC**, matching the public API response of 38 entries and
+  `configured: true`. Existing QA Test-key `/accounts` and `/authorizations`
+  reads still returned 200 at **22:09:06/22:09:13 UTC** after activation.
+- The production listener is `https://app.finnacalc.com/api/snaptrade/webhook`;
+  its `TEST_WEBHOOK` delivery returned 200 at **22:08:19 UTC**. The legacy listener
+  remains `https://www.finnacalc.com/api/snaptrade/webhook`; its test delivery
+  returned 200 at **22:09:54 UTC**. No Trade Detection subscription was created.
+- Final database counts: **4 legacy-owned mappings** (the original three plus
+  the empty QA mapping), **0 production mappings**, **0 missing owners**.
+  No production user, brokerage authorization or trade was created. Real
+  production connection, repair, trading and deletion lifecycle tests remain
+  unverified; catalog and test-webhook success do not establish those flows.
 
 ## Routing and preservation
 
@@ -60,8 +86,8 @@ vendor transfer or an explicit user reconnection flow.
    legacy default lets old deployed writers create test sessions safely during
    overlap. No row or credential is removed and RLS remains enabled.
 3. Verify counts only: `select client_id, count(*) from public.snaptrade_users
-   group by client_id;` Expect the existing three rows under the test ID unless
-   an independently verified user operation has changed the count. Verify both
+   group by client_id;` Compare owner counts with the recorded preflight
+   inventory, accounting only for independently verified user operations. Verify both
    functions/trigger exist and the delete RPC allows service_role only. Do not
    print `st_user_secret` or invoke deletes as a production verification test.
 4. Deploy the key-aware code **while the registration flag remains off**.
@@ -77,6 +103,18 @@ vendor transfer or an explicit user reconnection flow.
    Retain the test key's webhook configuration; configure production delivery to
    the verified receiver too. The receiver accepts both keys only for their own
    stored users. Sandbox testing continues through the test namespace.
+
+## Webhook delivery limits
+
+Webhooks currently log and acknowledge events; they do not update portfolio or
+order state. The handler accepts timestamps within five minutes, while
+[SnapTrade's documented retries](https://docs.snaptrade.com/docs/webhooks#handling-undeliverable-webhooks)
+begin after thirty minutes. A retry retaining its original timestamp therefore
+receives HTTP 400; whether SnapTrade refreshes that timestamp is unverified.
+After a delivery failure, inspect delivery logs and verify current brokerage
+state through authenticated reads. Do not assume retries recovered the event or
+disable signature/ownership checks. This limitation currently affects event
+logging, not the source of portfolio or order state.
 
 ## Mixed versions and deletion retries
 
