@@ -4,12 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
     getUser: vi.fn(), deleteUser: vi.fn(), revoke: vi.fn(), items: vi.fn(), transcripts: vi.fn(),
     loadItems: vi.fn(), itemRemove: vi.fn(), plaidConfigured: vi.fn(),
+    loadSession: vi.fn(), deleteSnapTradeUser: vi.fn(), snaptradeConfigured: true,
 }))
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({
     auth: { getUser: mocks.getUser, admin: { deleteUser: mocks.deleteUser } },
 }) }))
-vi.mock("@/lib/snaptrade", () => ({ isSnapTradeConfigured: false, getSnapTrade: vi.fn() }))
-vi.mock("@/lib/snaptrade-session", () => ({ loadSession: vi.fn() }))
+vi.mock("@/lib/snaptrade", () => ({
+    get isSnapTradeConfigured() { return mocks.snaptradeConfigured },
+    getSnapTrade: () => ({ authentication: { deleteSnapTradeUser: mocks.deleteSnapTradeUser } }),
+}))
+vi.mock("@/lib/snaptrade-session", () => ({ loadSession: mocks.loadSession }))
 vi.mock("@/lib/plaid-items", () => ({ deleteAllItems: mocks.items, loadItems: mocks.loadItems }))
 vi.mock("@/lib/plaid", () => ({ getPlaidClient: () => ({ itemRemove: mocks.itemRemove }), isPlaidConfigured: mocks.plaidConfigured }))
 vi.mock("@/lib/ai-transcript", () => ({ deleteAllTranscripts: mocks.transcripts }))
@@ -41,6 +45,9 @@ beforeEach(() => {
     mocks.itemRemove.mockResolvedValue({})
     mocks.plaidConfigured.mockReturnValue(true)
     mocks.transcripts.mockResolvedValue(undefined)
+    mocks.snaptradeConfigured = true
+    mocks.loadSession.mockResolvedValue(null)
+    mocks.deleteSnapTradeUser.mockResolvedValue({ data: { status: "deleted" } })
     vi.spyOn(console, "warn").mockImplementation(() => {})
     vi.spyOn(console, "error").mockImplementation(() => {})
 })
@@ -91,6 +98,44 @@ describe("account deletion", () => {
         const response = await POST(request())
         expect(response.status).toBe(500)
         expect(await response.json()).not.toHaveProperty("deleted", true)
+    })
+    it("retains brokerage credentials and the account when SnapTrade rejects deletion", async () => {
+        mocks.loadSession.mockResolvedValue({ userId: "linked-brokerage", userSecret: "private-user-secret" })
+        mocks.deleteSnapTradeUser.mockRejectedValue(new Error("Vendor failure with private-user-secret"))
+        const response = await POST(request())
+        expect(response.status).toBe(502)
+        expect(mocks.deleteUser).not.toHaveBeenCalled()
+        expect(mocks.items).not.toHaveBeenCalled()
+        expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("private-user-secret")
+    })
+    it("retains an existing brokerage when vendor credentials are unavailable", async () => {
+        mocks.snaptradeConfigured = false
+        mocks.loadSession.mockResolvedValue({ userId: "linked-brokerage", userSecret: "private-user-secret" })
+        expect((await POST(request())).status).toBe(503)
+        expect(mocks.deleteSnapTradeUser).not.toHaveBeenCalled()
+        expect(mocks.deleteUser).not.toHaveBeenCalled()
+    })
+    it("does not discard the account when its brokerage store cannot be read", async () => {
+        mocks.loadSession.mockRejectedValue(new Error("Storage unavailable"))
+        expect((await POST(request())).status).toBe(502)
+        expect(mocks.deleteUser).not.toHaveBeenCalled()
+    })
+    it("requires accepted brokerage deletion before deleting the account", async () => {
+        mocks.loadSession.mockResolvedValue({ userId: "linked-brokerage", userSecret: "private-user-secret" })
+        expect((await POST(request())).status).toBe(200)
+        expect(mocks.deleteSnapTradeUser).toHaveBeenCalledWith({ userId: "linked-brokerage" })
+        expect(mocks.deleteSnapTradeUser.mock.invocationCallOrder[0]).toBeLessThan(mocks.deleteUser.mock.invocationCallOrder[0])
+    })
+    it("allows deletion to be retried after SnapTrade already removed its user", async () => {
+        mocks.loadSession.mockResolvedValue({ userId: "removed-brokerage", userSecret: "private-user-secret" })
+        mocks.deleteSnapTradeUser.mockRejectedValue({ response: { status: 404 } })
+        expect((await POST(request())).status).toBe(200)
+        expect(mocks.deleteUser).toHaveBeenCalledOnce()
+    })
+    it("allows an account with no brokerage to delete without SnapTrade configuration", async () => {
+        mocks.snaptradeConfigured = false
+        expect((await POST(request())).status).toBe(200)
+        expect(mocks.deleteSnapTradeUser).not.toHaveBeenCalled()
     })
     it("removes live Plaid Items before discarding access tokens or deleting the account", async () => {
         mocks.loadItems.mockResolvedValue([{ itemId: "bank", accessToken: "bank-token" }])
