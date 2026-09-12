@@ -45,6 +45,15 @@ vendor transfer or an explicit user reconnection flow.
    Leave `SNAPTRADE_USE_PRODUCTION_KEY` absent or `false`. No secret needs to be
    read, copied, renamed or rotated. Do not place secrets in source, command
    lines, logs or this guide.
+   **Before applying SQL**, verify the Client ID actually used by the deployed
+   backend against the migration's backfill/default `FINNACALC-TEST-PKUEY`.
+   Use SnapTrade's existing request logs for an authorized read-only request
+   from the live deployment; record only the public Client ID and evidence
+   reference, not request signatures, secrets or financial data. A dashboard
+   key's existence or its label alone does not prove deployment ownership.
+   If the ID differs, the existing rows' owner is uncertain, or the deployed ID
+   cannot be verified, stop before SQL or activation and resolve the ownership
+   evidence. Do not guess a backfill or relabel existing credentials.
 2. Apply `apps/app/supabase/snaptrade_key_ownership.sql` to the correct Supabase
    project as postgres, before deploying this code. The additive `client_id`
    column backfills nulls with the explicitly identified test Client ID. Its
@@ -85,6 +94,25 @@ failure; the key-aware version can safely finish that request. An old version's
 wrong-key404 cannot discard a newer production mapping, and an old account delete
 cannot cascade away those credentials. Old readers may fail to use production
 rows; do not keep obsolete deployments exposed as a supported application.
+
+## Support recovery when an owning key is unavailable
+
+An unavailable owning key deliberately blocks brokerage reads, disconnection
+and account deletion while retaining the stored credentials for recovery.
+Restore an authorized working credential for the **same recorded Client ID**
+in its original or NEXT configuration slot, redeploy compatible code, and retry
+the user's requested operation. A new Client ID cannot substitute for the
+recorded owner; do not re-register the user or overwrite their mapping.
+
+If that credential cannot be recovered, obtain vendor-verified revocation of
+the exact recorded Client ID and SnapTrade user before removing its local row.
+For an authorized deletion request, an operator may then use the service-only
+`delete_snaptrade_session` RPC with that exact app user ID, Client ID and
+SnapTrade user ID, preserving the vendor confirmation as the deletion evidence.
+Its ownership check must succeed; a changed mapping requires fresh verification.
+Never drop/bypass the guard, directly delete or relabel the row, or treat a
+404 from another key as proof of revocation. Until same-owner recovery or
+verified revocation is complete, retain the account and its credentials.
 
 ## Rollback
 
