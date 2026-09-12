@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { paidFeatureError } from "@/lib/paid-feature-access"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
+import { deleteSession } from "@/lib/snaptrade-session"
 
 /**
  * Hangs up on brokerage connections nobody has come back for.
@@ -79,14 +81,13 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await admin
         .from("snaptrade_users")
-        .select("user_id, st_user_id, has_investing")
+        .select("user_id, st_user_id, client_id, has_investing")
         .lt("last_seen_at", cutoff)
     if (error) {
         // A missing column lands here, and aborting is the point: see 1.
         return NextResponse.json({ error: `snaptrade_users: ${error.message}` }, { status: 500 })
     }
 
-    const st = getSnapTrade()
     let exempt = 0
     for (const row of (data ?? []) as any[]) {
         // Paying for investing keeps the connection, however long the gap.
@@ -105,17 +106,19 @@ export async function GET(req: NextRequest) {
             continue
         }
         try {
+            const st = getSnapTrade({ clientId: row.client_id })
             await st.authentication.deleteSnapTradeUser({ userId: row.st_user_id })
         } catch (err: any) {
             // 404 means SnapTrade has already forgotten them, which is the
             // state we wanted.
-            if (err?.response?.status !== 404) {
+            if (!(err instanceof SnaptradeError) || err.status !== 404) {
                 errors.push(`snaptrade ${row.user_id}`)
                 continue
             }
         }
-        const { error: deleteError } = await admin.from("snaptrade_users").delete().eq("user_id", row.user_id)
-        if (deleteError) { errors.push(`session ${row.user_id}`); continue }
+        try {
+            await deleteSession(row.user_id, { userId: row.st_user_id, clientId: row.client_id })
+        } catch { errors.push(`session ${row.user_id}`); continue }
         removed += 1
     }
 

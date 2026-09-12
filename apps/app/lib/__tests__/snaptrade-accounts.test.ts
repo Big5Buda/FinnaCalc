@@ -17,7 +17,7 @@ vi.mock("@/lib/snaptrade", () => ({
 vi.mock("@/lib/snaptrade-access", () => ({ brokerageLimitError: async () => null }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "user" }))
 vi.mock("@/lib/snaptrade-session", () => ({
-    loadSession: async () => ({ userId: "broker-user", userSecret: "test-secret" }),
+    loadSession: async () => ({ userId: "broker-user", userSecret: "test-secret", clientId: "legacy-test" }),
 }))
 import { GET } from "../../app/api/snaptrade/accounts/route"
 

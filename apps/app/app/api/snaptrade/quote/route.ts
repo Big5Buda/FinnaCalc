@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         }
         const denied = await brokerageLimitError(appUserId, session)
         if (denied) return denied
-        const st = getSnapTrade()
+        const st = getSnapTrade(session)
         const { data } = await st.trading.getUserAccountQuotes({
             userId: session.userId,
             userSecret: session.userSecret,

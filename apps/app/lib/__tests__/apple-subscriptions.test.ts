@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { Environment, Status, Type } from "@apple/app-store-server-library"
+import { Environment, Status, Type, VerificationException, VerificationStatus } from "@apple/app-store-server-library"
 const mocks = vi.hoisted(() => ({ decode: vi.fn(), renewal: vi.fn(), status: vi.fn() }))
 vi.mock("@apple/app-store-server-library", async (original) => ({
     ...await original<typeof import("@apple/app-store-server-library")>(),
@@ -63,6 +63,19 @@ describe("verified Apple subscription validity", () => {
         await expect(verifySubmittedTransactions(["forged"])).rejects.toMatchObject({ status: 400 })
         expect(mocks.status).not.toHaveBeenCalled()
         expect(mocks.decode).toHaveBeenCalledTimes(1)
+    })
+    it.each(["false", "true"])("reports retryable Apple certificate failures as503 with Sandbox=%s", async (sandbox) => {
+        vi.stubEnv("APP_STORE_ALLOW_SANDBOX", sandbox)
+        mocks.decode.mockRejectedValue(new VerificationException(VerificationStatus.RETRYABLE_VERIFICATION_FAILURE))
+        await expect(verifySubmittedTransactions(["purchase-proof"])).rejects.toMatchObject({ status: 503 })
+        expect(mocks.status).not.toHaveBeenCalled()
+    })
+    it("preserves a retryable failure when the other environment rejects the proof", async () => {
+        vi.stubEnv("APP_STORE_ALLOW_SANDBOX", "true")
+        mocks.decode.mockRejectedValueOnce(new VerificationException(VerificationStatus.RETRYABLE_VERIFICATION_FAILURE))
+            .mockRejectedValue(new VerificationException(VerificationStatus.INVALID_ENVIRONMENT))
+        await expect(verifySubmittedTransactions(["purchase-proof"])).rejects.toMatchObject({ status: 503 })
+        expect(mocks.status).not.toHaveBeenCalled()
     })
     it("never attempts Sandbox unless server explicitly enables it", async () => {
         mocks.decode.mockImplementation(async (_signed, environment) => {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 import { deleteSession, loadSession } from "@/lib/snaptrade-session"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
@@ -26,16 +27,16 @@ export async function POST(req: NextRequest) {
             // Keep credentials on failure so revocation can be retried. Losing
             // them would orphan a live brokerage authorization and vendor bill.
             try {
-                await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
-            } catch (error: any) {
+                await getSnapTrade(session).authentication.deleteSnapTradeUser({ userId: session.userId })
+            } catch (error) {
                 // A previous successful vendor deletion followed by a database
                 // failure must remain retryable.
-                if (error?.response?.status !== 404) throw error
+                if (!(error instanceof SnaptradeError) || error.status !== 404) throw error
             }
         }
-        await deleteSession(appUserId)
-    } catch (err) {
-        console.error("[/api/snaptrade/disconnect] session teardown failed:", err)
+        if (session) await deleteSession(appUserId, session)
+    } catch {
+        console.error("[/api/snaptrade/disconnect] session teardown failed; credentials retained for retry.")
         const res = NextResponse.json({ error: "Failed to disconnect your brokerage." }, { status: 500 })
         clearLegacySnapTradeCookie(res)
         return res

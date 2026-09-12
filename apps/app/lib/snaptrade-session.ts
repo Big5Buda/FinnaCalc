@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { randomUUID } from "crypto"
-import { getSnapTrade, type SnapTradeSession } from "./snaptrade"
+import { activeSnapTradeClientId, getSnapTrade, snapTradeCredentials, type SnapTradeSession } from "./snaptrade"
 
 /**
  * Server-side SnapTrade credential store.
@@ -56,17 +56,31 @@ function dbError(error: { code?: string; message?: string }): Error {
 export async function loadSession(appUserId: string): Promise<SnapTradeSession | null> {
     const { data, error } = await adminClient()
         .from(TABLE)
-        .select("st_user_id, st_user_secret")
+        .select("st_user_id, st_user_secret, client_id")
         .eq("user_id", appUserId)
         .maybeSingle()
     if (error) throw dbError(error)
-    if (!data?.st_user_id || !data?.st_user_secret) return null
-    return { userId: data.st_user_id, userSecret: data.st_user_secret }
+    if (!data) return null
+    if (!data.st_user_id || !data.st_user_secret) throw new Error("Brokerage credentials are incomplete. Your connection has been preserved; please contact support.")
+    snapTradeCredentials(data.client_id)
+    return { userId: data.st_user_id, userSecret: data.st_user_secret, clientId: data.client_id }
 }
 
-export async function deleteSession(appUserId: string): Promise<void> {
-    const { error } = await adminClient().from(TABLE).delete().eq("user_id", appUserId)
+/** Delete only the exact owner/user whose vendor deletion was accepted. */
+export async function deleteSession(appUserId: string, session: Pick<SnapTradeSession, "clientId" | "userId">): Promise<void> {
+    snapTradeCredentials(session.clientId)
+    const { error } = await adminClient().rpc("delete_snaptrade_session", {
+        p_user_id: appUserId, p_client_id: session.clientId, p_st_user_id: session.userId,
+    })
     if (error) throw dbError(error)
+}
+
+/** A valid signature from a different key never authenticates this user's event. */
+export async function snapTradeWebhookOwner(userId: string): Promise<string | null> {
+    const { data, error } = await adminClient().from(TABLE).select("client_id")
+        .eq("st_user_id", userId).maybeSingle()
+    if (error) throw dbError(error)
+    return data?.client_id ?? null
 }
 
 /**
@@ -86,31 +100,33 @@ export async function resolveOrCreateSession(appUserId: string): Promise<SnapTra
     const existing = await loadSession(appUserId)
     if (existing) return existing
 
-    const st = getSnapTrade()
+    const clientId = activeSnapTradeClientId()
+    const st = getSnapTrade({ clientId })
     const reg = await st.authentication.registerSnapTradeUser({ userId: `finnacalc-${randomUUID()}` })
     const session: SnapTradeSession = {
         userId: reg.data.userId as string,
         userSecret: reg.data.userSecret as string,
+        clientId,
     }
 
     const client = adminClient()
     const { error } = await client
         .from(TABLE)
         .upsert(
-            { user_id: appUserId, st_user_id: session.userId, st_user_secret: session.userSecret },
+            { user_id: appUserId, st_user_id: session.userId, st_user_secret: session.userSecret, client_id: session.clientId },
             { onConflict: "user_id", ignoreDuplicates: true }
         )
     if (error) throw dbError(error)
 
     const winner = await loadSession(appUserId)
     if (!winner) throw new Error("Failed to create a brokerage session.")
-    if (winner.userId !== session.userId) {
+    if (winner.userId !== session.userId || winner.clientId !== session.clientId) {
         // Lost the race — a concurrent request's row won. Delete the
         // now-unreferenced SnapTrade user we just registered.
         try {
             await st.authentication.deleteSnapTradeUser({ userId: session.userId })
-        } catch (err) {
-            console.error("[snaptrade-session] failed to clean up orphaned SnapTrade user:", err)
+        } catch {
+            console.error("[snaptrade-session] failed to clean up unreferenced SnapTrade registration.")
         }
     }
     return winner

@@ -129,8 +129,8 @@ export default function TaxesPage() {
             />
             <PageBody className="flex w-full max-w-5xl flex-col gap-5">
                 <p className="max-w-2xl text-sm text-muted-foreground">
-                    A federal estimate for 2024, computed by the same 1040 engine the iPhone app
-                    runs — checked against 176 test returns.
+                    A federal estimate for 2024. The iOS estimator covers 2025 separately.
+                    Check this tool’s coverage and limitations before using an estimate; it does not file returns.
                 </p>
 
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,380px)_1fr]">

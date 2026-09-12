@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         }
         const denied = await brokerageLimitError(appUserId, session)
         if (denied) return denied
-        const st = getSnapTrade()
+        const st = getSnapTrade(session)
 
         // Orders take a universal_symbol_id, not a ticker. Per SnapTrade's
         // getting-started guide the tradeable symbol is resolved from the

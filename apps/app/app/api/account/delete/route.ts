@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
-import { loadSession } from "@/lib/snaptrade-session"
+import { deleteSession, loadSession } from "@/lib/snaptrade-session"
 import { deleteAllItems, loadItems } from "@/lib/plaid-items"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
 import { deleteAllTranscripts } from "@/lib/ai-transcript"
@@ -68,19 +69,30 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Tear down the user's SnapTrade user first (revokes its brokerage
-    // connections and stops per-user billing). Best-effort: a SnapTrade
-    // failure shouldn't block account deletion — the stored credentials row
-    // cascades away with the auth user either way.
-    if (isSnapTradeConfigured) {
-        try {
-            const session = await loadSession(userData.user.id)
-            if (session) {
-                await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
-            }
-        } catch (err) {
-            console.error("[/api/account/delete] SnapTrade teardown failed:", err)
+    // Require SnapTrade to accept deletion before the credentials cascade
+    // away. Otherwise a failed request strands a live brokerage connection
+    // with no stored identity available for retry. Vendor cleanup is queued.
+    try {
+        const session = await loadSession(userData.user.id)
+        if (session && !isSnapTradeConfigured) {
+            return NextResponse.json({ error: "Brokerage disconnection is temporarily unavailable. Your account has not been deleted. Please try again or contact support." }, { status: 503 })
         }
+        if (session) {
+            try {
+                await getSnapTrade(session).authentication.deleteSnapTradeUser({ userId: session.userId })
+            } catch (error) {
+                // A prior accepted vendor deletion followed by a database or
+                // bank failure must not prevent another deletion attempt.
+                if (!(error instanceof SnaptradeError) || error.status !== 404) throw error
+            }
+            // Record vendor acceptance now. If a later bank or account delete
+            // fails, retry must not submit this brokerage deletion again.
+            await deleteSession(userData.user.id, session)
+        }
+    } catch {
+        // SDK errors can include request credentials; keep logs non-sensitive.
+        console.error("[/api/account/delete] Brokerage disconnection failed; account retained for retry.")
+        return NextResponse.json({ error: "Couldn't disconnect your brokerage. Your account has not been deleted. Please try again or contact support." }, { status: 502 })
     }
 
     // Revoke live Plaid Items before their access tokens disappear. A failed

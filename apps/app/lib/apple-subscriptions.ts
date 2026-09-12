@@ -1,5 +1,5 @@
 import {
-    AppStoreServerAPIClient, Environment, SignedDataVerifier, Status, Type,
+    AppStoreServerAPIClient, Environment, SignedDataVerifier, Status, Type, VerificationException, VerificationStatus,
     type JWSTransactionDecodedPayload,
 } from "@apple/app-store-server-library"
 import { appleRootCertificates } from "./apple-root-certificates"
@@ -66,14 +66,18 @@ export function grantForVerifiedTransaction(transaction: JWSTransactionDecodedPa
 
 async function decodeSubmitted(signed: string): Promise<JWSTransactionDecodedPayload> {
     configuration()
-    try {
-        return await appleDataVerifier(Environment.PRODUCTION).verifyAndDecodeTransaction(signed)
-    } catch {
-        if (process.env.APP_STORE_ALLOW_SANDBOX === "true") {
-            try { return await appleDataVerifier(Environment.SANDBOX).verifyAndDecodeTransaction(signed) } catch { /* reject below */ }
+    const environments: AppleGrant["environment"][] = [Environment.PRODUCTION]
+    if (process.env.APP_STORE_ALLOW_SANDBOX === "true") environments.push(Environment.SANDBOX)
+    let retryable = false
+    for (const environment of environments) {
+        try {
+            return await appleDataVerifier(environment).verifyAndDecodeTransaction(signed)
+        } catch (error) {
+            if (error instanceof VerificationException && error.status === VerificationStatus.RETRYABLE_VERIFICATION_FAILURE) retryable = true
         }
-        throw new AppleSubscriptionError("The App Store purchase could not be verified. Restore purchases and try again.", 400)
     }
+    if (retryable) throw new AppleSubscriptionError("App Store verification is temporarily unavailable. Please try again.", 503)
+    throw new AppleSubscriptionError("The App Store purchase could not be verified. Restore purchases and try again.", 400)
 }
 
 /** Consult Apple now so an old, correctly signed pre-refund receipt cannot grant access. */

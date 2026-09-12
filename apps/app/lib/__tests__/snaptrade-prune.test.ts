@@ -3,6 +3,7 @@ import { NextRequest } from "next/server"
 const mocks = vi.hoisted(() => ({ paid: vi.fn(), rows: vi.fn(), removeVendor: vi.fn(), removeSession: vi.fn() }))
 vi.mock("@/lib/paid-feature-access", () => ({ paidFeatureError: mocks.paid }))
 vi.mock("@/lib/snaptrade", () => ({ isSnapTradeConfigured: true, getSnapTrade: () => ({ authentication: { deleteSnapTradeUser: mocks.removeVendor } }) }))
+vi.mock("@/lib/snaptrade-session", () => ({ deleteSession: mocks.removeSession }))
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ from: () => ({
     select: () => ({ lt: mocks.rows }), delete: () => ({ eq: mocks.removeSession }),
 }) }) }))
@@ -13,7 +14,7 @@ beforeEach(() => {
     vi.stubEnv("CRON_SECRET", "test-cron")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.test")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-only")
-    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", has_investing: false }], error: null })
+    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", client_id: "legacy-test", has_investing: false }], error: null })
     mocks.paid.mockResolvedValue(Response.json({ error: "No active plan" }, { status: 403 }))
     mocks.removeVendor.mockResolvedValue({})
     mocks.removeSession.mockResolvedValue({ error: null })
@@ -33,10 +34,10 @@ it("requires an explicit server free result before pruning a dormant connection"
     expect((await (await request()).json()).removed).toBe(1)
     expect(mocks.paid).toHaveBeenCalledWith("user", "investing")
     expect(mocks.removeVendor).toHaveBeenCalledWith({ userId: "broker" })
-    expect(mocks.removeSession).toHaveBeenCalledWith("user_id", "user")
+    expect(mocks.removeSession).toHaveBeenCalledWith("user", { userId: "broker", clientId: "legacy-test" })
 })
 it("keeps a conservative paid hint even before verification", async () => {
-    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", has_investing: true }], error: null })
+    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", client_id: "legacy-test", has_investing: true }], error: null })
     expect((await (await request()).json()).exempt).toBe(1)
     expect(mocks.removeVendor).not.toHaveBeenCalled()
 })

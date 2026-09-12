@@ -34,13 +34,13 @@ const OFFER: { icon: LucideIcon; tint: string; title: string; body: string }[] =
         icon: TrendingUp,
         tint: "text-primary",
         title: "Investing",
-        body: "Connect a brokerage to see your live portfolio, place orders where your brokerage allows it, follow markets and news, and dig into ten years of company financials.",
+        body: "Connect a brokerage to see your portfolio, place orders where your brokerage allows it, follow markets and news, and explore up to ten years of company financials, where available.",
     },
     {
         icon: FileText,
         tint: "text-accent-purple",
         title: "Taxes",
-        body: "A federal tax estimator built on the real 1040 math and updated for the current tax year, plus planning calculators. It is an estimate to check against your filing service, not a filing.",
+        body: "Federal tax estimates for the year shown in each tool: 2025 in the iOS estimator and 2024 in the web estimator, plus planning calculators. Check the stated coverage and limitations. These tools do not file returns.",
     },
     {
         icon: BookOpen,
@@ -67,7 +67,7 @@ const VALUES: { icon: LucideIcon; tint: string; title: string; body: string }[] 
         icon: Shield,
         tint: "text-primary",
         title: "Accuracy",
-        body: "Every calculation is thoroughly tested and based on current financial standards and regulations.",
+        body: "Tools calculate estimates from the information you enter. Check each tool’s stated coverage and limitations, and verify important results before acting.",
     },
     {
         icon: Heart,
@@ -92,7 +92,7 @@ const VALUES: { icon: LucideIcon; tint: string; title: string; body: string }[] 
 const REASONS = [
     {
         title: "Free at the Core",
-        body: "Budgets, goals, calculators, lessons, market research, and the tax estimator are free. Paid plans add automation and deeper analysis on top.",
+        body: "Manual budgets, budget goals, calculators, lessons, basic market research, and the tax estimator are free. Paid plans add bank connections, deeper analysis, and investing goals in the iOS app. See Plans for each feature’s access requirements.",
     },
     {
         title: "Honest Numbers",

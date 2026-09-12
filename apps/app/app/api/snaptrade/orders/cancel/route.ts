@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
         }
-        const st = getSnapTrade()
+        const st = getSnapTrade(session)
         const { data } = await st.trading.cancelUserAccountOrder({
             userId: session.userId,
             userSecret: session.userSecret,

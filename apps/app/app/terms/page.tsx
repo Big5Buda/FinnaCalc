@@ -133,7 +133,7 @@ export default function TermsPage() {
                     <Bullets
                         items={[
                             "Prices are shown before you subscribe. If a price changes, you are told and asked before the new one is charged",
-                            "Plans that include bank connections cover 2 connected bank logins per account; each additional login is $2 per month",
+                            "Plans with bank connections include up to 2 connected bank logins per account. Disconnect one before adding another",
                             "Ad-free applies to the pages the plan covers; FinnaCalc Pro removes ads everywhere",
                             "Refunds follow the policies of whoever processed the payment: Apple for in-app purchases, or ours for purchases made on the website",
                         ]}

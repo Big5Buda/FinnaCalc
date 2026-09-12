@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const st = getSnapTrade()
         const session = await resolveOrCreateSession(appUserId)
+        const st = getSnapTrade(session)
 
         // The iOS app posts { platform: "ios" } so the portal redirects back
         // into the app's own callback scheme instead of the marketing site —

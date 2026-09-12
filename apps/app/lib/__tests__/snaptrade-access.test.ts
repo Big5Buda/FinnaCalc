@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
+import { AxiosError, AxiosHeaders } from "axios"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
 const mocks = vi.hoisted(() => ({ list: vi.fn(), paid: vi.fn(), login: vi.fn(), removeVendor: vi.fn(), removeSession: vi.fn(), holdings: vi.fn(), accounts: vi.fn() }))
 vi.mock("@/lib/snaptrade", () => ({
     isSnapTradeConfigured: true, clearLegacySnapTradeCookie: vi.fn(),
@@ -11,15 +13,15 @@ vi.mock("@/lib/snaptrade", () => ({
 vi.mock("@/lib/paid-feature-access", () => ({ paidFeatureError: mocks.paid }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "user" }))
 vi.mock("@/lib/snaptrade-session", () => ({
-    loadSession: async () => ({ userId: "broker-user", userSecret: "test-secret" }),
-    resolveOrCreateSession: async () => ({ userId: "broker-user", userSecret: "test-secret" }),
+    loadSession: async () => ({ userId: "broker-user", userSecret: "test-secret", clientId: "legacy-test" }),
+    resolveOrCreateSession: async () => ({ userId: "broker-user", userSecret: "test-secret", clientId: "legacy-test" }),
     deleteSession: mocks.removeSession,
 }))
 import { brokerageLimitError } from "../snaptrade-access"
 import { POST as connect } from "../../app/api/snaptrade/connect/route"
 import { POST as disconnect } from "../../app/api/snaptrade/disconnect/route"
 import { GET as accounts } from "../../app/api/snaptrade/accounts/route"
-const session = { userId: "broker-user", userSecret: "test-secret" }
+const session = { userId: "broker-user", userSecret: "test-secret", clientId: "legacy-test" }
 const request = (body = {}) => new NextRequest("https://example.test/api/snaptrade/connect", { method: "POST", body: JSON.stringify(body) })
 beforeEach(() => {
     vi.resetAllMocks()
@@ -71,7 +73,11 @@ it("a failed vendor disconnect preserves the credential needed to retry", async 
     logger.mockRestore()
 })
 it("a retry can clear the session after vendor deletion already succeeded", async () => {
-    mocks.removeVendor.mockRejectedValue({ response: { status: 404 } })
+    const response = { status: 404, statusText: "Not Found", data: {}, headers: {}, config: { headers: new AxiosHeaders() } }
+    const error = new SnaptradeError(new AxiosError("Not Found", undefined, undefined, undefined, response), {}, {})
+    expect(error.status).toBe(404)
+    expect(error).not.toHaveProperty("response")
+    mocks.removeVendor.mockRejectedValue(error)
     expect((await disconnect(request())).status).toBe(200)
-    expect(mocks.removeSession).toHaveBeenCalledWith("user")
+    expect(mocks.removeSession).toHaveBeenCalledWith("user", session)
 })
