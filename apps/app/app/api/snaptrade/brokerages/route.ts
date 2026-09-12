@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server"
-import { getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { NextRequest, NextResponse } from "next/server"
+import { activeSnapTradeClientId, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
+import { loadSession } from "@/lib/snaptrade-session"
+import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Every brokerage SnapTrade supports, so the app's own picker can search the
 // whole list instead of a hardcoded handful. No user credentials are needed:
@@ -35,18 +37,22 @@ type CatalogRow = {
     maintenanceMode: boolean
 }
 
-let cache: { at: number; rows: CatalogRow[] } | null = null
+const caches = new Map<string, { at: number; rows: CatalogRow[] }>()
 const TTL_MS = 86_400_000
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ configured: false, brokerages: [] })
     }
-    if (cache && Date.now() - cache.at < TTL_MS) {
-        return NextResponse.json({ configured: true, brokerages: cache.rows })
-    }
     try {
-        const st = getSnapTrade()
+        const userId = await verifiedAppUserId(req)
+        const session = userId ? await loadSession(userId) : null
+        const owner = session ?? { clientId: activeSnapTradeClientId() }
+        const cache = caches.get(owner.clientId)
+        if (cache && Date.now() - cache.at < TTL_MS) {
+            return NextResponse.json({ configured: true, brokerages: cache.rows })
+        }
+        const st = getSnapTrade(owner)
         const res = await st.referenceData.listAllBrokerages()
         const raw = Array.isArray(res.data) ? res.data : []
         const brokerages = raw
@@ -61,7 +67,7 @@ export async function GET() {
                 maintenanceMode: b.maintenance_mode ?? false,
             }))
             .sort((a: any, b: any) => a.name.localeCompare(b.name))
-        cache = { at: Date.now(), rows: brokerages }
+        caches.set(owner.clientId, { at: Date.now(), rows: brokerages })
         return NextResponse.json({ configured: true, brokerages })
     } catch (err: any) {
         return NextResponse.json(

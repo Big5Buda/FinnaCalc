@@ -4,19 +4,30 @@ import { Snaptrade } from "snaptrade-typescript-sdk"
 /**
  * Server-side SnapTrade client.
  *
- * Required environment variables (free dev tier at https://dashboard.snaptrade.com):
+ * Original key retained in place for existing users:
  *   SNAPTRADE_CLIENT_ID
  *   SNAPTRADE_CONSUMER_KEY
+ * New production key: SNAPTRADE_NEXT_CLIENT_ID / SNAPTRADE_NEXT_CONSUMER_KEY,
+ * used for new users only by SNAPTRADE_USE_PRODUCTION_KEY=true (Production only).
+ * Every existing session selects its recorded client ID, never the active key.
  *
  * Per-user credentials: SnapTrade returns a { userId, userSecret } pair on
  * registration, stored server-side keyed to the Supabase user
  * (lib/snaptrade-session.ts) — never on the client.
  */
 
-const clientId = process.env.SNAPTRADE_CLIENT_ID
-const consumerKey = process.env.SNAPTRADE_CONSUMER_KEY
+const originalClientId = process.env.SNAPTRADE_CLIENT_ID
+const originalConsumerKey = process.env.SNAPTRADE_CONSUMER_KEY
+const productionClientId = process.env.SNAPTRADE_NEXT_CLIENT_ID
+const productionConsumerKey = process.env.SNAPTRADE_NEXT_CONSUMER_KEY
+const useProductionKey = process.env.SNAPTRADE_USE_PRODUCTION_KEY === "true"
+const clientId = useProductionKey ? productionClientId : originalClientId
+const consumerKey = useProductionKey ? productionConsumerKey : originalConsumerKey
 
-export const isSnapTradeConfigured = Boolean(clientId && consumerKey)
+// One unavailable registration key must not disable users owned by the other.
+export const isSnapTradeConfigured = Boolean(
+    (originalClientId && originalConsumerKey) || (productionClientId && productionConsumerKey)
+)
 
 /** Legacy client-held cookie name, kept only so old cookies can be cleared. */
 export const SNAPTRADE_COOKIE = "snaptrade_session"
@@ -24,16 +35,43 @@ export const SNAPTRADE_COOKIE = "snaptrade_session"
 export interface SnapTradeSession {
     userId: string
     userSecret: string
+    /** Owner of these user credentials; never inferred from the active key. */
+    clientId: string
 }
 
-let client: Snaptrade | null = null
+type Credentials = { clientId: string; consumerKey: string }
+const clients = new Map<string, Snaptrade>()
 
-export function getSnapTrade(): Snaptrade {
-    if (!isSnapTradeConfigured) {
-        throw new Error("SnapTrade is not configured.")
+/** Existing ownership survives flag rollback; the flag selects NEW users only. */
+export function snapTradeCredentials(ownerClientId: string): Credentials {
+    if (!ownerClientId) throw new Error("Brokerage key ownership is missing. Please contact support.")
+    if (ownerClientId === originalClientId && ownerClientId === productionClientId && originalConsumerKey && productionConsumerKey && originalConsumerKey !== productionConsumerKey) {
+        throw new Error("Brokerage key configuration conflicts. Your connection has been preserved; please contact support.")
     }
+    if (ownerClientId === originalClientId && originalConsumerKey) return { clientId: originalClientId, consumerKey: originalConsumerKey }
+    if (ownerClientId === productionClientId && productionConsumerKey) return { clientId: productionClientId, consumerKey: productionConsumerKey }
+    throw new Error("This brokerage connection's key is unavailable. Your connection has been preserved; please contact support.")
+}
+
+export function activeSnapTradeClientId(): string {
+    if (!clientId || !consumerKey) throw new Error("SnapTrade is not configured.")
+    snapTradeCredentials(clientId)
+    return clientId
+}
+
+export function configuredSnapTradeClientIds(): string[] {
+    return [...new Set([
+        ...(productionClientId && productionConsumerKey ? [productionClientId] : []),
+        ...(originalClientId && originalConsumerKey ? [originalClientId] : []),
+    ])]
+}
+
+export function getSnapTrade(owner: Pick<SnapTradeSession, "clientId">): Snaptrade {
+    const credentials = snapTradeCredentials(owner.clientId)
+    let client = clients.get(credentials.clientId)
     if (!client) {
-        client = new Snaptrade({ clientId: clientId as string, consumerKey: consumerKey as string })
+        client = new Snaptrade(credentials)
+        clients.set(credentials.clientId, client)
     }
     return client
 }

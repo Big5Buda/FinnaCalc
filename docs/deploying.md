@@ -139,8 +139,16 @@ Rolling back is step 6 in reverse and takes minutes.
   what keeps installed iOS builds working**
 - `app.finnacalc.com/sign-in` completes a real sign-in
 - Stripe test checkout completes and the webhook logs a 200
-- `/api/chat` streams, and a SnapTrade connection sets its session cookie
-  through the proxy (neither could be tested without keys)
+- `/api/chat` streams, and the signed-in SnapTrade connection resolves its
+  server-stored session through the proxy (requires configured keys)
+
+## SnapTrade production key cutover
+
+Apply the additive ownership migration before deploying key-aware routes, then
+verify with the original registration key before enabling production registration.
+The existing sensitive key pair stays in place; an explicit Production flag
+selects the staged NEXT pair only for new users. Follow the exact preparation,
+verification and rollback sequence in [SnapTrade key cutover](snaptrade-key-cutover.md).
 
 ## Data left on the old origin
 

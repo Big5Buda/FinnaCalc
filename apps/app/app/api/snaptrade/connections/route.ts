@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
         if (!session) {
             return NextResponse.json({ configured: true, connections: [] })
         }
-        const st = getSnapTrade()
+        const st = getSnapTrade(session)
         const { data } = await st.connections.listBrokerageAuthorizations({
             userId: session.userId,
             userSecret: session.userSecret,

@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
             // Keep credentials on failure so revocation can be retried. Losing
             // them would orphan a live brokerage authorization and vendor bill.
             try {
-                await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
+                await getSnapTrade(session).authentication.deleteSnapTradeUser({ userId: session.userId })
             } catch (error) {
                 // A previous successful vendor deletion followed by a database
                 // failure must remain retryable.
                 if (!(error instanceof SnaptradeError) || error.status !== 404) throw error
             }
         }
-        await deleteSession(appUserId)
+        if (session) await deleteSession(appUserId, session)
     } catch {
         console.error("[/api/snaptrade/disconnect] session teardown failed; credentials retained for retry.")
         const res = NextResponse.json({ error: "Failed to disconnect your brokerage." }, { status: 500 })

@@ -3,7 +3,9 @@ import { paidFeatureError } from "./paid-feature-access"
 
 type Connection = { id?: string | null }
 export async function listConnections(session: SnapTradeSession): Promise<Connection[]> {
-    const { data } = await getSnapTrade().connections.listBrokerageAuthorizations(session)
+    const { data } = await getSnapTrade(session).connections.listBrokerageAuthorizations({
+        userId: session.userId, userSecret: session.userSecret,
+    })
     if (!Array.isArray(data)) throw new Error("Brokerage connection count is unavailable.")
     return data
 }

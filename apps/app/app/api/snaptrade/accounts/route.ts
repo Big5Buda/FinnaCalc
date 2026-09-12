@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         }
         const denied = await brokerageLimitError(appUserId, session)
         if (denied) return denied
-        const st = getSnapTrade()
+        const st = getSnapTrade(session)
 
         // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
         // endpoint is no longer available for your account") for every account

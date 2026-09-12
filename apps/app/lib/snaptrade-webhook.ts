@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto"
+import { configuredSnapTradeClientIds, snapTradeCredentials } from "./snaptrade"
 
 /**
  * SnapTrade webhook signature verification.
@@ -31,14 +32,18 @@ function safeEqual(a: string, b: string): boolean {
     return timingSafeEqual(bufA, bufB)
 }
 
-/** True if `signature` (the `Signature` header) authenticates `payload`. */
-export function verifySnapTradeWebhook(payload: unknown, signature: string | null): boolean {
-    const consumerKey = process.env.SNAPTRADE_CONSUMER_KEY
-    if (!consumerKey || !signature) return false
+/** Returns the unique client whose consumer key authenticates this payload. */
+export function verifiedSnapTradeWebhookClient(payload: unknown, signature: string | null): string | null {
+    if (!signature) return null
     // JSON.stringify uses compact separators by default; canonical() sorts keys.
     const body = JSON.stringify(canonical(payload))
-    const expected = createHmac("sha256", consumerKey).update(body).digest("base64")
-    return safeEqual(expected, signature)
+    const matches = configuredSnapTradeClientIds().filter((clientId) => {
+        const { consumerKey } = snapTradeCredentials(clientId)
+        const expected = createHmac("sha256", consumerKey).update(body).digest("base64")
+        return safeEqual(expected, signature)
+    })
+    // Ambiguous credentials cannot establish an event's namespace.
+    return matches.length === 1 ? matches[0] : null
 }
 
 /** True if the event is recent enough to not be a replay (SnapTrade: 300s). */

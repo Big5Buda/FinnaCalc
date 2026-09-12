@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         }
         if (session) {
             try {
-                await getSnapTrade().authentication.deleteSnapTradeUser({ userId: session.userId })
+                await getSnapTrade(session).authentication.deleteSnapTradeUser({ userId: session.userId })
             } catch (error) {
                 // A prior accepted vendor deletion followed by a database or
                 // bank failure must not prevent another deletion attempt.
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
             }
             // Record vendor acceptance now. If a later bank or account delete
             // fails, retry must not submit this brokerage deletion again.
-            await deleteSession(userData.user.id)
+            await deleteSession(userData.user.id, session)
         }
     } catch {
         // SDK errors can include request credentials; keep logs non-sensitive.
