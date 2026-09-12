@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
-import { loadSession } from "@/lib/snaptrade-session"
+import { deleteSession, loadSession } from "@/lib/snaptrade-session"
 import { deleteAllItems, loadItems } from "@/lib/plaid-items"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
 import { deleteAllTranscripts } from "@/lib/ai-transcript"
@@ -82,8 +83,11 @@ export async function POST(req: NextRequest) {
             } catch (error) {
                 // A prior accepted vendor deletion followed by a database or
                 // bank failure must not prevent another deletion attempt.
-                if ((error as { response?: { status?: number } })?.response?.status !== 404) throw error
+                if (!(error instanceof SnaptradeError) || error.status !== 404) throw error
             }
+            // Record vendor acceptance now. If a later bank or account delete
+            // fails, retry must not submit this brokerage deletion again.
+            await deleteSession(userData.user.id)
         }
     } catch {
         // SDK errors can include request credentials; keep logs non-sensitive.

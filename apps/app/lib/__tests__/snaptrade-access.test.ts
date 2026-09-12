@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
+import { AxiosError, AxiosHeaders } from "axios"
+import { SnaptradeError } from "snaptrade-typescript-sdk"
 const mocks = vi.hoisted(() => ({ list: vi.fn(), paid: vi.fn(), login: vi.fn(), removeVendor: vi.fn(), removeSession: vi.fn(), holdings: vi.fn(), accounts: vi.fn() }))
 vi.mock("@/lib/snaptrade", () => ({
     isSnapTradeConfigured: true, clearLegacySnapTradeCookie: vi.fn(),
@@ -71,7 +73,11 @@ it("a failed vendor disconnect preserves the credential needed to retry", async 
     logger.mockRestore()
 })
 it("a retry can clear the session after vendor deletion already succeeded", async () => {
-    mocks.removeVendor.mockRejectedValue({ response: { status: 404 } })
+    const response = { status: 404, statusText: "Not Found", data: {}, headers: {}, config: { headers: new AxiosHeaders() } }
+    const error = new SnaptradeError(new AxiosError("Not Found", undefined, undefined, undefined, response), {}, {})
+    expect(error.status).toBe(404)
+    expect(error).not.toHaveProperty("response")
+    mocks.removeVendor.mockRejectedValue(error)
     expect((await disconnect(request())).status).toBe(200)
     expect(mocks.removeSession).toHaveBeenCalledWith("user")
 })
