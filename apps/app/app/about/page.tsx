@@ -192,8 +192,8 @@ export default function AboutPage() {
                         committed to continuously improving FinnaCalc based on user needs and feedback.
                     </p>
                     <div className="flex flex-col gap-2">
-                        <ContactLine label="Help:" email="helpfinnacalc@gmail.com" />
-                        <ContactLine label="Business Inquiries:" email="finnacalc@gmail.com" />
+                        <ContactLine label="Help:" email="help@finnacalc.com" />
+                        <ContactLine label="Business Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </section>
             </div>
