@@ -175,8 +175,8 @@ export default function PrivacyPage() {
                         contact:
                     </P>
                     <div className="flex flex-col gap-2 pt-1">
-                        <Contact label="Help:" email="helpfinnacalc@gmail.com" />
-                        <Contact label="Inquiries:" email="finnacalc@gmail.com" />
+                        <Contact label="Help:" email="help@finnacalc.com" />
+                        <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
             </div>
