@@ -200,8 +200,8 @@ export default function TermsPage() {
                 <Section title="Contact Information">
                     <P>If you have any questions about these Terms of Service, please make contact:</P>
                     <div className="flex flex-col gap-2">
-                        <Contact label="Help:" email="helpfinnacalc@gmail.com" />
-                        <Contact label="Inquiries:" email="finnacalc@gmail.com" />
+                        <Contact label="Help:" email="help@finnacalc.com" />
+                        <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
             </div>
