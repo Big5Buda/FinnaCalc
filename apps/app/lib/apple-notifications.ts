@@ -1,7 +1,7 @@
 import {
     Environment, NotificationTypeV2, Type, VerificationException, VerificationStatus,
 } from "@apple/app-store-server-library"
-import { APPLE_BUNDLE_ID, AppleSubscriptionError, appleDataVerifier, type AppleGrant } from "./apple-subscriptions"
+import { APPLE_BUNDLE_ID, AppleSubscriptionError, appleDataVerifier, BANK_ADDON_PRODUCT_ID, type AppleGrant } from "./apple-subscriptions"
 
 const handled = new Set<string>([
     NotificationTypeV2.SUBSCRIBED, NotificationTypeV2.DID_RENEW,
@@ -11,8 +11,14 @@ const handled = new Set<string>([
     NotificationTypeV2.REFUND_REVERSED, NotificationTypeV2.REVOKE,
     NotificationTypeV2.OFFER_REDEEMED, NotificationTypeV2.RENEWAL_EXTENDED,
 ])
-const productIDs = new Set(["plus", "trader", "pro"].flatMap((tier) =>
-    ["monthly", "annual"].map((interval) => `com.finnacalc.${tier}.${interval}`)))
+// The bank add-on is here for the same reason the tiers are: an
+// unrecognised product id is acknowledged and dropped, so leaving it out
+// would mean its renewals, expiries and refunds never reached storage.
+const productIDs = new Set([
+    ...["plus", "trader", "pro"].flatMap((tier) =>
+        ["monthly", "annual"].map((interval) => `com.finnacalc.${tier}.${interval}`)),
+    BANK_ADDON_PRODUCT_ID,
+])
 
 /** Verify both Apple signatures before an original transaction ID reaches storage.
  * The historical status, expiry and appAccountToken never authorize a grant.

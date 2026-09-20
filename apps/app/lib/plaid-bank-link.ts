@@ -1,16 +1,18 @@
 import { getPlaidClient } from "./plaid"
-import { BankConnectionLimitError, BankConnectionOwnershipError, loadItemOwner, loadItems, MAX_BANK_CONNECTIONS, saveItem } from "./plaid-items"
+import { bankConnectionAllowance } from "./bank-allowance"
+import { BankConnectionLimitError, BankConnectionOwnershipError, loadItemOwner, loadItems, saveItem } from "./plaid-items"
 
 /** An exchanged token creates a live, billable Item. Roll back a new Item if
  * the atomic storage admission fails, including a concurrent third login.
  */
 export async function linkBankForUser(userId: string, publicToken: string, institution: string | null) {
     const existing = await loadItems(userId)
-    if (existing.length >= MAX_BANK_CONNECTIONS) throw new BankConnectionLimitError()
+    const allowance = await bankConnectionAllowance(userId)
+    if (existing.length >= allowance) throw new BankConnectionLimitError(allowance)
     const client = getPlaidClient()
     const { data } = await client.itemPublicTokenExchange({ public_token: publicToken })
     try {
-        await saveItem(userId, { itemId: data.item_id, accessToken: data.access_token, institution })
+        await saveItem(userId, { itemId: data.item_id, accessToken: data.access_token, institution }, allowance)
     } catch (error) {
         if (error instanceof BankConnectionOwnershipError) throw error
         if (!(error instanceof BankConnectionLimitError)) {

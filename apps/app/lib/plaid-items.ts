@@ -17,9 +17,18 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
  */
 
 const TABLE = "plaid_items"
-export const MAX_BANK_CONNECTIONS = 2
+
+/**
+ * The cap is per account now: two included, plus one for each bank add-on
+ * held (lib/bank-allowance.ts). The number is not a constant here any more
+ * because three copies of it, in TypeScript, in SQL and in an error string,
+ * is how a paid connection gets refused by whichever copy was not updated.
+ */
 export class BankConnectionLimitError extends Error {
-    constructor() { super("Your plan includes 2 bank logins. Disconnect a bank in Connected accounts before adding another.") }
+    constructor(readonly allowance: number) {
+        super(`Your plan includes ${allowance} bank login${allowance === 1 ? "" : "s"}. `
+            + "Disconnect a bank in Connected accounts before adding another.")
+    }
 }
 export class BankConnectionOwnershipError extends Error {
     constructor() { super("This bank connection belongs to another account. Connect your own bank login.") }
@@ -55,19 +64,26 @@ export interface PlaidItem {
     itemId: string
     accessToken: string
     institution: string | null
+    /** When the login was first linked. Present on reads, absent on writes. */
+    linkedAt?: string
 }
 
 /** Every institution this user has linked. */
 export async function loadItems(appUserId: string): Promise<PlaidItem[]> {
     const { data, error } = await adminClient()
         .from(TABLE)
-        .select("item_id, access_token, institution")
+        .select("item_id, access_token, institution, created_at")
+        // Oldest first, so "the ones your plan includes" is answerable: the
+        // add-on buys capacity rather than a named bank, and the honest way
+        // to say which login it is paying for is the order they were linked.
+        .order("created_at", { ascending: true })
         .eq("user_id", appUserId)
     if (error) throw dbError(error)
     return (data ?? []).map((row: any) => ({
         itemId: row.item_id,
         accessToken: row.access_token,
         institution: row.institution ?? null,
+        ...(row.created_at ? { linkedAt: row.created_at } : {}),
     }))
 }
 
@@ -78,15 +94,19 @@ export async function loadItems(appUserId: string): Promise<PlaidItem[]> {
  */
 export async function saveItem(
     appUserId: string,
-    item: PlaidItem
+    item: PlaidItem,
+    allowance: number
 ): Promise<void> {
     // The SQL function serializes new links per account. A read/count followed
     // by a client-side upsert would let simultaneous requests exceed the cap.
+    // The allowance is passed in rather than read there: entitlements are the
+    // application's business, and the function stays a lock and a count.
     const { error } = await adminClient().rpc("save_plaid_item_with_limit", {
         p_user_id: appUserId, p_item_id: item.itemId,
         p_access_token: item.accessToken, p_institution: item.institution,
+        p_max_items: allowance,
     })
-    if (error?.message.includes("bank_connection_limit_reached")) throw new BankConnectionLimitError()
+    if (error?.message.includes("bank_connection_limit_reached")) throw new BankConnectionLimitError(allowance)
     if (error?.message.includes("item_owned_by_another_account")) throw new BankConnectionOwnershipError()
     if (error) throw dbError(error)
 }

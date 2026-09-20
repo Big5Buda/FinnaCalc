@@ -1,9 +1,16 @@
 import { entitlementIsActive, loadEntitlement } from "./billing-entitlements"
 import { loadActiveAppleGrants } from "./apple-entitlement-store"
-import type { PlanTier } from "./stripe"
+import type { AppleProductKind } from "./apple-subscriptions"
 
 export type PaidFeature = "budgeting" | "investing"
-export function tierAllows(tier: PlanTier, feature: PaidFeature): boolean {
+
+/**
+ * Takes the wider kind on purpose. An add-on is stored in the same column as
+ * a tier and reaches here with the rest of a user's grants; matching three
+ * literals means it answers false and buys no feature, which is the
+ * behaviour to preserve if more non-tier products are ever sold.
+ */
+export function tierAllows(tier: AppleProductKind, feature: PaidFeature): boolean {
     return tier === "pro" || tier === (feature === "budgeting" ? "plus" : "trader")
 }
 
