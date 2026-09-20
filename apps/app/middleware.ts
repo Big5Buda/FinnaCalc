@@ -15,6 +15,12 @@ import type { NextRequest } from "next/server"
  * before the gate existed.
  *
  * What stays open, and why:
+ *   /                         the home page: a headline and the calculators,
+ *                             which is what the site always opened on
+ *   /calculators /education   free content, the same as in the app, where
+ *                             neither asks for an account
+ *   /plans                    what a plan costs must be readable before
+ *                             anyone is asked to sign in to buy one
  *   /sign-in /sign-up /auth   the way in (PKCE callback + password reset)
  *   /migrate                  moves a visitor's data from the old origin —
  *                             they arrive with data but no account yet
@@ -29,12 +35,12 @@ import type { NextRequest } from "next/server"
  * the gate shouldn't depend on an if-statement staying correct.
  */
 
-const PUBLIC_PAGES = ["/sign-in", "/sign-up", "/auth", "/migrate", "/privacy", "/terms", "/about"]
+const PUBLIC_PAGES = ["/calculators", "/education", "/plans", "/sign-in", "/sign-up", "/auth", "/migrate", "/privacy", "/terms", "/about"]
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if (PUBLIC_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
+    if (pathname === "/" || PUBLIC_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
         return NextResponse.next()
     }
 

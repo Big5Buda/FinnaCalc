@@ -33,7 +33,7 @@ export type SecResult<T> =
  * across every deployment is what gets a User-Agent rate-limited.
  */
 export const SEC_HEADERS: Record<string, string> = {
-    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc helpfinnacalc@gmail.com",
+    "User-Agent": process.env.SEC_CONTACT ?? "FinnaCalc help@finnacalc.com",
     Accept: "application/json",
 }
 

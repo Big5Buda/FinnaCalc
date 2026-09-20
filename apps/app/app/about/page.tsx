@@ -128,7 +128,7 @@ export default function AboutPage() {
                         icon={Target}
                         tint="text-primary"
                         title="Our Mission"
-                        body="To put honest money tools in everyone's pocket. Budgeting, investing, taxes, and lessons in one app, showing real numbers and never inventing one, whatever your background or experience."
+                        body="To make managing money simple and affordable for everyone, no matter your background or experience. We strive to offer everything you need to make informed money decisions and reach your financial goals."
                     />
                     <StatementCard
                         icon={Heart}
@@ -192,8 +192,8 @@ export default function AboutPage() {
                         committed to continuously improving FinnaCalc based on user needs and feedback.
                     </p>
                     <div className="flex flex-col gap-2">
-                        <ContactLine label="Help:" email="helpfinnacalc@gmail.com" />
-                        <ContactLine label="Business Inquiries:" email="finnacalc@gmail.com" />
+                        <ContactLine label="Help:" email="help@finnacalc.com" />
+                        <ContactLine label="Business Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </section>
             </div>
