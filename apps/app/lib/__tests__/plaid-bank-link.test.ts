@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), owner: vi.fn(), save: vi.fn(), exchange: vi.fn(), remove: vi.fn() }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), owner: vi.fn(), save: vi.fn(), exchange: vi.fn(), remove: vi.fn(), allowance: vi.fn() }))
 vi.mock("@/lib/plaid", () => ({ getPlaidClient: () => ({ itemPublicTokenExchange: mocks.exchange, itemRemove: mocks.remove }) }))
+vi.mock("@/lib/bank-allowance", async (original) => ({
+    ...await original<typeof import("@/lib/bank-allowance")>(), bankConnectionAllowance: mocks.allowance,
+}))
 vi.mock("@/lib/plaid-items", async (original) => ({
     ...await original<typeof import("@/lib/plaid-items")>(), loadItems: mocks.load, loadItemOwner: mocks.owner, saveItem: mocks.save,
 }))
@@ -15,6 +18,7 @@ beforeEach(() => {
     mocks.save.mockResolvedValue(undefined)
     mocks.owner.mockResolvedValue(null)
     mocks.remove.mockResolvedValue({})
+    mocks.allowance.mockResolvedValue(2)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -23,9 +27,15 @@ it("blocks the third login before creating a billable Plaid Item", async () => {
     await expect(linkBankForUser("user", "public-token", "Bank")).rejects.toBeInstanceOf(BankConnectionLimitError)
     expect(mocks.exchange).not.toHaveBeenCalled()
 })
+it("admits a third login when a bank add-on has paid for it", async () => {
+    mocks.load.mockResolvedValue([{ itemId: "first" }, { itemId: "second" }])
+    mocks.allowance.mockResolvedValue(3)
+    await linkBankForUser("user", "public-token", "Bank")
+    expect(mocks.save).toHaveBeenCalledWith("user", { itemId: "new-bank", accessToken: "new-token", institution: "Bank" }, 3)
+})
 it("admits the second login using the atomic database guard", async () => {
     await linkBankForUser("user", "public-token", "Bank")
-    expect(mocks.save).toHaveBeenCalledWith("user", { itemId: "new-bank", accessToken: "new-token", institution: "Bank" })
+    expect(mocks.save).toHaveBeenCalledWith("user", { itemId: "new-bank", accessToken: "new-token", institution: "Bank" }, 2)
     expect(mocks.remove).not.toHaveBeenCalled()
 })
 it("revokes a newly exchanged Item when concurrent linking reaches the database cap", async () => {

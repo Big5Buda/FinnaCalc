@@ -3,7 +3,8 @@ import { paidFeatureError } from "@/lib/paid-feature-access"
 import { NextResponse } from "next/server"
 import { CountryCode, Products } from "plaid"
 import { getPlaidClient, isPlaidConfigured } from "@/lib/plaid"
-import { BankConnectionLimitError, loadItems, MAX_BANK_CONNECTIONS } from "@/lib/plaid-items"
+import { bankConnectionAllowance } from "@/lib/bank-allowance"
+import { BankConnectionLimitError, loadItems } from "@/lib/plaid-items"
 
 // Each feature links its own Item with just the product it needs.
 const PRODUCT_MAP: Record<string, Products> = {
@@ -35,8 +36,21 @@ export async function POST(req: Request) {
     if (accessError) return accessError
 
     try {
-        if (product !== "investments" && (await loadItems(userId!)).length >= MAX_BANK_CONNECTIONS) {
-            return NextResponse.json({ error: new BankConnectionLimitError().message }, { status: 409 })
+        if (product !== "investments") {
+            const [items, allowance] = await Promise.all([loadItems(userId!), bankConnectionAllowance(userId!)])
+            if (items.length >= allowance) {
+                // The code, not the sentence, is what the app branches on.
+                // Both the limit and a connection owned by another account
+                // answer 409, and telling them apart by message text is how
+                // an app ends up offering to sell an add-on to somebody
+                // whose problem was something else entirely.
+                return NextResponse.json({
+                    error: new BankConnectionLimitError(allowance).message,
+                    code: "bank_connection_limit_reached",
+                    allowance,
+                    connected: items.length,
+                }, { status: 409 })
+            }
         }
         const client = getPlaidClient()
         const response = await client.linkTokenCreate({

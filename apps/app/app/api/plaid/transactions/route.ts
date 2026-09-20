@@ -154,8 +154,13 @@ export async function POST(req: NextRequest) {
             ...(failures.length > 0 ? { staleInstitutions: failures } : {}),
         })
     } catch (err: any) {
-        if (err instanceof BankConnectionLimitError || err instanceof BankConnectionOwnershipError) {
-            return NextResponse.json({ error: err.message }, { status: 409 })
+        if (err instanceof BankConnectionLimitError) {
+            return NextResponse.json({
+                error: err.message, code: "bank_connection_limit_reached", allowance: err.allowance,
+            }, { status: 409 })
+        }
+        if (err instanceof BankConnectionOwnershipError) {
+            return NextResponse.json({ error: err.message, code: "bank_owned_by_another_account" }, { status: 409 })
         }
         const message =
             err?.response?.data?.error_message || err?.message || "Failed to load transactions."

@@ -6,10 +6,30 @@ import { appleRootCertificates } from "./apple-root-certificates"
 import type { PlanTier } from "./stripe"
 
 export const APPLE_BUNDLE_ID = "com.finnacalc.FinnaCalcIOS"
-const products = new Map<string, PlanTier>(
-    (["plus", "trader", "pro"] as const).flatMap((tier) =>
-        ["monthly", "annual"].map((interval) => [`com.finnacalc.${tier}.${interval}`, tier] as const))
-)
+
+/**
+ * One additional bank login, sold on top of a plan rather than instead of one.
+ *
+ * It must live in its OWN App Store subscription group. Products in one group
+ * are alternatives to each other, so an add-on sharing the tiers' group would
+ * arrive as an upgrade — `isUpgraded` — and cancel the plan it was meant to
+ * extend. Its own group is also why it can be held at the same time as a tier:
+ * the entitlement table is keyed by original transaction, not by user.
+ */
+export const BANK_ADDON_PRODUCT_ID = "com.finnacalc.bank.extra.monthly"
+
+/**
+ * What a product id buys. A tier buys features; the add-on buys capacity and
+ * must never read as a tier, which is what keeps `tierAllows` false for it
+ * without a single extra branch.
+ */
+export type AppleProductKind = PlanTier | "bank_addon"
+
+const products = new Map<string, AppleProductKind>([
+    ...(["plus", "trader", "pro"] as const).flatMap((tier) =>
+        ["monthly", "annual"].map((interval) => [`com.finnacalc.${tier}.${interval}`, tier] as [string, AppleProductKind])),
+    [BANK_ADDON_PRODUCT_ID, "bank_addon"] as [string, AppleProductKind],
+])
 
 export class AppleSubscriptionError extends Error {
     constructor(message: string, readonly status: number) { super(message) }
@@ -17,7 +37,8 @@ export class AppleSubscriptionError extends Error {
 
 export interface AppleGrant {
     productId: string
-    tier: PlanTier
+    /** A plan tier, or "bank_addon". Named `tier` because the column is. */
+    tier: AppleProductKind
     originalTransactionId: string
     transactionId: string
     expiresAt: string
