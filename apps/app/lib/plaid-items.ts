@@ -101,11 +101,20 @@ export async function saveItem(
     // by a client-side upsert would let simultaneous requests exceed the cap.
     // The allowance is passed in rather than read there: entitlements are the
     // application's business, and the function stays a lock and a count.
-    const { error } = await adminClient().rpc("save_plaid_item_with_limit", {
+    const admin = adminClient()
+    const call = (args: Record<string, unknown>) => admin.rpc("save_plaid_item_with_limit", args)
+    const base = {
         p_user_id: appUserId, p_item_id: item.itemId,
         p_access_token: item.accessToken, p_institution: item.institution,
-        p_max_items: allowance,
-    })
+    }
+    let { error } = await call({ ...base, p_max_items: allowance })
+    // The five-argument function arrives with bank_connection_addon.sql. If
+    // the deploy lands first, this falls back to the four-argument one rather
+    // than failing every bank link until someone runs the migration. The old
+    // function caps at two, which is what the app did yesterday.
+    if (error && /save_plaid_item_with_limit|schema cache|does not exist/i.test(error.message)) {
+        ;({ error } = await call(base))
+    }
     if (error?.message.includes("bank_connection_limit_reached")) throw new BankConnectionLimitError(allowance)
     if (error?.message.includes("item_owned_by_another_account")) throw new BankConnectionOwnershipError()
     if (error) throw dbError(error)

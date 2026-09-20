@@ -74,8 +74,11 @@ Apply `apps/app/supabase/bank_connection_addon.sql` after
 `apple_subscription_entitlements.sql` and `plaid_item_limit.sql`. It widens the
 entitlement mirror's `tier` check to accept `bank_addon` and replaces
 `save_plaid_item_with_limit` with a version that takes the cap as an argument.
-The four-argument version is dropped in the same migration, so deploy the code
-and the SQL together: the application passes five arguments.
+The four-argument version is dropped in the same migration. Deploy order is
+not fatal either way: the application asks for the five-argument function and
+falls back to the four-argument one if it is not there yet, which caps at two
+exactly as before. The add-on cannot raise anyone's allowance until the
+migration has run.
 
 What is now true without any further code:
 
