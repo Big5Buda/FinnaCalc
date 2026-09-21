@@ -2,91 +2,89 @@ import type { Config } from "tailwindcss"
 import plugin from "tailwindcss/plugin"
 
 /**
- * The web application's Tailwind preset — the warm-light system measured off
- * wealthsimple.com, matching the marketing site so the walk from finnacalc.com
- * to app.finnacalc.com is one continuous product.
+ * The web application's Tailwind preset: the iOS app's Theme.swift palette,
+ * token for token, so the website and the phone read as the same product.
  *
- * This replaced the Paper & Cobalt palette (the iOS app's Theme.swift values)
- * in August 2026 at the user's direction. The iPhone app deliberately keeps its
- * blue theme, so web and phone now read as siblings rather than twins; see
- * CLAUDE.md. `apps/app` is this preset's only consumer — `apps/web` defines the
- * same tokens directly in its own config.
+ * For a month this carried a warm ink-and-cream system measured off
+ * wealthsimple.com. The owner asked for the app's colours back: the blue
+ * that had been the brand since the first commit, white pages in light mode,
+ * slate in dark. The ink system also made `primary` black in light mode and
+ * WHITE in dark, which is how FinnaBot's blue button came to render as a
+ * white disc.
  *
- * Semantic names are kept (`primary`, `card`, `muted`) so ~35 existing screens
- * inherit the new system without touching their markup. What changed is what
- * each name resolves to.
- *
- * Channels are space-separated RGB so Tailwind's `/alpha` modifiers work
- * (`bg-primary/10`). Light is the default; `.dark` on <html> swaps the values.
+ * Every value below is a hex from Core/DesignSystem/Theme.swift in the iOS
+ * repo, written as space-separated RGB so Tailwind's `/alpha` modifiers work
+ * (`bg-primary/10`). Semantic names are unchanged, so no screen had to be
+ * touched. Light is the default; `.dark` on <html> swaps the values.
  */
 
 const LIGHT: Record<string, string> = {
-    "--background": "245 243 239",      // #F5F3EF cream — the page
-    "--surface-sunken": "241 240 240",  // #F1F0F0 a well below the page
-    "--card": "252 252 252",            // #FCFCFC warm white — every surface
-    "--card-foreground": "28 27 27",
-    "--popover": "252 252 252",
-    "--popover-foreground": "28 27 27",
-    "--foreground": "28 27 27",         // #1C1B1B warm black, never #000
-    "--text-body": "73 70 69",          // #494645
-    "--muted-foreground": "104 102 100",// #686664
-    "--primary": "28 27 27",            // the ink pill CTA
-    "--primary-foreground": "252 252 252",
-    "--brand-blue": "28 27 27",
-    "--brand-hover": "73 70 69",
-    "--brand-press": "50 48 47",
-    "--secondary": "241 240 240",
-    "--secondary-foreground": "28 27 27",
-    "--muted": "241 240 240",
-    "--accent": "241 240 240",
-    "--accent-foreground": "28 27 27",
-    "--destructive": "164 61 18",       // terracotta
-    "--destructive-foreground": "252 252 252",
-    "--positive": "72 102 53",          // celery
-    "--negative": "164 61 18",
-    "--caution": "238 227 177",
-    "--accent-purple": "95 89 116",     // the section hues, kept for charts
-    "--accent-orange": "86 76 71",
-    "--primary-soft": "241 240 240",
-    "--border": "228 226 225",          // #E4E2E1
-    "--border-strong": "201 198 196",   // #C9C6C4
-    "--input": "228 226 225",
-    "--ring": "28 27 27",
+    "--background": "255 255 255",      // white: surface-page
+    "--surface-sunken": "248 250 252",  // slate50
+    "--card": "255 255 255",            // white: surface-card
+    "--card-foreground": "2 8 23",      // ink #020817
+    "--popover": "255 255 255",
+    "--popover-foreground": "2 8 23",
+    "--foreground": "2 8 23",           // text-strong
+    "--text-body": "51 65 85",          // slate700
+    "--muted-foreground": "100 116 139",// slate500
+    "--primary": "37 99 235",           // blue600: the brand
+    "--primary-foreground": "248 250 252",
+    "--brand-blue": "37 99 235",
+    "--brand-hover": "29 78 216",       // blue700
+    "--brand-press": "30 64 175",       // blue800
+    "--secondary": "241 245 249",       // slate100: surface-muted
+    "--secondary-foreground": "2 8 23",
+    "--muted": "241 245 249",
+    "--accent": "241 245 249",
+    "--accent-foreground": "2 8 23",
+    "--destructive": "220 38 38",       // red600
+    "--destructive-foreground": "248 250 252",
+    "--positive": "22 163 74",          // green600
+    "--negative": "220 38 38",
+    "--caution": "245 158 11",          // amber500
+    "--accent-purple": "112 72 232",    // the section hues, kept for charts
+    "--accent-orange": "240 140 0",
+    "--primary-soft": "219 234 254",    // blue100
+    "--border": "226 232 240",          // slate200
+    "--border-strong": "203 213 225",   // slate300
+    "--input": "226 232 240",
+    "--ring": "37 99 235",
     "--radius": "0.75rem",
 }
 
 const DARK: Record<string, string> = {
-    "--background": "28 27 27",
-    "--surface-sunken": "20 19 19",
-    "--card": "50 48 47",
-    "--card-foreground": "252 252 252",
-    "--popover": "50 48 47",
-    "--popover-foreground": "252 252 252",
-    "--foreground": "252 252 252",
-    "--text-body": "201 198 196",
-    "--muted-foreground": "175 170 167",
-    "--primary": "252 252 252",
-    "--primary-foreground": "28 27 27",
-    "--brand-blue": "252 252 252",
-    "--brand-hover": "228 226 225",
-    "--brand-press": "201 198 196",
-    "--secondary": "73 70 69",
-    "--secondary-foreground": "252 252 252",
-    "--muted": "73 70 69",
-    "--accent": "73 70 69",
-    "--accent-foreground": "252 252 252",
-    "--destructive": "255 138 113",
-    "--destructive-foreground": "28 27 27",
-    "--positive": "153 179 131",
-    "--negative": "255 138 113",
-    "--caution": "238 227 177",
-    "--accent-purple": "179 171 188",
-    "--accent-orange": "201 198 196",
-    "--primary-soft": "73 70 69",
-    "--border": "73 70 69",
-    "--border-strong": "104 102 100",
-    "--input": "73 70 69",
-    "--ring": "252 252 252",
+    "--background": "0 0 0",            // black: surface-page
+    "--surface-sunken": "0 0 0",
+    "--card": "15 23 42",               // slate900
+    "--card-foreground": "248 250 252", // slate50
+    "--popover": "15 23 42",
+    "--popover-foreground": "248 250 252",
+    "--foreground": "248 250 252",
+    "--text-body": "203 213 225",       // slate300
+    "--muted-foreground": "148 163 184",// slate400
+    "--primary": "59 130 246",          // blue500
+    "--primary-foreground": "2 8 23",
+    "--brand-blue": "59 130 246",
+    "--brand-hover": "37 99 235",       // blue600
+    "--brand-press": "29 78 216",       // blue700
+    "--secondary": "30 41 59",          // slate800
+    "--secondary-foreground": "248 250 252",
+    "--muted": "30 41 59",
+    "--accent": "30 41 59",
+    "--accent-foreground": "248 250 252",
+    "--destructive": "239 68 68",       // red500
+    "--destructive-foreground": "2 8 23",
+    "--positive": "34 197 94",          // green500
+    "--negative": "239 68 68",
+    "--caution": "245 158 11",
+    "--accent-purple": "167 139 250",
+    "--accent-orange": "251 146 60",
+    "--primary-soft": "30 58 138",      // blue900
+    "--border": "30 41 59",             // slate800
+    "--border-strong": "51 65 85",      // slate700
+    "--input": "30 41 59",
+    "--ring": "59 130 246",
 }
 
 export const tokensPlugin = plugin(({ addBase }) => {

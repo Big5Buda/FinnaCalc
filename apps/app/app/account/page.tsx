@@ -182,7 +182,9 @@ export default function AccountPage() {
                 />
             </section>
 
-            <FeedbackSection email={user?.email} userId={user?.id} />
+            <div id="feedback" className="scroll-mt-24">
+                <FeedbackSection email={user?.email} userId={user?.id} />
+            </div>
 
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>About</SectionLabel>

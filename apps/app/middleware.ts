@@ -2,45 +2,33 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 /**
- * The auth gate: the app is for signed-in users, and anonymous visitors are
- * sent to sign-in with the page they wanted preserved in ?next=.
+ * The auth gate, narrowed to Investing.
  *
- * The signal is the fc_session hint cookie (lib/session-hint.ts) — one bit,
- * set on sign-in, cleared on sign-out. It is deliberately NOT the session:
+ * The site was open from the start: anyone could budget, run the tax
+ * estimator, read a lesson or use a calculator, and an account was for
+ * keeping that work. #114 put the whole app behind sign-in; the owner asked
+ * for the old arrangement back, with one exception he named: Investing,
+ * which reads a brokerage and market data that need an account behind them.
+ *
+ * The signal is the fc_session hint cookie (lib/session-hint.ts), one bit
+ * set on sign-in and cleared on sign-out. It is deliberately NOT the session:
  * Supabase's tokens live in this origin's localStorage, which middleware
- * cannot read. So this gate is a door, not a lock — it decides which page
- * shell is served, and the real session check stays where it always was, in
- * the client's AuthProvider. Forging the cookie gets an anonymous visitor an
- * empty shell with no data behind it, which is exactly what they could see
- * before the gate existed.
+ * cannot read. So this gate is a door, not a lock; it decides which page
+ * shell is served, and the real session check stays in the client's
+ * AuthProvider. Forging the cookie gets an anonymous visitor an empty shell
+ * with no data behind it.
  *
- * What stays open, and why:
- *   /                         the home page: a headline and the calculators,
- *                             which is what the site always opened on
- *   /calculators /education   free content, the same as in the app, where
- *                             neither asks for an account
- *   /plans                    what a plan costs must be readable before
- *                             anyone is asked to sign in to buy one
- *   /sign-in /sign-up /auth   the way in (PKCE callback + password reset)
- *   /migrate                  moves a visitor's data from the old origin —
- *                             they arrive with data but no account yet
- *   /privacy /terms /about    a person must be able to read what they're
- *                             accepting BEFORE they accept it
- *   /api                      every installed iOS build calls these routes
- *                             directly and unauthenticated (via the www
- *                             proxy). Gating them bricks shipped apps.
- *
- * The matcher keeps middleware entirely off /api and static assets rather
- * than allowlisting them per-request: routes that must never be touched by
- * the gate shouldn't depend on an if-statement staying correct.
+ * /api is kept out of the matcher entirely: every installed iOS build calls
+ * those routes directly and unauthenticated through the www proxy, and
+ * gating them bricks shipped apps.
  */
 
-const PUBLIC_PAGES = ["/calculators", "/education", "/plans", "/sign-in", "/sign-up", "/auth", "/migrate", "/privacy", "/terms", "/about"]
+const GATED_PAGES = ["/investing"]
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if (pathname === "/" || PUBLIC_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
+    if (!GATED_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
         return NextResponse.next()
     }
 
@@ -50,7 +38,7 @@ export function middleware(request: NextRequest) {
 
     const signIn = request.nextUrl.clone()
     signIn.pathname = "/sign-in"
-    signIn.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`
+    signIn.search = `?next=${encodeURIComponent(pathname)}`
     return NextResponse.redirect(signIn)
 }
 
