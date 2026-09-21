@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { use, useEffect, useState } from "react"
 import { ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -9,6 +8,7 @@ import { apiGet } from "@/lib/api-client"
 import { personById } from "@/lib/investing/tracker"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Notice, SectionLabel } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * One tracked person: their real filings, read at request time.
@@ -133,12 +133,15 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
 
     if (!person) {
         return (
-            <div className="w-full max-w-4xl px-6 py-10 lg:px-10">
-                <p className="text-sm text-muted-foreground">No such person in the tracker.</p>
-                <Link href="/investing/tracker" className="mt-3 inline-block text-sm font-semibold text-primary">
-                    ← Trade Tracker
-                </Link>
-            </div>
+            <>
+                <PageBar
+                    back={{ href: "/investing/tracker", label: "Trade Tracker" }}
+                    title="Not found"
+                />
+                <PageBody className="max-w-4xl pt-4">
+                    <p className="text-sm text-muted-foreground">No such person in the tracker.</p>
+                </PageBody>
+            </>
         )
     }
 
@@ -149,168 +152,169 @@ export default function TrackedPersonPage({ params }: { params: Promise<{ person
         .join("")
 
     return (
-        <div className="flex w-full max-w-4xl flex-col gap-5 px-6 py-6 lg:px-10">
-            <Link href="/investing/tracker" className="text-sm font-semibold text-primary">
-                ← Trade Tracker
-            </Link>
+        <>
+            <PageBar
+                back={{ href: "/investing/tracker", label: "Trade Tracker" }}
+                title={person.name}
+            />
+            <PageBody className="flex max-w-4xl flex-col gap-5">
+                <header className="flex items-start gap-4">
+                    <span
+                        aria-hidden="true"
+                        className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-secondary text-xl font-bold text-foreground"
+                    >
+                        {person.emojiBadge || initials}
+                    </span>
+                    <div className="flex min-w-0 flex-col gap-1">
+                        <p className="text-sm font-semibold text-muted-foreground">{person.org}</p>
+                        <p className="text-sm text-muted-foreground">{person.blurb}</p>
+                    </div>
+                </header>
 
-            <header className="flex items-start gap-4">
-                <span
-                    aria-hidden="true"
-                    className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-secondary text-xl font-bold text-foreground"
-                >
-                    {person.emojiBadge || initials}
-                </span>
-                <div className="flex min-w-0 flex-col gap-1">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">{person.name}</h1>
-                    <p className="text-sm font-semibold text-muted-foreground">{person.org}</p>
-                    <p className="text-sm text-muted-foreground">{person.blurb}</p>
-                </div>
-            </header>
+                {loading && <div className="h-32 animate-pulse rounded-card bg-card" />}
 
-            {loading && <div className="h-32 animate-pulse rounded-card bg-card" />}
+                {!loading && !person.cik && person.category !== "politicians" && (
+                    <Notice tone="info">
+                        We don&rsquo;t have a verified SEC filer number for {person.name}, so there&rsquo;s no feed
+                        to read. An empty list here would look like &ldquo;never trades&rdquo;, which isn&rsquo;t
+                        what we know.
+                    </Notice>
+                )}
 
-            {!loading && !person.cik && person.category !== "politicians" && (
-                <Notice tone="info">
-                    We don&rsquo;t have a verified SEC filer number for {person.name}, so there&rsquo;s no feed
-                    to read. An empty list here would look like &ldquo;never trades&rdquo;, which isn&rsquo;t
-                    what we know.
-                </Notice>
-            )}
-
-            {trades && (
-                <section className="flex flex-col gap-2.5">
-                    <SectionLabel>Form 4 filings</SectionLabel>
-                    {/* A gap in the record is named above the list, so a short
-                        list is never mistaken for a complete one. */}
-                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
-                    {trades.length === 0 && !caveat(report) ? (
-                        <Notice tone="info">No Form 4 transactions on file recently.</Notice>
-                    ) : trades.length === 0 ? null : (
-                        <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
-                            {trades.slice(0, 25).map((trade, index) => (
-                                <li
-                                    key={`${trade.url}-${index}`}
-                                    className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-border")}
-                                >
-                                    {trade.symbol && <CompanyLogo symbol={trade.symbol} size={32} />}
-                                    <span className="flex min-w-0 flex-1 flex-col">
-                                        <span className="truncate text-sm font-semibold text-foreground">
-                                            {trade.label} {trade.symbol ?? trade.issuerName ?? ""}
-                                        </span>
-                                        <span className="figure text-[11px] font-normal text-muted-foreground">
-                                            {int(trade.shares)} shares
-                                            {trade.price ? ` at ${currency(trade.price, 2)}` : " · no price (grant)"} ·{" "}
-                                            {trade.date}
-                                        </span>
-                                    </span>
-                                    <span className="flex shrink-0 items-center gap-2">
-                                        <span
-                                            className={cn(
-                                                "figure text-sm font-semibold",
-                                                trade.acquired ? "text-positive" : "text-negative"
-                                            )}
-                                        >
-                                            {trade.value !== null ? compactMoney(trade.value) : "—"}
-                                        </span>
-                                        <a href={trade.url} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">
-                                            <ArrowUpRight className="h-3.5 w-3.5 text-border-strong" />
-                                        </a>
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">
-                        Straight from SEC Form 4. A grant has no price, so it shows a dash rather than $0.
-                    </p>
-                </section>
-            )}
-
-            {holdings && (
-                <section className="flex flex-col gap-2.5">
-                    <SectionLabel>13F holdings</SectionLabel>
-                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
-                    {holdings.holdings.length === 0 && !caveat(report) ? (
-                        <Notice tone="info">No recent 13F on file.</Notice>
-                    ) : holdings.holdings.length === 0 ? null : (
-                        <>
-                            <p className="figure text-sm font-semibold text-foreground">
-                                {compactMoney(holdings.total)} reported
-                                {holdings.reportDate ? ` as of ${holdings.reportDate}` : ""}
-                            </p>
+                {trades && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel>Form 4 filings</SectionLabel>
+                        {/* A gap in the record is named above the list, so a short
+                            list is never mistaken for a complete one. */}
+                        {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                        {trades.length === 0 && !caveat(report) ? (
+                            <Notice tone="info">No Form 4 transactions on file recently.</Notice>
+                        ) : trades.length === 0 ? null : (
                             <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
-                                {holdings.holdings.slice(0, 25).map((holding, index) => (
+                                {trades.slice(0, 25).map((trade, index) => (
                                     <li
-                                        key={`${holding.name}-${index}`}
+                                        key={`${trade.url}-${index}`}
                                         className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-border")}
                                     >
-                                        {holding.symbol && <CompanyLogo symbol={holding.symbol} size={32} />}
+                                        {trade.symbol && <CompanyLogo symbol={trade.symbol} size={32} />}
                                         <span className="flex min-w-0 flex-1 flex-col">
                                             <span className="truncate text-sm font-semibold text-foreground">
-                                                {holding.name}
+                                                {trade.label} {trade.symbol ?? trade.issuerName ?? ""}
                                             </span>
                                             <span className="figure text-[11px] font-normal text-muted-foreground">
-                                                {int(holding.shares)} shares · {fixed(holding.weight * 100, 1)}%
+                                                {int(trade.shares)} shares
+                                                {trade.price ? ` at ${currency(trade.price, 2)}` : " · no price (grant)"} ·{" "}
+                                                {trade.date}
                                             </span>
                                         </span>
-                                        <span className="figure shrink-0 text-sm font-semibold text-foreground">
-                                            {compactMoney(holding.value)}
+                                        <span className="flex shrink-0 items-center gap-2">
+                                            <span
+                                                className={cn(
+                                                    "figure text-sm font-semibold",
+                                                    trade.acquired ? "text-positive" : "text-negative"
+                                                )}
+                                            >
+                                                {trade.value !== null ? compactMoney(trade.value) : "—"}
+                                            </span>
+                                            <a href={trade.url} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">
+                                                <ArrowUpRight className="h-3.5 w-3.5 text-border-strong" />
+                                            </a>
                                         </span>
                                     </li>
                                 ))}
                             </ul>
-                            <p className="text-[11px] text-muted-foreground">
-                                A 13F describes a quarter that has already ended and can be filed up to 45 days
-                                after it closes, so this is a snapshot of the past, not of today.
-                            </p>
-                        </>
-                    )}
-                </section>
-            )}
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                            Straight from SEC Form 4. A grant has no price, so it shows a dash rather than $0.
+                        </p>
+                    </section>
+                )}
 
-            {filings && (
-                <section className="flex flex-col gap-2.5">
-                    <SectionLabel>House disclosures</SectionLabel>
-                    {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
-                    {filings.length === 0 && !caveat(report) ? (
-                        <Notice tone="info">No disclosures found for this name.</Notice>
-                    ) : filings.length === 0 ? null : (
-                        <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
-                            {filings.slice(0, 25).map((filing, index) => (
-                                <li
-                                    key={`${filing.url}-${index}`}
-                                    className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-border")}
-                                >
-                                    <span className="flex min-w-0 flex-1 flex-col">
-                                        <span className="truncate text-sm font-semibold text-foreground">
-                                            {filing.typeLabel}
-                                        </span>
-                                        <span className="text-[11px] text-muted-foreground">
-                                            {filing.name}
-                                            {filing.district ? ` · ${filing.district}` : ""} · filed{" "}
-                                            {filing.filedAt}
-                                        </span>
-                                    </span>
-                                    <a
-                                        href={filing.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="shrink-0 text-xs font-semibold text-primary"
+                {holdings && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel>13F holdings</SectionLabel>
+                        {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                        {holdings.holdings.length === 0 && !caveat(report) ? (
+                            <Notice tone="info">No recent 13F on file.</Notice>
+                        ) : holdings.holdings.length === 0 ? null : (
+                            <>
+                                <p className="figure text-sm font-semibold text-foreground">
+                                    {compactMoney(holdings.total)} reported
+                                    {holdings.reportDate ? ` as of ${holdings.reportDate}` : ""}
+                                </p>
+                                <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
+                                    {holdings.holdings.slice(0, 25).map((holding, index) => (
+                                        <li
+                                            key={`${holding.name}-${index}`}
+                                            className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-border")}
+                                        >
+                                            {holding.symbol && <CompanyLogo symbol={holding.symbol} size={32} />}
+                                            <span className="flex min-w-0 flex-1 flex-col">
+                                                <span className="truncate text-sm font-semibold text-foreground">
+                                                    {holding.name}
+                                                </span>
+                                                <span className="figure text-[11px] font-normal text-muted-foreground">
+                                                    {int(holding.shares)} shares · {fixed(holding.weight * 100, 1)}%
+                                                </span>
+                                            </span>
+                                            <span className="figure shrink-0 text-sm font-semibold text-foreground">
+                                                {compactMoney(holding.value)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-[11px] text-muted-foreground">
+                                    A 13F describes a quarter that has already ended and can be filed up to 45 days
+                                    after it closes, so this is a snapshot of the past, not of today.
+                                </p>
+                            </>
+                        )}
+                    </section>
+                )}
+
+                {filings && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel>House disclosures</SectionLabel>
+                        {caveat(report) && <Notice tone="caution">{caveat(report)}</Notice>}
+                        {filings.length === 0 && !caveat(report) ? (
+                            <Notice tone="info">No disclosures found for this name.</Notice>
+                        ) : filings.length === 0 ? null : (
+                            <ul className="overflow-hidden rounded-card border-[1.5px] border-border bg-card">
+                                {filings.slice(0, 25).map((filing, index) => (
+                                    <li
+                                        key={`${filing.url}-${index}`}
+                                        className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-border")}
                                     >
-                                        PDF
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">
-                        The House clerk publishes these as PDFs, and the index says which filing is a periodic
-                        transaction report — the trades themselves are inside the document, so they are linked
-                        rather than parsed and restated here.
-                    </p>
-                </section>
-            )}
-        </div>
+                                        <span className="flex min-w-0 flex-1 flex-col">
+                                            <span className="truncate text-sm font-semibold text-foreground">
+                                                {filing.typeLabel}
+                                            </span>
+                                            <span className="text-[11px] text-muted-foreground">
+                                                {filing.name}
+                                                {filing.district ? ` · ${filing.district}` : ""} · filed{" "}
+                                                {filing.filedAt}
+                                            </span>
+                                        </span>
+                                        <a
+                                            href={filing.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0 text-xs font-semibold text-primary"
+                                        >
+                                            PDF
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                            The House clerk publishes these as PDFs, and the index says which filing is a periodic
+                            transaction report — the trades themselves are inside the document, so they are linked
+                            rather than parsed and restated here.
+                        </p>
+                    </section>
+                )}
+            </PageBody>
+        </>
     )
 }

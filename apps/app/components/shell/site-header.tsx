@@ -49,12 +49,12 @@ export function SiteHeader() {
                 <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="FinnaCalc home">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/finnacalc-mark.png" alt="" className="h-8 w-auto" />
-                    <span className="text-xl font-bold text-foreground">
+                    <span className="text-lg font-bold text-foreground sm:text-xl">
                         Finna<span className="text-primary">Calc</span>
                     </span>
                 </Link>
 
-                <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
+                <nav aria-label="Main" className="hidden items-center gap-6 lg:flex xl:gap-7">
                     {NAV.map((item) => (
                         <Link
                             key={item.href}
@@ -78,7 +78,7 @@ export function SiteHeader() {
                         onClick={() => setMenuOpen((open) => !open)}
                         aria-label={menuOpen ? "Close menu" : "Open menu"}
                         aria-expanded={menuOpen}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-foreground md:hidden"
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground lg:hidden"
                     >
                         {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                     </button>
@@ -88,7 +88,7 @@ export function SiteHeader() {
             {/* The five sections, stacked, on a phone. The old header put them
                 in a row that did not fit; this is what it should have done. */}
             {menuOpen && (
-                <nav aria-label="Main" className="border-t border-border bg-background px-4 py-3 md:hidden">
+                <nav aria-label="Main" className="border-t border-border bg-background px-4 py-3 lg:hidden">
                     {NAV.map((item) => (
                         <Link
                             key={item.href}
@@ -137,13 +137,13 @@ function AccountMenu() {
             <div className="flex items-center gap-1.5">
                 <Link
                     href="/sign-in"
-                    className="inline-flex h-9 items-center rounded-full px-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
+                    className="hidden h-9 items-center rounded-full px-3 text-sm font-semibold text-foreground transition hover:bg-secondary xs:inline-flex"
                 >
                     Sign in
                 </Link>
                 <Link
                     href="/sign-up"
-                    className="inline-flex h-9 items-center rounded-full bg-foreground px-4 text-sm font-semibold text-background transition hover:bg-foreground/90"
+                    className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
                 >
                     Sign up
                 </Link>
@@ -170,7 +170,7 @@ function AccountMenu() {
                 aria-expanded={open}
                 className="inline-flex h-9 max-w-[180px] items-center gap-2 rounded-full border border-border px-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
             >
-                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
+                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                     {user.displayName.charAt(0).toUpperCase()}
                 </span>
                 <span className="truncate">{user.displayName}</span>

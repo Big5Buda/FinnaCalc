@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import type { CalcAccent, CalcResults } from "@/lib/calculators/math"
 import type { CalculatorEntry } from "@/lib/calculators/catalog"
 import { Button } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * The standard calculator page — header, section cards, the results panel (or
@@ -29,10 +30,9 @@ export function CalculatorHeader({ entry }: { entry: CalculatorEntry }) {
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/14 text-primary">
                 <Icon className="h-5 w-5" strokeWidth={2.2} />
             </span>
-            <div className="flex flex-col gap-1.5">
-                <h1 className="text-xl font-semibold text-foreground">{entry.title}</h1>
-                <p className="text-sm text-muted-foreground">{entry.summary}</p>
-            </div>
+            {/* No heading here: the page bar above already carries the
+                calculator's name, and two of them read as a stutter. */}
+            <p className="pt-2 text-sm text-muted-foreground">{entry.summary}</p>
         </header>
     )
 }
@@ -82,20 +82,23 @@ export function CalculatorScreen({
     children: ReactNode
 }) {
     return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-6">
-            <CalculatorHeader entry={entry} />
-            {children}
-            {revealed &&
-                (results ? (
-                    <ResultsPanel verb={verb} results={results} />
-                ) : (
-                    <ResultsError message={invalidMessage} />
-                ))}
-            <div className="sticky bottom-0 -mx-4 mt-2 border-t border-border bg-background px-4 pb-4 pt-3">
-                <Button size="lg" className="w-full" onClick={onCalculate}>
-                    Calculate {verb}
-                </Button>
-            </div>
-        </div>
+        <>
+            <PageBar back={{ href: "/calculators", label: "Calculators" }} title={entry.title} />
+            <PageBody className="flex max-w-3xl flex-col gap-3">
+                <CalculatorHeader entry={entry} />
+                {children}
+                {revealed &&
+                    (results ? (
+                        <ResultsPanel verb={verb} results={results} />
+                    ) : (
+                        <ResultsError message={invalidMessage} />
+                    ))}
+                <div className="sticky bottom-0 -mx-4 mt-2 border-t border-border bg-background px-4 pb-4 pt-3 sm:-mx-6 sm:px-6">
+                    <Button size="lg" className="w-full" onClick={onCalculate}>
+                        Calculate {verb}
+                    </Button>
+                </div>
+            </PageBody>
+        </>
     )
 }

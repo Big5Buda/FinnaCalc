@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Database, Eye, FileText, Lock, Shield, Users, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Privacy Policy",
@@ -10,10 +11,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
-                <h1 className="text-center text-4xl font-bold text-foreground">Privacy Policy</h1>
-
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="Privacy Policy" />
+            <PageBody className="flex max-w-3xl flex-col gap-8">
                 <Section icon={Eye} tint="text-primary" title="Introduction">
                     <P>
                         Your privacy matters to us. This Privacy Policy explains how we collect, use, share, and
@@ -179,8 +179,8 @@ export default function PrivacyPage() {
                         <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

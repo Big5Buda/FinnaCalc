@@ -11,15 +11,19 @@
 
 @layer components {
   /*
-   * The auth screens' warm ground — the marketing hero's gradient, kept here
-   * rather than inline so the value lives with the rest of the theme and can
-   * be changed in one place.
+   * The ground behind the sign-in and sign-up panels.
+   *
+   * It was three brown gradients, left over from a warm palette the rest of
+   * the site no longer uses: the doorway to the app was the one screen that
+   * did not look like the app. It is the brand blue now, built from the
+   * `primary` token, so it follows the theme like everything else and there
+   * is no second palette to keep in step.
    */
   .auth-ground {
     background:
-      radial-gradient(120% 90% at 80% 100%, rgb(161 116 92 / 0.55), transparent 60%),
-      radial-gradient(100% 80% at 15% 10%, rgb(143 133 120 / 0.9), transparent 70%),
-      linear-gradient(135deg, #8f8578 0%, #857466 45%, #93705c 100%);
+      radial-gradient(120% 90% at 80% 100%, rgb(var(--primary) / 0.55), transparent 60%),
+      radial-gradient(100% 80% at 15% 10%, rgb(var(--brand-blue) / 0.65), transparent 70%),
+      linear-gradient(135deg, rgb(var(--primary)) 0%, rgb(var(--brand-press)) 55%, rgb(var(--brand-hover)) 100%);
   }
 
   /*

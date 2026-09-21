@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { Landmark } from "lucide-react"
 import { Card, CardContent, Notice, SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
@@ -46,15 +45,8 @@ export default function CashOptionsPage() {
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
-                            Investing
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        Where cash sits
-                    </span>
-                }
+                back={{ href: "/investing", label: "Investing" }}
+                title="Where cash sits"
             />
             <PageBody className="flex w-full max-w-4xl flex-col gap-6">
                 <header className="flex flex-col gap-2">

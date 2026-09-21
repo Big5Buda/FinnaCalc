@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function CalculatorsPage() {
     return (
         <>
-            <PageBar title="Calculators" />
+            <PageBar back={{ href: "/", label: "Home" }} title="Calculators" />
             <PageBody className="flex w-full max-w-4xl flex-col gap-6">
                 <div className="contents">
 

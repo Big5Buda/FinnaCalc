@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useMemo, useRef, useState, type FormEvent } from "react"
 import * as Icons from "lucide-react"
 import { Calendar, Check, Pencil, Plus, Trash2, Upload, X } from "lucide-react"
@@ -122,15 +121,8 @@ export default function MyBudgetPage() {
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
-                            Budgeting
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        My Budget
-                    </span>
-                }
+                back={{ href: "/budgeting", label: "Budgeting" }}
+                title="My Budget"
             />
             <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">

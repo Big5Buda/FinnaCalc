@@ -27,7 +27,7 @@ export default function HomePage() {
     return (
         <div className="flex flex-col">
             <section className="bg-gradient-to-br from-primary/[0.06] to-background py-16 sm:py-20">
-                <div className="mx-auto max-w-7xl px-6 text-center">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
                     <h1 className="text-4xl font-bold leading-tight text-foreground sm:text-5xl">
                         Professional <span className="text-primary">Financial Calculators</span> and{" "}
                         <span className="text-primary">Personal Finance</span> Tools
@@ -41,7 +41,7 @@ export default function HomePage() {
             </section>
 
             <section id="calculators" className="bg-secondary/40 py-16">
-                <div className="mx-auto max-w-7xl px-6">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6">
                     <div className="mb-12 text-center">
                         <h2 className="mb-4 text-3xl font-bold text-foreground">Choose Your Calculator</h2>
                         <p className="text-lg text-muted-foreground">
@@ -78,7 +78,7 @@ export default function HomePage() {
             </section>
 
             <section className="py-16">
-                <div className="mx-auto max-w-7xl px-6">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6">
                     <h2 className="mb-12 text-center text-3xl font-bold text-foreground">Why Choose FinnaCalc?</h2>
                     <div className="grid gap-8 sm:grid-cols-3">
                         {[
@@ -110,7 +110,7 @@ export default function HomePage() {
             </section>
 
             <section className="bg-primary py-16">
-                <div className="mx-auto max-w-7xl px-6 text-center">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
                     <h2 className="mb-4 text-3xl font-bold text-white">Ready to take control of your finances?</h2>
                     <p className="mb-8 text-lg text-white/80">
                         Start with a calculator, or sign up to keep a budget, follow your portfolio and estimate your taxes.

@@ -19,15 +19,8 @@ export default function TrackerPage() {
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/investing" className="text-muted-foreground hover:text-foreground">
-                            Investing
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        Trade Tracker
-                    </span>
-                }
+                back={{ href: "/investing", label: "Investing" }}
+                title="Trade Tracker"
             />
             <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-1">

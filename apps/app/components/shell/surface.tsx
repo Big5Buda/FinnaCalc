@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { ChevronLeft } from "lucide-react"
 import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
@@ -17,22 +18,70 @@ import { cn } from "@/lib/utils"
  * each inventing its own card. Nothing here holds state.
  */
 
+/**
+ * The column every page sits in, header and footer included.
+ *
+ * It matches the site header's own container exactly (site-header.tsx), which
+ * is the whole point: the bar and the body used to be flush to the left edge
+ * on a wide screen while the wordmark above them sat 100 points in, so a
+ * title never lined up with the logo and a page's actions drifted hundreds of
+ * points right of the content they acted on.
+ */
+const PAGE_SHELL = "mx-auto w-full max-w-7xl px-4 sm:px-6"
+
 export function PageBar({
     title,
+    back,
     actions,
 }: {
     title: ReactNode
+    /**
+     * Where this page came from. A named parent rather than the browser's
+     * history: somebody arriving from a search result or from the iOS app has
+     * no history to go back to, and the browser's own control already covers
+     * the ones who do.
+     *
+     * Omitted by the five tabs in the header nav, whose way up is the nav.
+     */
+    back?: { href: string; label: string }
     actions?: ReactNode
 }) {
     return (
-        <div className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 px-6 py-4 lg:px-10">
-            <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-foreground">{title}</h1>
+        <div className={cn(PAGE_SHELL, "flex min-h-[68px] flex-wrap items-center justify-between gap-3 py-4")}>
+            <div className="flex min-w-0 items-center gap-2">
+                {back && (
+                    <Link
+                        href={back.href}
+                        aria-label={`Back to ${back.label}`}
+                        className="-ml-2 inline-flex shrink-0 items-center gap-1 rounded-pill px-2 py-1.5 text-sm font-semibold text-primary transition hover:bg-secondary"
+                    >
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                        {/* The label stays on a phone too. A bare chevron is the
+                            iOS convention, but this is a web page, and a control
+                            that names where it goes needs no convention. */}
+                        <span className="max-w-[9rem] truncate sm:max-w-none">{back.label}</span>
+                    </Link>
+                )}
+                <h1 className="truncate text-[17px] font-semibold tracking-[-0.01em] text-foreground">{title}</h1>
+            </div>
             {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
     )
 }
 
-/** The page's content column, under the bar. */
+/**
+ * The page's content column, under the bar.
+ *
+ * Two divs on purpose. The outer one is the same centred shell the bar and
+ * the header use; the inner one carries whatever narrower measure the page
+ * asked for, left-aligned inside that shell. A page capped at `max-w-3xl`
+ * therefore starts on the same vertical line as its own title and as the
+ * wordmark, instead of floating in the middle of a screen whose title sits
+ * far to its left.
+ *
+ * `pb-20` is clearance for FinnaBot's corner button, not leftover padding
+ * from the icon rail that used to live there.
+ */
 export function PageBody({
     children,
     className,
@@ -40,7 +89,11 @@ export function PageBody({
     children: ReactNode
     className?: string
 }) {
-    return <div className={cn("px-6 pb-20 lg:px-10", className)}>{children}</div>
+    return (
+        <div className={cn(PAGE_SHELL, "pb-20")}>
+            <div className={cn("w-full", className)}>{children}</div>
+        </div>
+    )
 }
 
 export function Panel({

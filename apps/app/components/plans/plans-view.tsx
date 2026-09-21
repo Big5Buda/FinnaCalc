@@ -97,7 +97,7 @@ export function PlansView() {
 
     return (
         <>
-            <PageBar title="Plans" />
+            <PageBar back={{ href: "/", label: "Home" }} title="Plans" />
             <PageBody className="flex w-full max-w-5xl flex-col gap-6">
                 <div className="contents">
 

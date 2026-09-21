@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useState, type FormEvent } from "react"
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -44,15 +43,8 @@ export default function GoalsPage() {
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
-                            Budgeting
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        Goals
-                    </span>
-                }
+                back={{ href: "/budgeting", label: "Budgeting" }}
+                title="Goals"
             />
             <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">
