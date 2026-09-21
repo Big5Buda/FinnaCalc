@@ -1,19 +1,16 @@
 import Link from "next/link"
-import { CALCULATORS } from "@/lib/calculators/catalog"
 
 /**
- * The footer the site had from the start: what FinnaCalc is, the calculators
- * by group, and the company pages. Calculator links come from the catalog so
- * the list here can never name one the site does not ship.
+ * The footer: what FinnaCalc is, and the company pages. The old one also
+ * listed every calculator down here; the owner called that pointless, since
+ * the home page is the calculators, so it is the four pages and nothing
+ * else.
  */
 export function SiteFooter() {
-    const personal = CALCULATORS.filter((entry) => entry.category !== "Business")
-    const business = CALCULATORS.filter((entry) => entry.category === "Business")
-
     return (
         <footer className="border-t border-border bg-foreground text-background">
             <div className="mx-auto max-w-7xl px-6 py-12">
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-8 sm:grid-cols-2">
                     <div>
                         <div className="mb-4 flex items-center gap-2">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -24,8 +21,6 @@ export function SiteFooter() {
                             Budgeting, investing, taxes, lessons and calculators, with the math shown.
                         </p>
                     </div>
-                    <FooterColumn title="Calculators" links={personal.map((entry) => ({ href: `/calculators/${entry.slug}`, label: entry.shortTitle }))} />
-                    <FooterColumn title="Business Tools" links={business.map((entry) => ({ href: `/calculators/${entry.slug}`, label: entry.shortTitle }))} />
                     <FooterColumn
                         title="Company"
                         links={[

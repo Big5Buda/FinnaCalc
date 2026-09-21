@@ -155,6 +155,7 @@ function AccountMenu() {
     const rows = [
         { href: "/account", label: "Account" },
         { href: "/plans", label: "Plans" },
+        { href: "/account#feedback", label: "Feedback" },
         { href: "/about", label: "About Us" },
         { href: "/privacy", label: "Privacy Policy" },
         { href: "/terms", label: "Terms of Service" },
