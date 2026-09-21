@@ -21,7 +21,7 @@ import {
 } from "@/lib/investing/snaptrade"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Button, Notice } from "@/components/ui/primitives"
-import { SegmentedControl } from "@/components/shell/surface"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * The order ticket, ported from OrderTicketView.swift.
@@ -363,19 +363,21 @@ export default function TradePage({ params }: { params: Promise<{ symbol: string
 
 function Shell({ symbol, children }: { symbol: string; children: React.ReactNode }) {
     return (
-        <div className="flex w-full max-w-3xl flex-col gap-5 px-6 py-6 lg:px-10">
-            <header className="flex flex-col gap-1">
-                <Link href={`/investing/stocks/${symbol}`} className="text-sm font-semibold text-primary">
-                    ← {symbol}
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade {symbol}</h1>
-                <p className="text-sm text-muted-foreground">
-                    Orders are reviewed by you and executed by your brokerage. FinnaCalc never holds your money
-                    or securities.
-                </p>
-            </header>
-            {children}
-        </div>
+        <>
+            <PageBar
+                back={{ href: `/investing/stocks/${symbol}`, label: symbol }}
+                title={`Trade ${symbol}`}
+            />
+            <PageBody className="flex max-w-3xl flex-col gap-5">
+                <header className="flex flex-col gap-1">
+                    <p className="text-sm text-muted-foreground">
+                        Orders are reviewed by you and executed by your brokerage. FinnaCalc never holds your money
+                        or securities.
+                    </p>
+                </header>
+                {children}
+            </PageBody>
+        </>
     )
 }
 

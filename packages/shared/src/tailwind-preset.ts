@@ -163,6 +163,13 @@ export const sharedPreset: Partial<Config> = {
                 input: "rgb(var(--input) / <alpha-value>)",
                 ring: "rgb(var(--ring) / <alpha-value>)",
             },
+            // Tailwind's smallest stop is 640, which leaves the 320-430 band
+            // every phone actually lives in with no way to say "not the very
+            // narrowest one". The header needs it: two auth pills, a wordmark
+            // and a menu button do not fit 375 points together.
+            screens: {
+                xs: "400px",
+            },
             borderRadius: {
                 sm: "4px",
                 md: "12px",

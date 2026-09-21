@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { AlertTriangle, FileText, Gavel, Shield, Users, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Terms of Service",
@@ -10,10 +11,9 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
-                <h1 className="text-center text-4xl font-bold text-foreground">Terms of Service</h1>
-
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="Terms of Service" />
+            <PageBody className="flex max-w-3xl flex-col gap-8">
                 <Section icon={FileText} tint="text-primary" title="Terms of Service Agreement">
                     <P>
                         These Terms of Service govern your use of FinnaCalc&rsquo;s website and services. By
@@ -203,8 +203,8 @@ export default function TermsPage() {
                         <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

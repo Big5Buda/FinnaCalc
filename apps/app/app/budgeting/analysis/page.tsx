@@ -167,15 +167,8 @@ export default function BudgetAnalysisPage() {
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/budgeting" className="text-muted-foreground hover:text-foreground">
-                            Budgeting
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        Budget Analysis
-                    </span>
-                }
+                back={{ href: "/budgeting", label: "Budgeting" }}
+                title="Budget Analysis"
             />
             <PageBody className="flex w-full max-w-3xl flex-col gap-5">
                 <p className="text-sm text-muted-foreground">

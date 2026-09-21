@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { PageBar, PageBody } from "@/components/shell/surface"
 import { CalculatorWorkspace } from "./components/workspace"
 
 export const metadata: Metadata = {
@@ -20,18 +21,16 @@ export const metadata: Metadata = {
  */
 export default function CalculatorPage() {
     return (
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6">
-            <header className="flex flex-col gap-2 pb-6">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                    Modelling workspace
-                </h1>
-                <p className="max-w-2xl text-body">
-                    Set the assumptions, and watch what they compound into — with inflation and tax
-                    applied, and every year&rsquo;s arithmetic shown rather than summarised.
+        <>
+            <PageBar back={{ href: "/calculators", label: "Calculators" }} title="Modelling workspace" />
+            <PageBody className="max-w-[1600px]">
+                <p className="max-w-2xl pb-6 text-sm text-muted-foreground">
+                    Set the assumptions, and watch what they compound into, with inflation and tax
+                    applied and every year&rsquo;s arithmetic shown rather than summarised.
                 </p>
-            </header>
 
-            <CalculatorWorkspace />
-        </main>
+                <CalculatorWorkspace />
+            </PageBody>
+        </>
     )
 }

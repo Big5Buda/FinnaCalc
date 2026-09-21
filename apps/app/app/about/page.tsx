@@ -16,6 +16,7 @@ import {
     type LucideIcon,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "About",
@@ -110,8 +111,9 @@ const REASONS = [
 
 export default function AboutPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-10">
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="About Us" />
+            <PageBody className="flex max-w-3xl flex-col gap-12">
                 <section className="flex flex-col items-center gap-4 text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-foreground">
                         Empowering Smart Financial Decisions
@@ -196,8 +198,8 @@ export default function AboutPage() {
                         <ContactLine label="Business Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 
