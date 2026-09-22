@@ -28,11 +28,23 @@ import {
 // nowhere near every US stock, so the response says `preset: null` and the
 // app names the list rather than implying a market-wide sweep.
 //
-// The merged case sorts by volume before it truncates. The three presets
-// arrive already ranked, by volume or by percent change, so iterating them in
-// order and stopping at `limit` gives the top of that ranking. A merge has no
-// such order: concatenated, the first 60 are simply the most-active 60, and
-// the gainers and losers behind them would never be reached.
+// The merged case sorts before it truncates. The three presets arrive already
+// ranked, by volume or by percent change, so iterating them in order and
+// stopping at `limit` gives the top of that ranking. A merge has no such
+// order: concatenated, the first 60 are simply the most-active 60, and the
+// gainers and losers behind them would never be reached.
+//
+// `sort` and `dir` say how to rank before that cut. The app asks for them on
+// every request, because ranking is what its category chips now do: they no
+// longer choose a universe, they choose how this one is read. Ranking only
+// the rows that survived a cut made on some other column would answer a
+// different question than the one the chip asks, so the rank happens here,
+// across the whole universe, and the cut happens after it.
+//
+//   sort=changePct|volume|relVolume|price|symbol   dir=asc|desc
+//
+// Both are optional. Without them a preset keeps its own order and a merge
+// falls back to volume, which is what every build before this one expects.
 //
 // Everything returned is measured, never inferred:
 //   price / change / changePct    snapshot against the previous session's close
@@ -135,6 +147,18 @@ export async function GET(request: NextRequest) {
     const changeMin = num(params, "changeMoreThan");
     const changeMax = num(params, "changeLowerThan");
     const relVolumeMin = num(params, "relVolumeMoreThan");
+
+    const SORTABLE = ["changePct", "volume", "relVolume", "price", "symbol"] as const;
+    type SortKey = (typeof SORTABLE)[number];
+    const sortParam = params.get("sort");
+    const sortKey: SortKey | null =
+        sortParam !== null && (SORTABLE as readonly string[]).includes(sortParam)
+            ? (sortParam as SortKey)
+            : null;
+    const ascending = params.get("dir") === "asc";
+    // A ranking has to see every row before it can pick a top, so the early
+    // break below is only safe when the universe already arrives in order.
+    const rankHere = merged || sortKey !== null;
 
     const asked = UNSUPPORTED.filter((key) => params.get(key));
 
@@ -242,10 +266,26 @@ export async function GET(request: NextRequest) {
             // that clear the filters are the top of it and the rest of the
             // universe cannot beat them. The merge has no inherent order, so
             // it has to see every row before it can pick a top.
-            if (!merged && rows.length >= limit) break;
+            if (!rankHere && rows.length >= limit) break;
         }
 
-        if (merged) rows.sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+        if (sortKey === "symbol") {
+            rows.sort((a, b) => (ascending ? 1 : -1) * a.symbol.localeCompare(b.symbol));
+        } else if (sortKey !== null) {
+            // A missing number is not a zero and must not win "smallest", so
+            // it sorts last whichever way the column is pointing. Same rule
+            // the app applies to the rows it already has.
+            rows.sort((a, b) => {
+                const left = a[sortKey];
+                const right = b[sortKey];
+                if (left === null && right === null) return 0;
+                if (left === null) return 1;
+                if (right === null) return -1;
+                return (ascending ? 1 : -1) * (left - right);
+            });
+        } else if (merged) {
+            rows.sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+        }
 
         return NextResponse.json({
             rows: rows.slice(0, limit),
