@@ -13,7 +13,6 @@ import {
     connect,
     connections as fetchConnections,
     disconnect,
-    isLegacyPermission,
     orders as fetchOrders,
     reconnect,
     refresh as requestSync,
@@ -23,6 +22,8 @@ import {
     type Order,
 } from "@/lib/investing/snaptrade"
 import { holdings, provisionalPositions } from "@/lib/investing/analytics"
+import { disconnectConfirmation, loadPortfolio } from "@/lib/investing/portfolio-state"
+import { BrokerageLinkNotices } from "@/components/investing/brokerage-links"
 import { useAuth } from "@/components/providers/auth-provider"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
@@ -46,6 +47,7 @@ export default function PortfolioPage() {
     const { user, loading: authLoading } = useAuth()
     const [data, setData] = useState<AccountsResponse | null>(null)
     const [connections, setConnections] = useState<Connection[]>([])
+    const [connectionsError, setConnectionsError] = useState<string | null>(null)
     const [orderRows, setOrderRows] = useState<Order[]>([])
     const [prices, setPrices] = useState<Record<string, number>>({})
     const [loading, setLoading] = useState(true)
@@ -56,23 +58,17 @@ export default function PortfolioPage() {
     const load = useCallback(async () => {
         setLoading(true)
         setError(null)
-        try {
-            const response = await fetchAccounts()
-            setData(response)
-
-            if (response.accounts.length > 0) {
-                const [connectionsResponse, ...orderResponses] = await Promise.all([
-                    fetchConnections().catch(() => ({ configured: false, connections: [] })),
-                    ...response.accounts.map((account) =>
-                        fetchOrders(account.id).catch(() => ({ orders: [] as Order[] }))
-                    ),
-                ])
-                setConnections(connectionsResponse.connections)
-                setOrderRows(orderResponses.flatMap((entry) => entry.orders))
-            }
-        } catch (err) {
-            setError(err instanceof ApiError ? err.message : "Couldn't load your portfolio.")
-        }
+        // Links load independently of holdings, so a link that is the reason
+        // holdings failed still shows with its recovery action.
+        const result = await loadPortfolio(
+            { accounts: fetchAccounts, connections: fetchConnections, orders: fetchOrders },
+            (err, fallback) => (err instanceof ApiError ? err.message : fallback)
+        )
+        setData(result.data)
+        setError(result.accountsError)
+        setConnections(result.connections)
+        setConnectionsError(result.connectionsError)
+        setOrderRows(result.orders)
         setLoading(false)
     }, [])
 
@@ -151,15 +147,14 @@ export default function PortfolioPage() {
     }
 
     async function unlink() {
-        const ok = window.confirm(
-            "Disconnect your brokerage?\n\nFinnaCalc stops reading your accounts and holdings. Nothing at your brokerage changes: your positions, orders and money stay exactly as they are."
-        )
+        const ok = window.confirm(disconnectConfirmation(connections.length))
         if (!ok) return
         setBusy("disconnect")
         try {
             await disconnect()
             setData(null)
             setConnections([])
+            setConnectionsError(null)
             setOrderRows([])
             await load()
         } catch (err) {
@@ -211,13 +206,43 @@ export default function PortfolioPage() {
     }
 
     const connected = (data?.accounts.length ?? 0) > 0
+    const linked = connections.length > 0
 
     return (
         <Shell>
             {error && <Notice tone="error">{error}</Notice>}
             {notice && <Notice tone="info">{notice}</Notice>}
 
-            {!connected ? (
+            <BrokerageLinkNotices
+                connections={connections}
+                connectionsError={connectionsError}
+                busy={busy}
+                onDisconnect={() => void unlink()}
+                onReconnect={(connectionId) => void startReconnect(connectionId)}
+            />
+
+            {!connected && linked ? (
+                // Linked, but no holdings to show: the accounts read failed or
+                // reported nothing. Keep the link manageable rather than
+                // offering a fresh connection the limit may refuse.
+                <>
+                    {!error && (
+                        <Notice tone="info">
+                            Your brokerage link hasn&rsquo;t reported any accounts yet. A new link can take a
+                            moment; try again shortly.
+                        </Notice>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => void load()}>
+                            <RefreshCw className="h-4 w-4" />
+                            Try again
+                        </Button>
+                        <Button variant="ghost" onClick={() => void unlink()} disabled={busy === "disconnect"}>
+                            Disconnect all
+                        </Button>
+                    </div>
+                </>
+            ) : !connected ? (
                 <ConnectPanel onConnect={startConnect} busy={busy === "connect"} />
             ) : (
                 <>
@@ -250,49 +275,9 @@ export default function PortfolioPage() {
                             Portfolio analysis
                         </Link>
                         <Button variant="ghost" onClick={() => void unlink()} disabled={busy === "disconnect"}>
-                            Disconnect
+                            Disconnect all
                         </Button>
                     </div>
-
-                    {connections.map((connection) => {
-                        if (isLegacyPermission(connection)) {
-                            return (
-                                <Notice key={connection.id} tone="caution">
-                                    {connection.type?.trim().toLowerCase() === "trade"
-                                        ? `${connection.brokerage} was linked with trading permission.`
-                                        : `SnapTrade doesn't report ${connection.brokerage}'s link as view-only.`}{" "}
-                                    FinnaCalc is view-only and doesn&rsquo;t place or cancel orders, but it
-                                    can&rsquo;t reconnect or convert this link. For a view-only link, disconnect (this
-                                    removes every brokerage link on this account from FinnaCalc), then connect{" "}
-                                    {connection.brokerage} again.
-                                    <div className="mt-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => void unlink()}
-                                            disabled={busy === "disconnect"}
-                                        >
-                                            Disconnect to relink
-                                        </Button>
-                                    </div>
-                                </Notice>
-                            )
-                        }
-                        if (!connection.disabled) return null
-                        return (
-                            <Notice key={connection.id} tone="caution">
-                                {`${connection.brokerage} needs reconnecting — the brokerage ended FinnaCalc's access, so holdings have stopped updating.`}
-                                <div className="mt-2">
-                                    <Button
-                                        size="sm"
-                                        onClick={() => void startReconnect(connection.id)}
-                                        disabled={busy === `reconnect:${connection.id}`}
-                                    >
-                                        Reconnect
-                                    </Button>
-                                </div>
-                            </Notice>
-                        )
-                    })}
 
                     <section className="flex flex-col gap-2.5">
                         <SectionLabel>Holdings</SectionLabel>

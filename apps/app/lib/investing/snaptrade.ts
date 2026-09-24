@@ -110,12 +110,3 @@ export const refresh = () =>
 
 export const orders = (accountId: string) =>
     apiGet<{ orders: Order[] }>("/api/snaptrade/orders", { accountId })
-
-/**
- * A link SnapTrade doesn't report as exactly "read" — a legacy trading link or
- * one whose permission is unknown. It can't be reconnected in place; the user
- * has to disconnect and link again to get a view-only link.
- */
-export function isLegacyPermission(connection: Connection): boolean {
-    return connection.type?.trim().toLowerCase() !== "read"
-}
