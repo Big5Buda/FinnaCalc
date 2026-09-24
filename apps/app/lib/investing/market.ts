@@ -76,6 +76,11 @@ export type StockDetail = {
         website: string | null
         country: string | null
     } | null
+    marketData?: {
+        asOf: string | null
+        isStale: boolean
+        assetStatus: string | null
+    }
 }
 
 export type NewsArticle = {

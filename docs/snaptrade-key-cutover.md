@@ -34,7 +34,7 @@ owned by `FINNACALC-TEST-PKUEY`. The newly created production Client ID is
 - Final database counts: **4 legacy-owned mappings** (the original three plus
   the empty QA mapping), **0 production mappings**, **0 missing owners**.
   No production user, brokerage authorization or trade was created. Real
-  production connection, repair, trading and deletion lifecycle tests remain
+  production connection, repair and deletion lifecycle tests remain
   unverified; catalog and test-webhook success do not establish those flows.
 
 ## Routing and preservation
@@ -53,7 +53,8 @@ back the flag does not disable already-created production users. A selected
 registration pair that is incomplete fails without falling back to another key.
 
 All existing users continue using their recorded key, including new connections,
-repairs, reads, trading, disconnects and account deletion. Changing the registration
+repairs, reads, disconnects and account deletion. (FinnaCalc is view-only since
+September 24, 2026; see [app-store.md](app-store.md#view-only-brokerage--september-24-2026).) Changing the registration
 flag affects only new users. Missing/unknown ownership or a missing owning key
 fails without replacing the session or deleting credentials. Catalog caches and
 webhook verification are separated by key. Signed user events must also match

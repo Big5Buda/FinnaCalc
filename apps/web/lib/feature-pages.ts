@@ -151,8 +151,8 @@ export const FEATURE_PAGES: Record<string, FeaturePage> = {
                 body: "Positions and balances come from the account itself. Your login goes to SnapTrade, never to us.",
             },
             {
-                title: "Orders execute at your brokerage",
-                body: "When you trade, the order is placed with your own broker after showing you its real impact first. FinnaCalc never holds your money.",
+                title: "View-only, by design",
+                body: "FinnaCalc reads your holdings and order history. It can't place or cancel orders — you trade with your own broker, and FinnaCalc never holds your money.",
             },
             {
                 title: "Analysis on what you own",
@@ -390,7 +390,7 @@ export const SECTION_INDEXES: Record<string, SectionIndex> = {
         family: "investing",
         title: "Investing",
         headline: "Live prices, your actual holdings, ten years of filings.",
-        lede: "Research like you mean it: quotes, the screener, insider and fund filings, and your real portfolio. Orders execute at your own brokerage — we never touch the money.",
+        lede: "Research like you mean it: quotes, the screener, insider and fund filings, and your real portfolio, linked view-only. Trades happen at your own brokerage — we never touch the money.",
     },
     taxes: {
         family: "taxes",

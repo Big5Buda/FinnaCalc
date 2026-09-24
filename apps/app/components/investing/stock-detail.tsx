@@ -78,7 +78,11 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         setStock(null)
         setError(null)
         stockDetail(ticker)
-            .then((data) => active && setStock(data))
+            .then((data) => {
+                if (!active) return
+                setStock(data)
+                if (data.marketData?.isStale) setRange("ALL")
+            })
             .catch((err: unknown) =>
                 active && setError(err instanceof Error ? err.message : `No data found for "${ticker}".`)
             )
@@ -109,10 +113,13 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
      * the header's "% today" uses. Derived from the quote (price − change)
      * rather than the candles response.
      */
-    const previousClose =
+    const previousClose = !stock?.marketData?.isStale &&
         price !== null && change !== null && Number.isFinite(price) && Number.isFinite(change)
             ? price - change
             : null
+    const lastTradeDate = stock?.marketData?.asOf
+        ? new Date(stock.marketData.asOf).toLocaleString()
+        : null
 
     const following = watchlist.contains(ticker)
 
@@ -195,6 +202,12 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
                                 {new Date(scrub.t * 1000).toLocaleString()}
                             </p>
                         </>
+                    ) : stock.marketData?.isStale ? (
+                        <>
+                            <p className="text-xs text-muted-foreground">Last available price</p>
+                            <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
+                            {lastTradeDate && <p className="text-xs text-muted-foreground">Last trade {lastTradeDate}</p>}
+                        </>
                     ) : (
                         <>
                             <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
@@ -207,6 +220,20 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
                 </header>
 
                 <section className="flex flex-col gap-3">
+                    {stock.marketData?.isStale && (
+                        <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+                            <p className="font-semibold text-foreground">
+                                {stock.marketData.assetStatus?.toLowerCase() === "inactive"
+                                    ? "Provider marks this listing inactive."
+                                    : "No recent market data."}
+                            </p>
+                            <p>
+                                {lastTradeDate
+                                    ? `Last provider trade: ${lastTradeDate}. Historical prices shown below.`
+                                    : "The last price may be outdated. Historical prices shown below."}
+                            </p>
+                        </div>
+                    )}
                     <PriceChart
                         points={points}
                         style={style}
@@ -291,7 +318,13 @@ function KeyStats({
 }) {
     const stats = stock.stats
     const marketCap = Number(stock.overview.MarketCapitalization)
-    const rows: { label: string; value: string }[] = [{ label: "Current price", value: `$${fixed(price, 2)}` }]
+    const rows: { label: string; value: string }[] = [{
+        label: stock.marketData?.isStale ? "Last available price" : "Current price",
+        value: `$${fixed(price, 2)}`,
+    }]
+    if (stock.marketData?.isStale && stock.marketData.asOf) {
+        rows.push({ label: "Last trade reported", value: new Date(stock.marketData.asOf).toLocaleString() })
+    }
 
     if (Number.isFinite(marketCap) && marketCap > 0) {
         rows.push({ label: "Market cap", value: formatMarketCap(marketCap) })

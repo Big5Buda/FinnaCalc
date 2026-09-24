@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         // After the quote, because a market cap and a P/E are a live price
         // against a filed denominator. Crypto has no filings, and neither do
         // funds; both come back as every-field-null and every row hides.
-        const filings = isCryptoSymbol(symbol)
+        const filings = isCryptoSymbol(symbol) || quoteSrc.isStale
             ? null
             : await fundamentalsFor(symbol, quoteSrc.price);
 
@@ -139,7 +139,18 @@ export async function GET(request: NextRequest) {
         // Retired-ticker resolution came from a vendor feed that has been
         // removed with the rest of them; the field stays so older app builds
         // keep decoding this payload.
-        return NextResponse.json({ quote, overview, stats, company, alias: null });
+        return NextResponse.json({
+            quote,
+            overview,
+            stats,
+            company,
+            alias: null,
+            marketData: {
+                asOf: quoteSrc.asOf,
+                isStale: quoteSrc.isStale,
+                assetStatus: info?.status ?? null,
+            },
+        });
     } catch (err: any) {
         return NextResponse.json({ error: err.message || "Failed to fetch stock data." }, { status: 500 });
     }

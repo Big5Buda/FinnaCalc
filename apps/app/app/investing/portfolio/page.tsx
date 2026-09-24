@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { Landmark, Loader2, RefreshCw, X } from "lucide-react"
+import { Landmark, Loader2, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { compactMoney, currency, fixed } from "@/lib/format"
 import { ApiError } from "@/lib/api-client"
@@ -10,29 +10,33 @@ import { marketStats } from "@/lib/investing/market"
 import {
     accounts as fetchAccounts,
     brokerages as fetchBrokerages,
-    cancelOrder,
     connect,
     connections as fetchConnections,
     disconnect,
     orders as fetchOrders,
+    reconnect,
     refresh as requestSync,
-    tradingBlockedReason,
     type AccountsResponse,
     type Brokerage,
-    type BrokerageAccess,
     type Connection,
     type Order,
 } from "@/lib/investing/snaptrade"
 import { holdings, provisionalPositions } from "@/lib/investing/analytics"
+import { disconnectConfirmation, loadPortfolio } from "@/lib/investing/portfolio-state"
+import { BrokerageLinkNotices } from "@/components/investing/brokerage-links"
 import { useAuth } from "@/components/providers/auth-provider"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
-import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 /**
  * Portfolio — connect a brokerage through SnapTrade, then the total value, the
  * holdings ledger and recent orders. Ported from BrokerageConnectView.swift and
  * PortfolioLedgerView.swift.
+ *
+ * View-only. Every link asks SnapTrade for read access; nothing on this page
+ * places, previews or cancels an order. A legacy link that isn't reported as
+ * read-only is flagged, with disconnect-and-relink as the way out.
  *
  * Nothing here is ever placeheld: a value the brokerage hasn't reported and a
  * quote we can't fetch both render as a dash. Holdings the daily sync hasn't
@@ -43,6 +47,7 @@ export default function PortfolioPage() {
     const { user, loading: authLoading } = useAuth()
     const [data, setData] = useState<AccountsResponse | null>(null)
     const [connections, setConnections] = useState<Connection[]>([])
+    const [connectionsError, setConnectionsError] = useState<string | null>(null)
     const [orderRows, setOrderRows] = useState<Order[]>([])
     const [prices, setPrices] = useState<Record<string, number>>({})
     const [loading, setLoading] = useState(true)
@@ -53,23 +58,17 @@ export default function PortfolioPage() {
     const load = useCallback(async () => {
         setLoading(true)
         setError(null)
-        try {
-            const response = await fetchAccounts()
-            setData(response)
-
-            if (response.accounts.length > 0) {
-                const [connectionsResponse, ...orderResponses] = await Promise.all([
-                    fetchConnections().catch(() => ({ configured: false, connections: [] })),
-                    ...response.accounts.map((account) =>
-                        fetchOrders(account.id).catch(() => ({ orders: [] as Order[] }))
-                    ),
-                ])
-                setConnections(connectionsResponse.connections)
-                setOrderRows(orderResponses.flatMap((entry) => entry.orders))
-            }
-        } catch (err) {
-            setError(err instanceof ApiError ? err.message : "Couldn't load your portfolio.")
-        }
+        // Links load independently of holdings, so a link that is the reason
+        // holdings failed still shows with its recovery action.
+        const result = await loadPortfolio(
+            { accounts: fetchAccounts, connections: fetchConnections, orders: fetchOrders },
+            (err, fallback) => (err instanceof ApiError ? err.message : fallback)
+        )
+        setData(result.data)
+        setError(result.accountsError)
+        setConnections(result.connections)
+        setConnectionsError(result.connectionsError)
+        setOrderRows(result.orders)
         setLoading(false)
     }, [])
 
@@ -101,14 +100,26 @@ export default function PortfolioPage() {
         }
     }, [data, orderRows])
 
-    async function startConnect(access: BrokerageAccess, broker?: string) {
+    async function startConnect(broker?: string) {
         setBusy("connect")
         setError(null)
         try {
-            const { redirectURI } = await connect(access, broker)
+            const { redirectURI } = await connect(broker)
             window.location.href = redirectURI
         } catch (err) {
             setError(err instanceof ApiError ? err.message : "Couldn't start the connection.")
+            setBusy(null)
+        }
+    }
+
+    async function startReconnect(connectionId: string) {
+        setBusy(`reconnect:${connectionId}`)
+        setError(null)
+        try {
+            const { redirectURI } = await reconnect(connectionId)
+            window.location.href = redirectURI
+        } catch (err) {
+            setError(err instanceof ApiError ? err.message : "Couldn't start the reconnection.")
             setBusy(null)
         }
     }
@@ -136,15 +147,14 @@ export default function PortfolioPage() {
     }
 
     async function unlink() {
-        const ok = window.confirm(
-            "Disconnect your brokerage?\n\nFinnaCalc stops reading your accounts and holdings. Nothing at your brokerage changes: your positions, orders and money stay exactly as they are."
-        )
+        const ok = window.confirm(disconnectConfirmation(connections.length))
         if (!ok) return
         setBusy("disconnect")
         try {
             await disconnect()
             setData(null)
             setConnections([])
+            setConnectionsError(null)
             setOrderRows([])
             await load()
         } catch (err) {
@@ -169,8 +179,8 @@ export default function PortfolioPage() {
                     <Link href="/sign-in?next=/investing/portfolio" className="font-semibold text-primary">
                         Sign in
                     </Link>{" "}
-                    to connect a brokerage. Trading routes verify your account, so a browser session alone
-                    can&rsquo;t place orders.
+                    to connect a brokerage. Links are view-only: FinnaCalc reads your balances, holdings and
+                    order history, and never places or cancels orders.
                 </Notice>
             </Shell>
         )
@@ -196,13 +206,43 @@ export default function PortfolioPage() {
     }
 
     const connected = (data?.accounts.length ?? 0) > 0
+    const linked = connections.length > 0
 
     return (
         <Shell>
             {error && <Notice tone="error">{error}</Notice>}
             {notice && <Notice tone="info">{notice}</Notice>}
 
-            {!connected ? (
+            <BrokerageLinkNotices
+                connections={connections}
+                connectionsError={connectionsError}
+                busy={busy}
+                onDisconnect={() => void unlink()}
+                onReconnect={(connectionId) => void startReconnect(connectionId)}
+            />
+
+            {!connected && linked ? (
+                // Linked, but no holdings to show: the accounts read failed or
+                // reported nothing. Keep the link manageable rather than
+                // offering a fresh connection the limit may refuse.
+                <>
+                    {!error && (
+                        <Notice tone="info">
+                            Your brokerage link hasn&rsquo;t reported any accounts yet. A new link can take a
+                            moment; try again shortly.
+                        </Notice>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => void load()}>
+                            <RefreshCw className="h-4 w-4" />
+                            Try again
+                        </Button>
+                        <Button variant="ghost" onClick={() => void unlink()} disabled={busy === "disconnect"}>
+                            Disconnect all
+                        </Button>
+                    </div>
+                </>
+            ) : !connected ? (
                 <ConnectPanel onConnect={startConnect} busy={busy === "connect"} />
             ) : (
                 <>
@@ -235,33 +275,9 @@ export default function PortfolioPage() {
                             Portfolio analysis
                         </Link>
                         <Button variant="ghost" onClick={() => void unlink()} disabled={busy === "disconnect"}>
-                            Disconnect
+                            Disconnect all
                         </Button>
                     </div>
-
-                    {connections.map((connection) => {
-                        const blocked = tradingBlockedReason(connection)
-                        if (!connection.disabled && !blocked) return null
-                        return (
-                            <Notice key={connection.id} tone="caution">
-                                {connection.disabled
-                                    ? `${connection.brokerage} needs reconnecting — the brokerage ended FinnaCalc's access, so holdings have stopped updating.`
-                                    : blocked}
-                                <div className="mt-2">
-                                    <Button
-                                        size="sm"
-                                        onClick={() =>
-                                            void startConnect(
-                                                connection.type?.toLowerCase() === "trade" ? "trade" : "read"
-                                            )
-                                        }
-                                    >
-                                        {connection.disabled ? "Reconnect" : "Enable trading"}
-                                    </Button>
-                                </div>
-                            </Notice>
-                        )
-                    })}
 
                     <section className="flex flex-col gap-2.5">
                         <SectionLabel>Holdings</SectionLabel>
@@ -306,34 +322,13 @@ export default function PortfolioPage() {
                                                 </span>
                                             )}
                                         </span>
-                                        <Link
-                                            href={`/investing/trade/${row.symbol}`}
-                                            className="shrink-0 text-xs font-semibold text-primary"
-                                        >
-                                            Trade
-                                        </Link>
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </section>
 
-                    <OrdersSection
-                        orders={orderRows}
-                        onCancel={async (order) => {
-                            if (!order.accountId || !order.brokerageOrderId) return
-                            const ok = window.confirm(
-                                `Cancel this ${order.action ?? "order"} of ${order.totalQuantity ?? "?"} ${order.symbol ?? ""}?\n\nThe request goes to your brokerage, which decides whether it can still be cancelled.`
-                            )
-                            if (!ok) return
-                            try {
-                                await cancelOrder(order.accountId, order.brokerageOrderId)
-                                await load()
-                            } catch (err) {
-                                setError(err instanceof ApiError ? err.message : "Couldn't cancel that order.")
-                            }
-                        }}
-                    />
+                    <OrdersSection orders={orderRows} />
                 </>
             )}
         </Shell>
@@ -363,11 +358,10 @@ function ConnectPanel({
     onConnect,
     busy,
 }: {
-    onConnect: (access: BrokerageAccess, broker?: string) => void
+    onConnect: (broker?: string) => void
     busy: boolean
 }) {
     const [list, setList] = useState<Brokerage[]>([])
-    const [access, setAccess] = useState<BrokerageAccess>("read")
     const [query, setQuery] = useState("")
 
     useEffect(() => {
@@ -400,22 +394,9 @@ function ConnectPanel({
                 </div>
             </div>
 
-            <SegmentedControl
-                label="Brokerage access"
-                className="w-full [&>button]:flex-1"
-                size="sm"
-                value={access}
-                onChange={setAccess}
-                options={[
-                    { value: "read" as BrokerageAccess, label: "View only" },
-                    { value: "trade" as BrokerageAccess, label: "View and trade" },
-                ]}
-            />
-
             <p className="text-xs text-muted-foreground">
-                {access === "trade"
-                    ? "Orders you place here are reviewed by you and executed by your brokerage under its own terms. FinnaCalc never holds your money or securities."
-                    : "Holdings and orders are read-only. You can upgrade a connection later."}
+                View only. FinnaCalc reads your balances, holdings and order history; it can&rsquo;t place
+                or cancel orders. Trades happen in your brokerage&rsquo;s own app or site.
             </p>
 
             <input
@@ -431,21 +412,16 @@ function ConnectPanel({
                     <button
                         key={brokerage.slug}
                         type="button"
-                        onClick={() => onConnect(access, brokerage.slug)}
+                        onClick={() => onConnect(brokerage.slug)}
                         disabled={busy}
                         className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-sm font-semibold text-foreground transition hover:border-border-strong disabled:opacity-50"
                     >
                         <span className="truncate">{brokerage.name}</span>
-                        {brokerage.allowsTrading === false && (
-                            <span className="ml-auto shrink-0 text-[10px] font-bold text-muted-foreground">
-                                VIEW
-                            </span>
-                        )}
                     </button>
                 ))}
             </div>
 
-            <Button onClick={() => onConnect(access)} disabled={busy}>
+            <Button onClick={() => onConnect()} disabled={busy}>
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Browse all brokerages
             </Button>
@@ -453,10 +429,10 @@ function ConnectPanel({
     )
 }
 
-function OrdersSection({ orders, onCancel }: { orders: Order[]; onCancel: (order: Order) => void }) {
+/** Order history as the brokerage reports it. Read-only: orders are placed
+ *  and cancelled at the brokerage, never here. */
+function OrdersSection({ orders }: { orders: Order[] }) {
     if (orders.length === 0) return null
-    const open = (status: string | null) =>
-        Boolean(status && !/FILLED|CANCEL|REJECT|EXPIRED/i.test(status))
 
     return (
         <section className="flex flex-col gap-2.5">
@@ -477,16 +453,6 @@ function OrdersSection({ orders, onCancel }: { orders: Order[]; onCancel: (order
                                 {order.executionPrice ? ` · ${currency(order.executionPrice, 2)}` : ""}
                             </span>
                         </span>
-                        {open(order.status) && order.accountId && order.brokerageOrderId && (
-                            <button
-                                type="button"
-                                onClick={() => onCancel(order)}
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-destructive"
-                            >
-                                <X className="h-3 w-3" />
-                                Cancel
-                            </button>
-                        )}
                     </li>
                 ))}
             </ul>

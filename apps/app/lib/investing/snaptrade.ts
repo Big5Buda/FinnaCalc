@@ -2,10 +2,10 @@
  * Typed reads and writes of the SnapTrade routes — the browser twin of
  * Core/SnapTrade/SnapTradeService.swift.
  *
- * The SnapTrade session lives in an httpOnly cookie the connect response sets;
- * same-origin fetches carry it automatically. Trading routes additionally
- * require a signed-in FinnaCalc user, so a stolen cookie alone can't place an
- * order — apiPost sends the Supabase bearer token with every call.
+ * View-only: these read balances, holdings and order history, and manage the
+ * link itself. Nothing here places, previews or cancels an order. Every route
+ * requires a signed-in FinnaCalc user; apiGet/apiPost send the Supabase bearer
+ * token with every call.
  */
 
 import { apiGet, apiPost } from "@/lib/api-client"
@@ -16,7 +16,7 @@ export type BrokerageAccount = {
     institution: string
     number: string
     totalValue: number | null
-    /** Available cash (buying power) — shown on the order ticket. */
+    /** Available cash as the brokerage reports it. */
     cash: number | null
     currency: string
     connectionId: string | null
@@ -47,8 +47,6 @@ export type Brokerage = {
     name: string
     url?: string | null
     logo?: string | null
-    /** false means view-only, whatever the user picks on the way in. */
-    allowsTrading?: boolean | null
     enabled?: boolean | null
     maintenanceMode?: boolean | null
 }
@@ -58,9 +56,8 @@ export type Connection = {
     brokerage: string
     /** SnapTrade lost its access token; the user must reconnect. */
     disabled: boolean
+    /** SnapTrade's permission level for the link: "read" is view-only. */
     type?: string | null
-    allowsTrading?: boolean | null
-    allowsFractionalUnits?: boolean | null
 }
 
 export type Order = {
@@ -78,24 +75,6 @@ export type Order = {
     accountId: string | null
 }
 
-export type OrderImpact = {
-    tradeId: string
-    symbol: string | null
-    action: string | null
-    units: number | null
-    price: number | null
-    /** Dollar amount for notional orders; null for share orders. */
-    notionalValue: number | null
-    estimatedCommission: number | null
-    forexFees: number | null
-    remainingCash: number | null
-    currency: string | null
-    exchange: string | null
-    symbolCurrency: string | null
-}
-
-export type BrokerageAccess = "read" | "trade"
-
 export const accounts = () => apiGet<AccountsResponse>("/api/snaptrade/accounts")
 
 export const connections = () =>
@@ -104,77 +83,30 @@ export const connections = () =>
 export const brokerages = () =>
     apiGet<{ configured: boolean; brokerages: Brokerage[]; error?: string }>("/api/snaptrade/brokerages")
 
-/** A portal URL. `broker` opens it straight on that brokerage's login. */
-export const connect = (access: BrokerageAccess, broker?: string) =>
-    apiPost<{ redirectURI: string }>("/api/snaptrade/connect", { access, ...(broker ? { broker } : {}) })
+/**
+ * A portal URL for a view-only link. `broker` opens it straight on that
+ * brokerage's login. The backend asks SnapTrade for read access only.
+ */
+export const connect = (broker?: string) =>
+    apiPost<{ redirectURI: string }>("/api/snaptrade/connect", broker ? { broker } : {})
 
 /**
- * Re-authorises one existing connection. `access` must carry the connection's
- * current permission level: the backend defaults an absent value to read-only,
- * which would silently strip trading from a reconnected trade connection.
+ * Re-authorises one existing view-only connection by its ID. The backend
+ * refuses (409) a link SnapTrade doesn't report as read-only.
  */
-export const reconnect = (connectionId: string, access: BrokerageAccess) =>
-    apiPost<{ redirectURI: string }>("/api/snaptrade/connect", { reconnect: connectionId, access })
+export const reconnect = (connectionId: string) =>
+    apiPost<{ redirectURI: string }>("/api/snaptrade/connect", { reconnect: connectionId })
 
 export const disconnect = () => apiPost("/api/snaptrade/disconnect")
 
 /**
  * Asks SnapTrade to sync holdings now — the free tier caches them daily, so a
- * fresh trade won't appear otherwise. `refreshed === 0` means every manual sync
- * was declined (billed add-on / rate limit), so nothing new is coming.
+ * trade made at the brokerage won't appear otherwise. `refreshed === 0` means
+ * every manual sync was declined (billed add-on / rate limit), so nothing new
+ * is coming.
  */
 export const refresh = () =>
     apiPost<{ refreshed?: number; total?: number }>("/api/snaptrade/refresh")
 
 export const orders = (accountId: string) =>
     apiGet<{ orders: Order[] }>("/api/snaptrade/orders", { accountId })
-
-export const cancelOrder = (accountId: string, brokerageOrderId: string) =>
-    apiPost<Order>("/api/snaptrade/orders/cancel", { accountId, brokerageOrderId })
-
-export const quote = (accountId: string, symbol: string) =>
-    apiPost<{ symbol?: string; bid?: number; ask?: number; last?: number }>("/api/snaptrade/quote", {
-        accountId,
-        symbol,
-    })
-
-/** Validates a SHARE-quantity order with the brokerage. Nothing is executed. */
-export const orderImpact = (body: {
-    accountId: string
-    symbol: string
-    action: string
-    orderType: string
-    timeInForce: string
-    units: number
-    price?: number | null
-}) => apiPost<OrderImpact>("/api/snaptrade/trade/impact", body)
-
-/** The dollar-amount (notional) form. The backend forces Market + Day. */
-export const orderImpactNotional = (body: {
-    accountId: string
-    symbol: string
-    action: string
-    notionalValue: number
-}) => apiPost<OrderImpact>("/api/snaptrade/trade/impact", body)
-
-/**
- * Executes a reviewed order. The terms are locked to the tradeId server-side,
- * so this can't place anything other than what was just confirmed.
- */
-export const placeOrder = (tradeId: string) =>
-    apiPost<Order>("/api/snaptrade/trade/place", { tradeId })
-
-/**
- * Whether orders can actually be placed through a connection, and if not,
- * whether reconnecting would help.
- */
-export function tradingBlockedReason(connection: Connection | undefined): string | null {
-    if (!connection) return null
-    if (connection.allowsTrading === false) {
-        return `${connection.brokerage} doesn't support placing orders through FinnaCalc. Your holdings show here and orders go in ${connection.brokerage} itself.`
-    }
-    const type = connection.type?.toLowerCase()
-    if (!type) return null // An older backend sends neither field; never block on a guess.
-    if (type === "trade") return null
-    return `${connection.brokerage} is linked for viewing, so orders are placed in ${connection.brokerage} itself. Enable trading asks ${connection.brokerage} for order access; if it declines, this stays view-only.`
-}

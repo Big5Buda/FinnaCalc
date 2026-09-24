@@ -1,14 +1,16 @@
 // GENERATED FILE — do not edit.
 //
 // Produced by FinnaCalcIOS/Scripts/export-lessons.sh from
-// Features/Education/EducationLessons+*.swift at commit a86dccc.
+// Features/Education/EducationLessons+*.swift at commit a86dccc. The one lesson
+// paragraph that changed by cce790e (brokerage accounts, view-only) was then
+// aligned by hand to that commit's text; no other lesson text differs.
 // The app is the source of truth for lesson text; edit it there and re-run
 // the script. See Scripts/ExportLessons/main.swift for why.
 
 import type { Lesson } from "./lessons-types"
 export { LESSON_DISCLOSURE } from "./lessons-types"
 
-export const LESSONS_GENERATED_FROM = "a86dccc"
+export const LESSONS_GENERATED_FROM = "cce790e"
 
 export const LESSONS: Lesson[] = [
   {
@@ -714,7 +716,7 @@ export const LESSONS: Lesson[] = [
         "type" : "bullets"
       },
       {
-        "text" : "Which one fits depends on the goal and on when the money is needed. Accounts are opened at a brokerage. FinnaCalc's Investing tab links to brokerage signup pages for readers who have none, and may earn a referral bonus when an account is opened through those links; it also connects an existing account through SnapTrade.",
+        "text" : "Which one fits depends on the goal and on when the money is needed. Accounts are opened at a brokerage, directly with that brokerage. FinnaCalc doesn't open accounts or recommend a brokerage; it can connect an account you already have, view-only, through SnapTrade.",
         "type" : "paragraph"
       },
       {

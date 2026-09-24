@@ -238,7 +238,7 @@ export function InvestingSection() {
             onColor
             lockupSuffix="Investing"
             headline="Live prices, your actual holdings, ten years of filings."
-            copy="Watch the market, read the SEC filings for yourself, follow your own cost basis. When you place a trade, it goes through your own brokerage. We never touch the money."
+            copy="Watch the market, read the SEC filings for yourself, follow your own cost basis. Your brokerage links view-only, so trades happen with your broker. We never touch the money."
             href={signUpUrl()}
             ctaLabel="Get started with Investing"
             flip

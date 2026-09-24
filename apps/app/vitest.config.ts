@@ -7,8 +7,15 @@ import { fileURLToPath } from "node:url"
  * The tax engine is pure TypeScript with no DOM dependency, so the default
  * environment is `node`. The `@/` path alias mirrors tsconfig.json so engine
  * imports (`@/components/tax-engine/...`) resolve identically in tests.
+ *
+ * tsconfig keeps `jsx: preserve` for Next, so tests that render a component
+ * (with react-dom/server, still in `node`) need the transform told to compile
+ * JSX itself.
  */
 export default defineConfig({
+  oxc: {
+    jsx: { runtime: "automatic" },
+  },
   test: {
     environment: "node",
     include: ["**/__tests__/**/*.test.ts", "**/*.test.ts"],

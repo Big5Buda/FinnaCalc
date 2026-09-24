@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { asset, isCryptoSymbol } from "@/lib/alpaca";
-import { fetchQuotes } from "@/lib/quotes";
+import { activeSymbolSet, fetchQuotes } from "@/lib/quotes";
 
 // Price + day-change for a set of symbols: the Home tab's "Markets today" row,
 // the S&P card, and every holding in a connected portfolio.
@@ -56,7 +56,10 @@ export async function GET(request: NextRequest) {
     // caller pricing thirty holdings skip thirty requests it has no use for.
     const wantNames = searchParams.get("names") !== "0";
 
-    const quotes = await fetchQuotes(symbols, revalidate);
+    const [quotes, activeSymbols] = await Promise.all([
+        fetchQuotes(symbols, revalidate),
+        activeSymbolSet(900),
+    ]);
 
     // A symbol whose day move we cannot state is left out of `stats`
     // entirely, rather than included with changePct: null.
@@ -73,7 +76,10 @@ export async function GET(request: NextRequest) {
     // carrying a price with a null move, which is strictly more information.
     const stats = await Promise.all(
         symbols
-            .filter((symbol) => quotes[symbol] && quotes[symbol].changePct !== null)
+            .filter((symbol) =>
+                quotes[symbol] && !quotes[symbol].isStale && quotes[symbol].changePct !== null &&
+                (isCryptoSymbol(symbol) || !activeSymbols || activeSymbols.has(symbol))
+            )
             .map(async (symbol) => {
                 const quote = quotes[symbol];
                 // Names are day-cached asset lookups, and only equities have one.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { resolveOrCreateSession } from "@/lib/snaptrade-session"
-import { brokerageLimitError, listConnections } from "@/lib/snaptrade-access"
+import { brokerageLimitError, isReadOnlyConnection, listConnections } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Registers the user with SnapTrade if needed, then returns a one-time
@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
         // otherwise the native app was left showing this website post-connect.
         // { reconnect: <connectionId> } re-auths a specific disabled connection
         // (fix-broken-connections flow) instead of adding a new one.
+        // Any `access` field an older client sends is ignored: every link is
+        // view-only now, whatever the request asks for.
         let platform: string | undefined
         let reconnect: string | undefined
-        let access: string | undefined
         let broker: string | undefined
         try {
             const body = await req.json()
@@ -39,7 +40,6 @@ export async function POST(req: NextRequest) {
             reconnect = typeof body?.reconnect === "string" && body.reconnect.trim()
                 ? body.reconnect.trim()
                 : undefined
-            access = body?.access
             // Brokerage slug chosen in the app's own picker, so the portal
             // opens on that brokerage's login instead of making the user
             // find it a second time in SnapTrade's list. Uppercased because
@@ -55,8 +55,19 @@ export async function POST(req: NextRequest) {
         const connections = await listConnections(session)
         if (reconnect) {
             // Never let a forged reconnect ID bypass the new-connection gate.
-            if (!connections.some((connection) => connection.id === reconnect)) {
+            const existing = connections.find((connection) => connection.id === reconnect)
+            if (!existing) {
                 return NextResponse.json({ error: "That brokerage connection does not belong to this account." }, { status: 404 })
+            }
+            // Re-authorising reuses the connection's existing grant, so only a
+            // link SnapTrade reports as exactly "read" may be repaired. A legacy
+            // "trade" link, or one whose type is missing, has to be removed and
+            // linked again to become view-only.
+            if (!isReadOnlyConnection(existing)) {
+                return NextResponse.json({
+                    code: "connection_not_read_only",
+                    error: "This brokerage link wasn't confirmed as view-only, so FinnaCalc can't reconnect it. Disconnect it, then link your brokerage again for view-only access.",
+                }, { status: 409 })
             }
         } else {
             const denied = await brokerageLimitError(appUserId, session, connections, true)
@@ -69,17 +80,9 @@ export async function POST(req: NextRequest) {
         const login = await st.authentication.loginSnapTradeUser({
             userId: session.userId,
             userSecret: session.userSecret,
-            // The user picks this on the way in: "read" links the account for
-            // viewing only, "trade" also asks the brokerage for permission to
-            // place and cancel orders. SnapTrade accepts exactly "read" or
-            // "trade" here — the old "trade-if-available" was not a valid
-            // value, so SnapTrade silently fell back to its default and every
-            // connection landed read-only no matter what the user chose.
-            // Anything unrecognised — including an older client that sends
-            // nothing — gets read-only, so trading authority is never granted
-            // by omission. A read-only connection upgrades by re-authorising
-            // the SAME connection: this route with { reconnect } + "trade".
-            connectionType: access === "trade" ? "trade" : "read",
+            // FinnaCalc is view-only: every link, new or repaired, asks for
+            // read access and nothing else, whatever the client sent.
+            connectionType: "read",
             customRedirect,
             immediateRedirect: true,
             // Only set when repairing a disabled connection; the SDK ignores

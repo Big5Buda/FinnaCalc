@@ -7,11 +7,11 @@ import { verifiedAppUserId } from "@/lib/supabase-auth"
 // Triggers a manual holdings sync for the user's active connections.
 //
 // On the free tier SnapTrade caches holdings and refreshes them once a day, so
-// a just-placed order (or fresh paper trade) won't appear in accounts/positions
+// a trade just made at the brokerage won't appear in accounts/positions
 // until a sync runs. This asks SnapTrade to refresh now; the sync is async, so
 // the client should reload accounts a moment later (or on ACCOUNT_HOLDINGS_
 // UPDATED webhook). Manual refreshes are rate-limited by SnapTrade, so this is
-// a user/post-trade action, not a poll.
+// a user-initiated action, not a poll.
 export async function POST(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
