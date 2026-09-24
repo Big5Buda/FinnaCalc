@@ -39,7 +39,7 @@ export function getSupabase(): SupabaseClient {
 
 /**
  * Authorization header for API routes that verify the signed-in user
- * (brokerage/trading routes). Empty when signed out or unconfigured — the
+ * (brokerage routes, among others). Empty when signed out or unconfigured — the
  * route then responds 401 and the UI shows its sign-in prompt.
  */
 export async function supabaseAuthHeader(): Promise<Record<string, string>> {

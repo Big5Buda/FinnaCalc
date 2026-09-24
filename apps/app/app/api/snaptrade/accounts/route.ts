@@ -19,8 +19,7 @@ export interface BrokerageAccount {
      */
     cash: number | null
     currency: string
-    /** The connection this account belongs to — maps to a SnapTradeConnection's
-     *  id so the order ticket can read the brokerage's trading capabilities. */
+    /** The connection this account belongs to — maps to a SnapTradeConnection's id. */
     connectionId: string | null
 }
 

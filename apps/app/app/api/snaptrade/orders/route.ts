@@ -3,7 +3,8 @@ import { getSnapTrade, isSnapTradeConfigured, mapOrderRecord, snapTradeErrorMess
 import { loadSession } from "@/lib/snaptrade-session"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
-// Recent orders (open + executed) for one connected account.
+// Recent orders (open + executed) for one connected account. Read-only history:
+// orders are placed and cancelled at the brokerage, never through FinnaCalc.
 export async function GET(req: NextRequest) {
     if (!isSnapTradeConfigured) {
         return NextResponse.json({ error: "Brokerage connection isn't configured." }, { status: 503 })
@@ -33,8 +34,8 @@ export async function GET(req: NextRequest) {
             state: "all",
             days,
         })
-        // Tag each order with its accountId so the client can cancel it
-        // (cancel needs accountId + brokerageOrderId).
+        // Tag each order with its accountId so the client can group history
+        // by account.
         const orders = (Array.isArray(data) ? data : []).map((o: any) => ({
             ...mapOrderRecord(o),
             accountId,

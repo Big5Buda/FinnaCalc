@@ -1,4 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { NextRequest } from "next/server"
 import { AxiosError, AxiosHeaders } from "axios"
 import { SnaptradeError } from "snaptrade-typescript-sdk"
@@ -42,11 +44,40 @@ it("rejects a second free portal before issuing its URL", async () => {
     expect(mocks.login).not.toHaveBeenCalled()
 })
 it("allows owned reconnects and rejects a forged reconnect bypass", async () => {
-    mocks.list.mockResolvedValue({ data: [{ id: "first", disabled: true }] })
+    mocks.list.mockResolvedValue({ data: [{ id: "first", disabled: true, type: "read" }] })
     expect((await connect(request({ reconnect: "first" }))).status).toBe(200)
     expect(mocks.paid).not.toHaveBeenCalled()
     expect((await connect(request({ reconnect: "foreign" }))).status).toBe(404)
     expect(mocks.login).toHaveBeenCalledOnce()
+})
+it("always requests read-only access, whatever the client asks for", async () => {
+    for (const body of [{}, { access: "trade" }, { access: "TRADE" }, { access: "trade-if-available" }, { connectionType: "trade" }]) {
+        expect((await connect(request(body))).status).toBe(200)
+    }
+    mocks.list.mockResolvedValue({ data: [{ id: "first", disabled: true, type: "read" }] })
+    expect((await connect(request({ reconnect: "first", access: "trade" }))).status).toBe(200)
+    expect(mocks.login).toHaveBeenCalledTimes(6)
+    for (const [args] of mocks.login.mock.calls) expect(args.connectionType).toBe("read")
+    expect(mocks.login.mock.calls[5][0].reconnect).toBe("first")
+})
+it("refuses to reconnect a legacy trade or unknown-permission link", async () => {
+    mocks.list.mockResolvedValue({ data: [
+        { id: "trade", disabled: true, type: "trade" },
+        { id: "upper", disabled: true, type: "TRADE" },
+        { id: "missing", disabled: true },
+        { id: "blank", disabled: true, type: "" },
+        { id: "other", disabled: true, type: "trade-if-available" },
+    ] })
+    for (const reconnect of ["trade", "upper", "missing", "blank", "other"]) {
+        const response = await connect(request({ reconnect, access: "read" }))
+        expect(response.status).toBe(409)
+        const body = await response.json()
+        expect(body.code).toBe("connection_not_read_only")
+        expect(body.error).toContain("Disconnect")
+        expect(body.error).not.toMatch(/revoked/i)
+    }
+    expect(mocks.login).not.toHaveBeenCalled()
+    expect(mocks.removeVendor).not.toHaveBeenCalled()
 })
 it("allows paid additional connections", async () => {
     mocks.list.mockResolvedValue({ data: [{ id: "first" }] })
@@ -80,4 +111,11 @@ it("a retry can clear the session after vendor deletion already succeeded", asyn
     mocks.removeVendor.mockRejectedValue(error)
     expect((await disconnect(request())).status).toBe(200)
     expect(mocks.removeSession).toHaveBeenCalledWith("user", session)
+})
+it("ships no order placement, preview, cancellation or ticket-quote route", () => {
+    const api = resolve(__dirname, "../../app/api/snaptrade")
+    for (const route of ["trade/place", "trade/impact", "orders/cancel", "quote"]) {
+        expect(existsSync(resolve(api, route, "route.ts"))).toBe(false)
+    }
+    expect(existsSync(resolve(api, "orders/route.ts"))).toBe(true)
 })

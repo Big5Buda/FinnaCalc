@@ -1,7 +1,16 @@
 import { getSnapTrade, type SnapTradeSession } from "./snaptrade"
 import { paidFeatureError } from "./paid-feature-access"
 
-type Connection = { id?: string | null }
+type Connection = { id?: string | null; type?: string | null }
+
+/**
+ * Whether SnapTrade reports this link as view-only. Only an explicit "read"
+ * counts: a legacy "trade" link, or one with no type at all, is not assumed to
+ * be safe.
+ */
+export function isReadOnlyConnection(connection: Connection): boolean {
+    return typeof connection.type === "string" && connection.type.trim().toLowerCase() === "read"
+}
 export async function listConnections(session: SnapTradeSession): Promise<Connection[]> {
     const { data } = await getSnapTrade(session).connections.listBrokerageAuthorizations({
         userId: session.userId, userSecret: session.userSecret,

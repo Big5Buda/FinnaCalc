@@ -36,7 +36,7 @@ export default function TermsPage() {
                         items={[
                             "Financial calculators (startup costs, break-even, ROI, loans, pricing, margins, and more)",
                             "Budgeting: income/expense tracking, savings goals with alerts, history snapshots, bank statement import, and optional bank connections via Plaid",
-                            "Investing: optional brokerage connections via SnapTrade for a live portfolio view, portfolio analysis, investing goals, and, where your brokerage allows it, placing and canceling orders that execute at your brokerage",
+                            "Investing: optional view-only brokerage connections via SnapTrade for a live portfolio view, order history, portfolio analysis, and investing goals. FinnaCalc does not place, preview, or cancel orders",
                             "Investing research: quotes, charts, key stats, screeners, ETFs, company financials, a trade tracker, and market news from third-party data providers",
                             "A guided federal tax estimator with a live refund estimate (educational; e-filing is not yet enabled and returns are not transmitted)",
                             "FinnaBot, Budget Analysis, and Portfolio Analysis, our AI and analytics tools for finance questions",
@@ -77,11 +77,11 @@ export default function TermsPage() {
                     />
                     <Subsection
                         heading="Market Data Disclaimer"
-                        body="Quotes, charts, statistics, and news are supplied by third-party providers, may be delayed (typically 15 minutes or more), and may contain errors or gaps. Nothing in the app is a recommendation to buy or sell any security. FinnaCalc is not a broker-dealer and does not execute trades; any trading happens with your own brokerage under its terms."
+                        body="Quotes, charts, statistics, and news are supplied by third-party providers, may be delayed (typically 15 minutes or more), and may contain errors or gaps. Nothing in the app is a recommendation to buy or sell any security. FinnaCalc is not a broker-dealer and does not place, route, or execute trades; any trading happens directly with your own brokerage under its terms."
                     />
                     <Subsection
                         heading="Investing and Trading Risk"
-                        body="Investing involves risk, including the possible loss of the money you invest. Past performance, whether of a stock, a fund, or your own portfolio as shown in the app, does not predict future results. FinnaCalc cannot and does not promise any return, and cannot refund investment losses. Every order you place is your decision: you review and confirm it, your brokerage executes it under its own terms, and FinnaCalc never holds your money or securities. Some brokerages connect view-only, and what a connection allows is decided by the brokerage and can change."
+                        body="Investing involves risk, including the possible loss of the money you invest. Past performance, whether of a stock, a fund, or your own portfolio as shown in the app, does not predict future results. FinnaCalc cannot and does not promise any return, and cannot refund investment losses. Every trade is your decision, made directly with your brokerage under its own terms. Brokerage connections in FinnaCalc are view-only, and FinnaCalc never holds your money or securities."
                     />
                     <Subsection
                         heading="AI-Generated Content"
@@ -109,7 +109,7 @@ export default function TermsPage() {
                     <Bullets
                         items={[
                             "Financial losses resulting from use of the calculators, estimates, or analysis",
-                            "Investment or trading losses, including orders placed through a connected brokerage",
+                            "Investment or trading losses, including from orders you place with your brokerage",
                             "Business interruption or loss of profits",
                             "Data loss or corruption",
                             "Third-party claims or damages, including those arising from connected banks, brokerages, or data providers",

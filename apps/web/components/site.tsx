@@ -246,7 +246,7 @@ export function SiteFooter() {
                                 Privacy Policy
                             </a>
                             . FinnaCalc is a calculation and research tool, not an investment adviser
-                            or a brokerage; orders execute at your own brokerage, and estimates are
+                            or a brokerage; it links brokerages view-only and places no orders, and estimates are
                             not tax advice.
                         </p>
                     </div>

@@ -714,7 +714,7 @@ export const LESSONS: Lesson[] = [
         "type" : "bullets"
       },
       {
-        "text" : "Which one fits depends on the goal and on when the money is needed. Accounts are opened at a brokerage. FinnaCalc's Investing tab links to brokerage signup pages for readers who have none, and may earn a referral bonus when an account is opened through those links; it also connects an existing account through SnapTrade.",
+        "text" : "Which one fits depends on the goal and on when the money is needed. Accounts are opened at a brokerage. FinnaCalc doesn't open accounts or place trades; it can link an existing account through SnapTrade, view-only, to show holdings and order history.",
         "type" : "paragraph"
       },
       {

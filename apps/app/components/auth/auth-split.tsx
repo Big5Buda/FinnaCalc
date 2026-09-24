@@ -28,7 +28,7 @@ const sans = DM_Sans({ subsets: ["latin"], weight: "variable", variable: "--auth
 const PROOF_POINTS = [
     "Eleven calculators, free, with nothing to sign up for.",
     "Your budget, goals and history stay on your device.",
-    "Orders execute at your own brokerage, never here.",
+    "Brokerage links are view-only. Trades happen at your broker.",
     "Ten years of company filings, straight from the SEC.",
 ]
 

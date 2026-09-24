@@ -8,10 +8,10 @@ import { verifiedAppUserId } from "@/lib/supabase-auth"
 // this is reference data, identical for everyone, which is why it can be
 // cached hard.
 //
-// Each row carries what the picker needs to be honest: `allowsTrading` says
-// whether orders are possible at all (Fidelity and Vanguard are read-only),
-// and `enabled` / `maintenanceMode` say whether connecting will work right
-// now. Slugs come from SnapTrade rather than being guessed, which also makes
+// Each row carries what the picker needs to be honest: `enabled` /
+// `maintenanceMode` say whether connecting will work right now. FinnaCalc
+// links every brokerage view-only; `allowsTrading` is still passed through
+// because installed iOS builds decode it, not because anything trades. Slugs come from SnapTrade rather than being guessed, which also makes
 // the sandbox brokerage ("Alpaca Paper") findable by search.
 // `revalidate` alone let Next render this at BUILD time, before the SnapTrade
 // environment variables exist, and then serve that answer for a day. The app

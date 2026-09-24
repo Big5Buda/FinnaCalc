@@ -29,9 +29,11 @@ export async function GET(req: NextRequest) {
             id: c.id ?? "",
             brokerage: c.brokerage?.name ?? c.name ?? "Brokerage",
             disabled: c.disabled ?? false,
-            type: c.type ?? null, // "read" | "trade"
-            // Brokerage trading capabilities — the order ticket gates its order
-            // modes on these (dollar/notional orders need fractional support).
+            // "read" | "trade" | missing. Only "read" is view-only; the app
+            // flags anything else for disconnect-and-relink.
+            type: c.type ?? null,
+            // Kept for installed iOS builds that decode them. FinnaCalc no
+            // longer has an order ticket that reads these.
             allowsTrading: c.brokerage?.allows_trading ?? null,
             allowsFractionalUnits: c.brokerage?.allows_fractional_units ?? null,
         }))

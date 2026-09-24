@@ -119,7 +119,7 @@ function num(v: unknown): number | null {
 
 /**
  * Maps a SnapTrade AccountOrderRecord to the camelCase JSON shape shared by
- * the place/orders/cancel routes (and decoded by the iOS SnapTradeOrder model).
+ * the read-only orders route (and decoded by the iOS SnapTradeOrder model).
  */
 export function mapOrderRecord(o: any) {
     return {

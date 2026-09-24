@@ -15,7 +15,7 @@ The web page must mirror the actual app, not a guess. Source of truth: the iOS r
 |--------|----------------------------------------------|------------------------|
 | **Home / Calculators** | "Free, accurate financial calculators." | client-side; tax-engine core |
 | **Budgeting** | budget builder + AI budget advisor | `api/budget-advisor` |
-| **Investing** | "Live markets, your portfolio, and stock research in one place." (Discover / Portfolio / Screener, live quotes, trade via SnapTrade, news) | `api/{snaptrade,screener,stock,candles,market-*,news,top-movers}` |
+| **Investing** | "Live markets, your portfolio, and stock research in one place." (Discover / Portfolio / Screener, live quotes, view-only portfolio via SnapTrade, news) | `api/{snaptrade,screener,stock,candles,market-*,news,top-movers}` |
 | **Taxes** | "Answer simple questions and watch your refund update in real time. No forms, no jargon." | tax-engine + `api/efile` |
 | **Education** | financial education hub | `api/*` content |
 | **AI: Finnabot** | in-app chat assistant (blue FAB on every screen) | `api/chat` |

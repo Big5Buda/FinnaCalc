@@ -22,6 +22,10 @@ const nextConfig = {
    * instrument class, with no product named, no rate quoted and no ranking.
    * The marketing site carries the same rule in its movedRoutes list; both are
    * needed because both apps served the path.
+   *
+   * /investing/trade/:symbol was the order ticket. FinnaCalc is view-only now
+   * and places no orders, so an old link lands on that stock's own page.
+   * Temporary rather than permanent: a cached 308 is hard to take back.
    */
   async redirects() {
     return [
@@ -29,6 +33,11 @@ const nextConfig = {
         source: "/investing/safe-investments",
         destination: "/investing/cash-options",
         permanent: true,
+      },
+      {
+        source: "/investing/trade/:symbol",
+        destination: "/investing/stocks/:symbol",
+        permanent: false,
       },
     ]
   },

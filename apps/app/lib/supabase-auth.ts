@@ -3,11 +3,11 @@ import { createClient } from "@supabase/supabase-js"
 /**
  * Server-side verification of the app's Supabase access token.
  *
- * The SnapTrade session cookie alone must not authorize real-money actions —
- * it's a long-lived client-held credential (see lib/snaptrade.ts). Trading
- * routes additionally require a signed-in FinnaCalc user: the caller's access
- * token is verified against Supabase, so a stolen cookie can't trade and
- * signing out of the app ends trading authority.
+ * The SnapTrade session cookie alone must not authorize access to a brokerage
+ * link — it's a long-lived client-held credential (see lib/snaptrade.ts).
+ * Brokerage routes additionally require a signed-in FinnaCalc user: the
+ * caller's access token is verified against Supabase, so a stolen cookie
+ * can't read an account and signing out of the app ends that access.
  *
  * Verification uses the public anon key (validating a JWT needs no
  * service-role privileges).
