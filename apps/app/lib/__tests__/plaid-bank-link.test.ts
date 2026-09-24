@@ -39,7 +39,7 @@ it("admits the second login using the atomic database guard", async () => {
     expect(mocks.remove).not.toHaveBeenCalled()
 })
 it("revokes a newly exchanged Item when concurrent linking reaches the database cap", async () => {
-    mocks.save.mockRejectedValue(new BankConnectionLimitError())
+    mocks.save.mockRejectedValue(new BankConnectionLimitError(2))
     await expect(linkBankForUser("user", "public-token", "Bank")).rejects.toBeInstanceOf(BankConnectionLimitError)
     expect(mocks.remove).toHaveBeenCalledWith({ access_token: "new-token" })
 })
