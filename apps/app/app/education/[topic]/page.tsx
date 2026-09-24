@@ -44,22 +44,14 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
     return (
         <>
             <PageBar
-                title={
-                    <span className="flex items-center gap-2">
-                        <Link href="/education" className="text-muted-foreground hover:text-foreground">
-                            Learn
-                        </Link>
-                        <span className="text-border-strong">/</span>
-                        Learn
-                    </span>
-                }
+                back={{ href: "/education", label: "Learn" }}
+                title={meta.title}
             />
             <PageBody className="flex w-full max-w-5xl flex-col gap-5">
             <header className="flex flex-col gap-3">
-                <span className="inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary/14 p-3.5 text-primary">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/14 p-3.5 text-primary">
                     <Icon className="h-6 w-6" strokeWidth={2.2} />
                 </span>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{meta.title}</h1>
                 <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             </header>
 

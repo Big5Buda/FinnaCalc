@@ -62,7 +62,50 @@ covers privileges, the exact cutoff, signed-out records and local SQL validation
 Before deploying bank linking, run `apps/app/supabase/plaid_item_limit.sql` after
 the existing `plaid_items.sql` table setup. It atomically caps each account at
 two bank logins. Existing links can still refresh; adding a third requires
-disconnecting one first. No extra-login add-on is sold or charged.
+disconnecting one first.
+
+## The paid extra bank login
+
+Nothing charges for one yet, and nothing here starts charging on its own. The
+server side is ready so that the day an add-on product exists, the only work
+left is in App Store Connect.
+
+Apply `apps/app/supabase/bank_connection_addon.sql` after
+`apple_subscription_entitlements.sql` and `plaid_item_limit.sql`. It widens the
+entitlement mirror's `tier` check to accept `bank_addon` and replaces
+`save_plaid_item_with_limit` with a version that takes the cap as an argument.
+The four-argument version is dropped in the same migration. Deploy order is
+not fatal either way: the application asks for the five-argument function and
+falls back to the four-argument one if it is not there yet, which caps at two
+exactly as before. The add-on cannot raise anyone's allowance until the
+migration has run.
+
+What is now true without any further code:
+
+- `com.finnacalc.bank.extra.monthly` is accepted by the sync route and by the
+  Apple notification handler. Before this, submitting it would have thrown and
+  taken the user's plan proofs down with it, since one unrecognised product id
+  fails the whole batch.
+- An add-on grant is stored beside the plan, not instead of it, and buys no
+  feature: everything that reads entitlements matches `plus`, `trader` or
+  `pro`, and `bank_addon` is none of them.
+- The connection cap is `2 + active add-ons`, resolved per account in
+  `lib/bank-allowance.ts` and enforced in all three places that used to
+  hardcode two.
+- `GET /api/plaid/connections` lists the linked banks with their item ids, so
+  the app can disconnect one instead of all of them, and says which of them
+  the plan includes.
+- The two 409s from the bank routes now carry `code`, so the app can tell the
+  cap apart from a connection owned by another account.
+
+In App Store Connect the add-on must be an auto-renewable subscription in
+**its own subscription group**. Products in one group are alternatives, so an
+add-on sharing the plans' group would arrive as an upgrade and cancel the plan
+it was meant to extend.
+
+Cancelling is Apple's, not ours. Disconnecting the extra bank does not stop
+the charge; the subscriber cancels the add-on in their App Store subscription
+settings, and the app says so rather than implying we can do it for them.
 
 ## Native Sign in with Apple account deletion
 

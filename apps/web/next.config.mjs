@@ -83,44 +83,43 @@ const CALCULATOR_SLUGS = {
 }
 
 /**
- * Account-shaped paths that only make sense signed in; these forward to the
- * app. The five product sections (calculators, budgeting, investing, taxes,
- * education) are deliberately NOT here any more — this site serves its own
- * pages for them, with the calculators fully working and un-gated.
+ * One site again.
+ *
+ * The owner asked for finnacalc.com to be the site it was before the split:
+ * a home page with the calculators on it, the five sections in the header,
+ * and the account a menu away. That site lives on the app origin now, with
+ * the old header and home restored there, so www sends everything to it and
+ * keeps the path. The marketing pages this project still contains are
+ * unreachable behind that redirect rather than deleted, so this is one file
+ * to revert if the decision changes.
+ *
+ * Temporary redirects on purpose. A 308 is cached by browsers for as long as
+ * they like, and www may well want to be its own site again one day.
+ *
+ * /api is excluded by the pattern, not by ordering: redirects are evaluated
+ * before rewrites, so a rule that matched /api would shadow the proxy below
+ * and 404 every installed copy of the iOS app.
  */
-const APPLICATION_PATHS = ["account", "auth", "billing", "sign-in", "sign-up"]
-
-/** Also on the subdomain today, but www has a fair claim to them later. */
-const COMPANY_PATHS = ["about", "plans", "privacy", "terms"]
-
 function movedRoutes(origin) {
     return [
-        // The 2024 per-calculator pages, now served by this site un-gated.
+        // The 2024 per-calculator pages, at their current addresses.
         ...Object.entries(CALCULATOR_SLUGS).map(([from, slug]) => ({
             source: `/${from}`,
-            destination: `/calculators/${slug}`,
-            permanent: true,
+            destination: `${origin}/calculators/${slug}`,
+            permanent: false,
         })),
         // /tax-calculator was a full return estimator, not one of the small
         // calculators, so it lands on the taxes section rather than in the list.
-        { source: "/tax-calculator", destination: "/taxes", permanent: true },
+        { source: "/tax-calculator", destination: `${origin}/taxes`, permanent: false },
         // /premium became /plans when billing moved to Stripe.
-        { source: "/premium", destination: `${origin}/plans`, permanent: true },
+        { source: "/premium", destination: `${origin}/plans`, permanent: false },
         // /investing/safe-investments ranked three hand-picked instruments as
         // the "safest", with app-assigned risk grades and unsourced average
         // returns. /investing/cash-options is its successor: same subject,
         // described by instrument class with nothing named or ranked.
-        { source: "/investing/safe-investments", destination: "/investing/cash-options", permanent: true },
-
-        // Both the section index and everything under it.
-        ...APPLICATION_PATHS.flatMap((path) => [
-            { source: `/${path}`, destination: `${origin}/${path}`, permanent: true },
-            { source: `/${path}/:rest*`, destination: `${origin}/${path}/:rest*`, permanent: true },
-        ]),
-        ...COMPANY_PATHS.flatMap((path) => [
-            { source: `/${path}`, destination: `${origin}/${path}`, permanent: false },
-            { source: `/${path}/:rest*`, destination: `${origin}/${path}/:rest*`, permanent: false },
-        ]),
+        { source: "/investing/safe-investments", destination: `${origin}/investing/cash-options`, permanent: false },
+        // Everything else, path kept, api excluded.
+        { source: "/:path((?!api(?:/|$)).*)", destination: `${origin}/:path`, permanent: false },
     ]
 }
 

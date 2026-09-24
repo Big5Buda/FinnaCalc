@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { Bookmark, BookmarkCheck, Info, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -26,7 +25,7 @@ import {
     type ChartStyle,
 } from "@/components/investing/price-chart"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
-import { SegmentedControl } from "@/components/shell/surface"
+import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
 
 /**
  * What we say when a source didn't answer and gave no reason of its own.
@@ -126,151 +125,162 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
 
     if (error) {
         return (
-            <div className="w-full max-w-6xl px-6 py-10 lg:px-10">
-                <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
-                    {error}
-                </p>
-                <Link href="/investing" className="mt-4 inline-block text-sm font-semibold text-primary">
-                    ← Back to Investing
-                </Link>
-            </div>
+            <>
+                <PageBar
+                    back={{ href: "/investing", label: "Investing" }}
+                    title={ticker}
+                />
+                <PageBody className="max-w-6xl pt-4">
+                    <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+                        {error}
+                    </p>
+                </PageBody>
+            </>
         )
     }
 
     if (!stock || price === null) {
         return (
-            <div className="flex w-full max-w-6xl flex-col gap-4 px-6 py-6 lg:px-10">
-                <div className="h-24 animate-pulse rounded-xl bg-card" />
-                <div className="h-56 animate-pulse rounded-xl bg-card" />
-            </div>
+            <>
+                <PageBar
+                    back={{ href: "/investing", label: "Investing" }}
+                    title={ticker}
+                />
+                <PageBody className="flex max-w-6xl flex-col gap-4">
+                    <div className="h-24 animate-pulse rounded-xl bg-card" />
+                    <div className="h-56 animate-pulse rounded-xl bg-card" />
+                </PageBody>
+            </>
         )
     }
 
     const isUp = (changePct ?? 0) >= 0
 
     return (
-        <div className="flex w-full max-w-6xl flex-col gap-6 px-6 py-6 lg:px-10">
-            <Link href="/investing" className="text-sm font-semibold text-primary">
-                ← Investing
-            </Link>
-
-            <header className="flex flex-col gap-1">
-                <div className="flex items-start gap-3">
-                    <CompanyLogo symbol={ticker} size={44} />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                        <h1 className="truncate text-[23px] font-bold text-foreground">
-                            {stock.overview.Name}
-                        </h1>
-                        <p className="text-base font-semibold text-muted-foreground">{ticker}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => watchlist.toggle(ticker)}
-                        aria-label={following ? "Remove from watchlist" : "Add to watchlist"}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground"
-                    >
-                        {following ? (
-                            <BookmarkCheck className="h-4 w-4 text-primary" />
-                        ) : (
-                            <Bookmark className="h-4 w-4" />
-                        )}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShowScales((shown) => !shown)}
-                        aria-label={showScales ? "Hide price scale" : "Show price scale"}
-                        aria-pressed={showScales}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground"
-                    >
-                        <SlidersHorizontal className="h-4 w-4" />
-                    </button>
-                </div>
-
-                {scrub ? (
-                    <>
-                        <p className="figure text-[28px] font-bold text-foreground">${fixed(scrub.c, 2)}</p>
-                        <p className="text-[13px] text-muted-foreground">
-                            {new Date(scrub.t * 1000).toLocaleString()}
-                        </p>
-                    </>
-                ) : stock.marketData?.isStale ? (
-                    <>
-                        <p className="text-xs text-muted-foreground">Last available price</p>
-                        <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
-                        {lastTradeDate && <p className="text-xs text-muted-foreground">Last trade {lastTradeDate}</p>}
-                    </>
-                ) : (
-                    <>
-                        <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
-                        <p className={cn("figure text-sm font-semibold", isUp ? "text-positive" : "text-negative")}>
-                            {isUp ? "+" : "−"}${fixed(Math.abs(change ?? 0), 2)} (
-                            {fixed(Math.abs(changePct ?? 0), 2)}%) today
-                        </p>
-                    </>
-                )}
-            </header>
-
-            <section className="flex flex-col gap-3">
-                {stock.marketData?.isStale && (
-                    <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
-                        <p className="font-semibold text-foreground">
-                            {stock.marketData.assetStatus?.toLowerCase() === "inactive"
-                                ? "Provider marks this listing inactive."
-                                : "No recent market data."}
-                        </p>
-                        <p>
-                            {lastTradeDate
-                                ? `Last provider trade: ${lastTradeDate}. Historical prices shown below.`
-                                : "The last price may be outdated. Historical prices shown below."}
-                        </p>
-                    </div>
-                )}
-                <PriceChart
-                    points={points}
-                    style={style}
-                    previousClose={range === "1D" ? previousClose : null}
-                    showScales={showScales}
-                    onScrub={setScrub}
-                />
-                <ChartRangePicker range={range} onChange={setRange} />
-                <div className="flex gap-2">
-                    <Button
-                        size="sm"
-                        variant={style === "candles" ? "default" : "outline"}
-                        onClick={() => setStyle(style === "candles" ? "line" : "candles")}
-                    >
-                        {style === "candles" ? "Candles" : "Line"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => watchlist.toggle(ticker)}>
-                        {following ? "In your watchlist" : "Add to watchlist"}
-                    </Button>
-                </div>
-            </section>
-
-            <KeyStats
-                stock={stock}
-                price={price}
-                openInfo={openInfo}
-                onToggleInfo={(label) => setOpenInfo(openInfo === label ? null : label)}
+        <>
+            <PageBar
+                back={{ href: "/investing", label: "Investing" }}
+                title={ticker}
             />
+            <PageBody className="flex max-w-6xl flex-col gap-6">
+                <header className="flex flex-col gap-1">
+                    <div className="flex items-start gap-3">
+                        <CompanyLogo symbol={ticker} size={44} />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                            <h1 className="truncate text-[23px] font-bold text-foreground">
+                                {stock.overview.Name}
+                            </h1>
+                            <p className="text-base font-semibold text-muted-foreground">{ticker}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => watchlist.toggle(ticker)}
+                            aria-label={following ? "Remove from watchlist" : "Add to watchlist"}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground"
+                        >
+                            {following ? (
+                                <BookmarkCheck className="h-4 w-4 text-primary" />
+                            ) : (
+                                <Bookmark className="h-4 w-4" />
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowScales((shown) => !shown)}
+                            aria-label={showScales ? "Hide price scale" : "Show price scale"}
+                            aria-pressed={showScales}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground"
+                        >
+                            <SlidersHorizontal className="h-4 w-4" />
+                        </button>
+                    </div>
 
-            {stock.overview.Description && stock.overview.Description !== "No description available." && (
-                <section className="flex flex-col gap-2">
-                    <h2 className="text-xl font-bold text-foreground">About</h2>
-                    <p className="text-base text-body">{stock.overview.Description}</p>
+                    {scrub ? (
+                        <>
+                            <p className="figure text-[28px] font-bold text-foreground">${fixed(scrub.c, 2)}</p>
+                            <p className="text-[13px] text-muted-foreground">
+                                {new Date(scrub.t * 1000).toLocaleString()}
+                            </p>
+                        </>
+                    ) : stock.marketData?.isStale ? (
+                        <>
+                            <p className="text-xs text-muted-foreground">Last available price</p>
+                            <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
+                            {lastTradeDate && <p className="text-xs text-muted-foreground">Last trade {lastTradeDate}</p>}
+                        </>
+                    ) : (
+                        <>
+                            <p className="figure text-[28px] font-bold text-foreground">${fixed(price, 2)}</p>
+                            <p className={cn("figure text-sm font-semibold", isUp ? "text-positive" : "text-negative")}>
+                                {isUp ? "+" : "−"}${fixed(Math.abs(change ?? 0), 2)} (
+                                {fixed(Math.abs(changePct ?? 0), 2)}%) today
+                            </p>
+                        </>
+                    )}
+                </header>
+
+                <section className="flex flex-col gap-3">
+                    {stock.marketData?.isStale && (
+                        <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+                            <p className="font-semibold text-foreground">
+                                {stock.marketData.assetStatus?.toLowerCase() === "inactive"
+                                    ? "Provider marks this listing inactive."
+                                    : "No recent market data."}
+                            </p>
+                            <p>
+                                {lastTradeDate
+                                    ? `Last provider trade: ${lastTradeDate}. Historical prices shown below.`
+                                    : "The last price may be outdated. Historical prices shown below."}
+                            </p>
+                        </div>
+                    )}
+                    <PriceChart
+                        points={points}
+                        style={style}
+                        previousClose={range === "1D" ? previousClose : null}
+                        showScales={showScales}
+                        onScrub={setScrub}
+                    />
+                    <ChartRangePicker range={range} onChange={setRange} />
+                    <div className="flex gap-2">
+                        <Button
+                            size="sm"
+                            variant={style === "candles" ? "default" : "outline"}
+                            onClick={() => setStyle(style === "candles" ? "line" : "candles")}
+                        >
+                            {style === "candles" ? "Candles" : "Line"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => watchlist.toggle(ticker)}>
+                            {following ? "In your watchlist" : "Add to watchlist"}
+                        </Button>
+                    </div>
                 </section>
-            )}
 
-            <StatementsSection symbol={ticker} />
-            <FinancialsSection symbol={ticker} />
+                <KeyStats
+                    stock={stock}
+                    price={price}
+                    openInfo={openInfo}
+                    onToggleInfo={(label) => setOpenInfo(openInfo === label ? null : label)}
+                />
 
-            {news.length > 0 && (
-                <section className="flex flex-col gap-2.5">
-                    <SectionLabel>News</SectionLabel>
-                    <NewsList articles={news} limit={8} />
-                </section>
-            )}
-        </div>
+                {stock.overview.Description && stock.overview.Description !== "No description available." && (
+                    <section className="flex flex-col gap-2">
+                        <h2 className="text-xl font-bold text-foreground">About</h2>
+                        <p className="text-base text-body">{stock.overview.Description}</p>
+                    </section>
+                )}
+
+                <StatementsSection symbol={ticker} />
+                <FinancialsSection symbol={ticker} />
+
+                {news.length > 0 && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel>News</SectionLabel>
+                        <NewsList articles={news} limit={8} />
+                    </section>
+                )}
+            </PageBody>
+        </>
     )
 }
 

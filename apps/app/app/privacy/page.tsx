@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Database, Eye, FileText, Lock, Shield, Users, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Privacy Policy",
@@ -10,10 +11,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
-                <h1 className="text-center text-4xl font-bold text-foreground">Privacy Policy</h1>
-
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="Privacy Policy" />
+            <PageBody className="flex max-w-3xl flex-col gap-8">
                 <Section icon={Eye} tint="text-primary" title="Introduction">
                     <P>
                         Your privacy matters to us. This Privacy Policy explains how we collect, use, share, and
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
                             "Optional account details (name, email) if you sign up, stored with our authentication provider (Supabase)",
                             "Calculator, budgeting, and tax-estimator inputs are saved on your device. Optional AI analysis sends budget summaries and goals to Google; financial details included in messages or responses are retained as described below",
                             "Bank statements you import, which are parsed and stored only on your device",
-                            "Messages you send to FinnaBot and the Budget Analysis assistant, the answers you receive, including portfolio holdings and weights embedded in a message — kept as a record of each conversation (see Data Security below)",
+                            "Messages you send to FinnaBot and the Budget Analysis assistant, and the answers you receive. This includes any portfolio holdings and weights carried in a message. Each conversation is kept as a record (see Data Security below)",
                             "Contact information and feedback when you reach out",
                         ]}
                     />
@@ -50,22 +50,22 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Bank and brokerage links run through Plaid and SnapTrade. Your bank credentials go to them directly and never touch FinnaCalc's servers",
-                            "Imported transactions and holdings are stored on your device; the ticker symbols and weights the Portfolio Analysis chat attaches to a message are kept with that conversation\u2019s record",
+                            "Imported transactions and holdings are stored on your device. The ticker symbols and weights that the Portfolio Analysis chat sends with a message are kept with that conversation\u2019s record",
                         ]}
                     />
-                    <Callout tone="info">
+                    <P>
                         <strong className="font-bold">Important:</strong> Your budget, goals, history, and
-                        tax-estimator answers live on your device. Optional AI analysis sends budget summaries and goals to Google. FinnaCalc retains messages and responses, which may contain financial details; it does not separately store the structured budget snapshot. Sensitive tax fields (Social Security
+                        tax-estimator answers live on your device. Optional AI analysis sends budget summaries and goals to Google. FinnaCalc keeps messages and responses, which can include financial details. The budget summary that Budget Analysis sends is not stored on its own. Sensitive tax fields (Social Security
                         numbers, bank details) are never saved, and the tax estimator does not transmit your
-                        return, since e-filing isn&rsquo;t enabled yet.
-                    </Callout>
+                        return, since e-filing isn&rsquo;t enabled for now.
+                    </P>
                 </Section>
 
                 <Section icon={Users} tint="text-accent-purple" title="How Information Is Used">
                     <LeadBullets
                         items={[
                             ["Service Provision:", "To provide calculators, budgeting, market data, tax estimation, and the AI assistant"],
-                            ["Personalization:", "To answer FinnaBot and Budget Analysis questions using what you share in that conversation \u2014 a budget snapshot in Budget Analysis, and the ticker symbols and portfolio weights on screen in the Portfolio Analysis chat"],
+                            ["Personalization:", "To answer FinnaBot and Budget Analysis questions using what you share in that conversation. That is a budget snapshot in Budget Analysis, and the ticker symbols and portfolio weights on screen in the Portfolio Analysis chat"],
                             ["Improvement:", "To understand usage and improve the app"],
                             ["Communication:", "To respond to inquiries and provide support"],
                             ["Security:", "To detect, prevent, and address technical issues and security threats"],
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Budget, goals, and tax answers are stored on your device. Optional AI analysis shares budget summaries and goals with Google; financial details included in messages or responses are retained in conversation records. The tax estimator does not send your answers to our servers",
-                            "AI conversation records \u2014 your message, portfolio context embedded in it, and model responses including text screened out before display \u2014 are stored on our servers and scheduled for automatic deletion after 30 days by an hourly cleanup. Signed-in records are linked to your account and also deleted when you delete your account. Signed-out records have no account identifier but may contain details you include. This cleanup applies to our active transcript database; provider records and backups follow their separate retention policies",
+                            "AI conversation records are stored on our servers and scheduled for automatic deletion after 30 days by an hourly cleanup. A record holds your message, any portfolio context carried in it, and the model's responses, including text screened out before it reached you. Signed-in records are linked to your account and also deleted when you delete your account. Signed-out records have no account identifier but may contain details you include. This cleanup applies to our active transcript database; provider records and backups follow their separate retention policies",
                             "We record the most recent use of connected accounts and whether an investing subscription is active to manage those connections. Feedback is sent to our team through Resend with the contact details you provide, app version, and your account identifier when signed in",
                             "SSL/TLS encryption for everything sent to our services",
                             "Bank credentials handled only by Plaid and SnapTrade, never by FinnaCalc",
@@ -111,11 +111,11 @@ export default function PrivacyPage() {
                             "Secure hosting infrastructure",
                         ]}
                     />
-                    <Callout tone="caution">
+                    <P>
                         <strong className="font-bold">Note:</strong> While efforts are made to protect your
                         information, no method of transmission over the internet or electronic storage is 100%
                         secure. Absolute security cannot be guaranteed.
-                    </Callout>
+                    </P>
                 </Section>
 
                 <Section title="On-Device Storage & Preferences">
@@ -175,12 +175,12 @@ export default function PrivacyPage() {
                         contact:
                     </P>
                     <div className="flex flex-col gap-2 pt-1">
-                        <Contact label="Help:" email="helpfinnacalc@gmail.com" />
-                        <Contact label="Inquiries:" email="finnacalc@gmail.com" />
+                        <Contact label="Help:" email="help@finnacalc.com" />
+                        <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 
@@ -239,18 +239,6 @@ function LeadBullets({ items }: { items: [string, string][] }) {
                 </li>
             ))}
         </ul>
-    )
-}
-
-function Callout({ tone, children }: { tone: "info" | "caution"; children: React.ReactNode }) {
-    return (
-        <div
-            className={`rounded-lg p-4 text-sm ${
-                tone === "info" ? "bg-primary/10 text-foreground" : "bg-caution/12 text-foreground"
-            }`}
-        >
-            {children}
-        </div>
     )
 }
 

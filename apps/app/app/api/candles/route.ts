@@ -14,12 +14,15 @@ import { bars, isAlpacaConfigured, type BarAdjustment, type BarTimeframe } from 
 
 export const revalidate = 60;
 
-// Range pill → (timeframe, how far back, how many bars to ask for).
-const RANGES: Record<string, { timeframe: BarTimeframe; days: number; limit: number }> = {
-    "1D": { timeframe: "5Min", days: 4, limit: 500 },
-    "1W": { timeframe: "30Min", days: 9, limit: 400 },
-    "1M": { timeframe: "1Day", days: 32, limit: 40 },
-    "1Y": { timeframe: "1Day", days: 370, limit: 400 },
+// Range pill → (timeframe, how far back).
+//
+// How many rows to ask for is NOT a property of the range: it depends on the
+// bar size, which the candlestick view overrides per request. See rowsFor.
+const RANGES: Record<string, { timeframe: BarTimeframe; days: number }> = {
+    "1D": { timeframe: "5Min", days: 4 },
+    "1W": { timeframe: "30Min", days: 9 },
+    "1M": { timeframe: "1Day", days: 32 },
+    "1Y": { timeframe: "1Day", days: 370 },
     // Five years, weekly: the longest window the app offers, and a promise
     // we can keep. The free plan's history runs out around July 2020 for
     // every older listing checked, so a pill reading "all time" would be a
@@ -28,10 +31,10 @@ const RANGES: Record<string, { timeframe: BarTimeframe; days: number; limit: num
     // limit. Whether five years happens to BE a given symbol's whole life is
     // answered per symbol below, since anything that listed recently really
     // is complete.
-    "5Y": { timeframe: "1Week", days: 365 * 5 + 7, limit: 300 },
+    "5Y": { timeframe: "1Week", days: 365 * 5 + 7 },
     // Kept so app builds already shipping "ALL" keep working. New callers
     // should ask for 5Y and say five years.
-    ALL: { timeframe: "1Week", days: 365 * 20, limit: 1100 },
+    ALL: { timeframe: "1Week", days: 365 * 20 },
 };
 
 // The candlestick view can ask for its own interval.
@@ -44,6 +47,44 @@ const INTERVALS: Record<string, BarTimeframe> = {
     "1day": "1Day",
     "1week": "1Week",
 };
+
+/**
+ * Bars a trading day can hold at each size, counting extended hours.
+ *
+ * Deliberate over-estimates. Asking for more rows than exist costs nothing;
+ * asking for fewer silently truncates, and Alpaca truncates from the START of
+ * the window, so the bars lost are the newest ones.
+ */
+const BARS_PER_DAY: Record<BarTimeframe, number> = {
+    "1Min": 960,
+    "5Min": 192,
+    "15Min": 64,
+    "30Min": 32,
+    "1Hour": 16,
+    "1Day": 1,
+    "1Week": 0.25,
+};
+
+/** Alpaca's largest page. */
+const MAX_ROWS = 10_000;
+
+/**
+ * How many rows this window needs at this bar size.
+ *
+ * The limit used to be a property of the range pill, which was right only
+ * while every pill used its own default bar size. The candlestick view asks
+ * for its own interval, and a month of 30-minute bars against the 1M preset's
+ * 40-row limit returned two and a half days of a month-old window: a chart
+ * labelled "1M" that had not reached the last four weeks. A week of
+ * 5-minute bars stopped two sessions short, and a day of 1-minute bars came
+ * back as the previous session, cut off mid-morning.
+ *
+ * So the rows follow the bars, not the pill.
+ */
+function rowsFor(timeframe: BarTimeframe, days: number): number {
+    const needed = Math.ceil(BARS_PER_DAY[timeframe] * days * 1.1);
+    return Math.min(MAX_ROWS, Math.max(100, needed));
+}
 
 /**
  * Which exchange day a bar belongs to.
@@ -60,8 +101,19 @@ const exchangeDate = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
 }).format;
 
-/** Below this a session is a dot, not a chart, and the app draws nothing. */
-const MIN_SESSION_BARS = 2;
+/**
+ * Below this a session is a scatter of dots, not a chart.
+ *
+ * It was 2, which is the arithmetic minimum for a line and nowhere near
+ * enough to be one. The free plan serves the IEX feed, one venue out of many,
+ * so a thin name can print two or three bars in a whole pre-market and a
+ * stock page opened before the bell drew exactly those: two dots, no line,
+ * under today's date. Twelve bars is an hour of a 5-minute session or twelve
+ * minutes of a 1-minute one; under that the previous session is drawn
+ * instead, labelled with its own date, which is what the app says it is
+ * showing anyway.
+ */
+const MIN_SESSION_BARS = 12;
 
 type Bar = { t: string; c: number; o: number; h: number; l: number };
 
@@ -139,13 +191,14 @@ export async function GET(request: NextRequest) {
     const preset = RANGES[served];
     const timeframe = interval && INTERVALS[interval] ? INTERVALS[interval] : preset.timeframe;
     const start = new Date(Date.now() - preset.days * 24 * 60 * 60 * 1000);
+    const rows = rowsFor(timeframe, preset.days);
 
     // Total return rather than price return, for callers asking what a
     // holding actually earned. Charts stay on the split-only default.
     const adjustment: BarAdjustment = params.get("adjustment") === "all" ? "all" : "split";
 
     try {
-        const series = await bars(symbol, timeframe, start, preset.limit, revalidate, adjustment);
+        const series = await bars(symbol, timeframe, start, rows, revalidate, adjustment);
 
         // 1D means the latest session, not the last four calendar days: markets
         // close, and a Monday request must not draw Thursday and Friday too.

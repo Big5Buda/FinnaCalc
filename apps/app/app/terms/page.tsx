@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { AlertTriangle, FileText, Gavel, Shield, Users, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "Terms of Service",
@@ -10,10 +11,9 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
-                <h1 className="text-center text-4xl font-bold text-foreground">Terms of Service</h1>
-
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="Terms of Service" />
+            <PageBody className="flex max-w-3xl flex-col gap-8">
                 <Section icon={FileText} tint="text-primary" title="Terms of Service Agreement">
                     <P>
                         These Terms of Service govern your use of FinnaCalc&rsquo;s website and services. By
@@ -38,7 +38,7 @@ export default function TermsPage() {
                             "Budgeting: income/expense tracking, savings goals with alerts, history snapshots, bank statement import, and optional bank connections via Plaid",
                             "Investing: optional view-only brokerage connections via SnapTrade for a live portfolio view, order history, portfolio analysis, and investing goals. FinnaCalc does not place, preview, or cancel orders",
                             "Investing research: quotes, charts, key stats, screeners, ETFs, company financials, a trade tracker, and market news from third-party data providers",
-                            "A guided federal tax estimator with a live refund estimate (educational; e-filing is not yet enabled and returns are not transmitted)",
+                            "A guided federal tax estimator with a federal refund estimate (educational; e-filing is not enabled for now and returns are not transmitted)",
                             "FinnaBot, Budget Analysis, and Portfolio Analysis, our AI and analytics tools for finance questions",
                             "Educational videos and articles",
                             "Optional paid subscriptions: Budgeting Plus, Investing Plus, and FinnaCalc Pro",
@@ -77,7 +77,7 @@ export default function TermsPage() {
                     />
                     <Subsection
                         heading="Market Data Disclaimer"
-                        body="Quotes, charts, statistics, and news are supplied by third-party providers, may be delayed (typically 15 minutes or more), and may contain errors or gaps. Nothing in the app is a recommendation to buy or sell any security. FinnaCalc is not a broker-dealer and does not place, route, or execute trades; any trading happens directly with your own brokerage under its terms."
+                        body="Quotes, charts, statistics, and news are supplied by third-party providers, may be delayed (typically 15 minutes or more), and may contain errors or gaps. Stock and fund prices come from a single exchange feed (IEX, via Alpaca), so figures can differ slightly from official closing prices and from what your brokerage shows, and price history reaches back about five years. A chart labelled as the day shows the most recent regular trading session, so outside market hours it is showing the last session that closed rather than one in progress. Candlestick bars are sized to the window: one minute for a day, five minutes for a week, thirty minutes for a month, daily for a year, and weekly for five years, or daily across five years for a company that listed too recently for weekly bars to say much. A session with too few prints to draw is not drawn at all; the most recent session that can be drawn is shown instead, with its date. Nothing in the app is a recommendation to buy or sell any security. FinnaCalc is not a broker-dealer and does not place, route, or execute trades; any trading happens directly with your own brokerage under its terms."
                     />
                     <Subsection
                         heading="Investing and Trading Risk"
@@ -134,7 +134,6 @@ export default function TermsPage() {
                         items={[
                             "Prices are shown before you subscribe. If a price changes, you are told and asked before the new one is charged",
                             "Plans with bank connections include up to 2 connected bank logins per account. Disconnect one before adding another",
-                            "Ad-free applies to the pages the plan covers; FinnaCalc Pro removes ads everywhere",
                             "Refunds follow the policies of whoever processed the payment: Apple for in-app purchases, or ours for purchases made on the website",
                         ]}
                     />
@@ -200,12 +199,12 @@ export default function TermsPage() {
                 <Section title="Contact Information">
                     <P>If you have any questions about these Terms of Service, please make contact:</P>
                     <div className="flex flex-col gap-2">
-                        <Contact label="Help:" email="helpfinnacalc@gmail.com" />
-                        <Contact label="Inquiries:" email="finnacalc@gmail.com" />
+                        <Contact label="Help:" email="help@finnacalc.com" />
+                        <Contact label="Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </Section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 

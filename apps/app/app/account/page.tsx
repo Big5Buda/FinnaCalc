@@ -73,7 +73,7 @@ export default function AccountPage() {
 
     return (
         <>
-            <PageBar title="Account" />
+            <PageBar back={{ href: "/", label: "Home" }} title="Account" />
             <PageBody className="flex w-full max-w-2xl flex-col gap-6">
 
             {loading ? (
@@ -99,7 +99,7 @@ export default function AccountPage() {
                 </section>
             ) : (
                 <section className="flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-[18px] text-center">
-                    <span className="inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary/12 p-3.5 text-primary">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 p-3.5 text-primary">
                         <Sparkles className="h-5 w-5" />
                     </span>
                     <p className="text-[15.5px] font-bold text-foreground">Save your progress</p>
@@ -182,7 +182,9 @@ export default function AccountPage() {
                 />
             </section>
 
-            <FeedbackSection email={user?.email} userId={user?.id} />
+            <div id="feedback" className="scroll-mt-24">
+                <FeedbackSection email={user?.email} userId={user?.id} />
+            </div>
 
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>About</SectionLabel>

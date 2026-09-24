@@ -209,7 +209,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
                 <button
                     type="submit"
                     disabled={working || !canSubmit || !configured}
-                    className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-foreground text-base font-medium text-card transition hover:bg-body disabled:cursor-not-allowed disabled:opacity-40"
+                    className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     {working && <Loader2 className="h-4 w-4 animate-spin" />}
                     {mode === "signIn" ? "Log in" : "Next"}

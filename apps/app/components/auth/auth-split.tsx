@@ -7,18 +7,18 @@ import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/components/motion/motion"
 
 /**
- * The standalone auth layout, in the marketing site's warm-light system.
+ * The standalone auth layout: the brand panel on the left, the card on the
+ * right.
  *
- * These two screens are the doorway between the marketing site and the app,
- * and at the user's direction they dress like the side they're entered from:
- * cream ground, warm black, pill buttons, the serif carrying the brand line.
- * The rest of the app keeps its Paper & Cobalt tokens for iOS parity — this
- * is a deliberate island, which is why the palette is written in literal hex
- * here instead of the app's tokens: nothing else in this workspace should be
- * able to inherit it by accident.
+ * It used to dress in a warm cream-and-brown system of its own, which made
+ * the doorway to the app the one screen that did not look like the app. It
+ * now takes its colour from the same tokens every other page uses, and the
+ * only literal colour left is the white type on the brand panel, which is
+ * saturated blue in both light and dark and so cannot take a token that
+ * flips with the scheme.
  *
- * The proof points rotate. They're facts about what the product does, not
- * marketing claims we'd have to stand behind with numbers; each one is
+ * The proof points rotate. They are facts about what the product does, not
+ * marketing claims we would have to stand behind with numbers; each one is
  * something the site demonstrably does.
  */
 
@@ -50,10 +50,9 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                 "flex min-h-screen flex-col font-[family-name:var(--auth-sans)] lg:flex-row"
             )}
         >
-            {/* Left: the brand moment — the marketing hero's warm gradient,
-                the serif speaking, the coin mark. */}
+            {/* Left: the brand panel, the serif speaking, the coin mark. */}
             <section
-                className="auth-ground relative flex flex-col justify-between gap-10 px-8 py-10 text-card lg:w-[46%] lg:px-14 lg:py-14"
+                className="auth-ground relative flex flex-col justify-between gap-10 px-6 py-10 text-white sm:px-8 lg:w-[46%] lg:px-14 lg:py-14"
             >
                 <Link href="/" aria-label="FinnaCalc home" className="flex items-center gap-2.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,7 +74,7 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                             <p
                                 key={point}
                                 className={cn(
-                                    "absolute inset-0 text-lg leading-relaxed text-card/85 transition-opacity duration-700 motion-reduce:transition-none",
+                                    "absolute inset-0 text-lg leading-relaxed text-white/85 transition-opacity duration-700 motion-reduce:transition-none",
                                     reduced
                                         ? position === 0
                                             ? "opacity-100"
@@ -92,15 +91,15 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                     </div>
                 </div>
 
-                <p className="text-xs text-card/60">
+                <p className="text-xs text-white/70">
                     FinnaCalc is a tool, not an advisor. Nothing here is financial advice.
                 </p>
             </section>
 
-            {/* Right: the card on cream, and the strip under it. */}
+            {/* Right: the card, and the strip under it. */}
             <section className="flex flex-1 flex-col bg-background">
                 <div className="flex flex-1 items-center justify-center px-5 py-12">
-                    <div className="w-full max-w-md rounded-card border border-border bg-card p-7 shadow-[0_1px_2px_rgb(28_27_27/0.04)] sm:p-9">
+                    <div className="w-full max-w-md rounded-card border border-border bg-card p-6 shadow-sm sm:p-9">
                         {children}
                     </div>
                 </div>
@@ -120,15 +119,12 @@ export function AuthSplit({ children }: { children: ReactNode }) {
                             Terms
                         </Link>
                     </div>
-                    <p className="text-muted-foreground">
-                        Coming to iPhone —{" "}
-                        <Link
-                            href="/#waitlist"
-                            className="font-medium text-foreground underline-offset-4 hover:underline"
-                        >
-                            join the waitlist
-                        </Link>
-                    </p>
+                    <Link
+                        href="/about"
+                        className="font-medium text-foreground underline-offset-4 hover:underline"
+                    >
+                        About FinnaCalc
+                    </Link>
                 </footer>
             </section>
         </div>

@@ -15,9 +15,36 @@ import {
 // Stock screener, on Alpaca.
 //
 // Alpaca screens by ACTIVITY, not fundamentals, so this route follows what it
-// can actually answer: pick a universe from Alpaca's own screener endpoints —
-// the day's most active symbols, its biggest gainers, or its biggest losers —
+// can actually answer: pick a universe from Alpaca's own screener endpoints,
+// the day's most active symbols, its biggest gainers, or its biggest losers,
 // then filter and rank that universe on the numbers a snapshot carries.
+//
+// A preset used to BE the universe, which meant asking for no preset was
+// asking for nothing, and the app showed an empty screen to anyone who only
+// wanted to filter on price. With no preset the universe is now all three
+// lists merged and deduplicated, about 190 symbols on a normal day and never
+// more than 200, since Alpaca caps most-actives at 100 and movers at 50 a
+// side. That is the widest universe this data plan can reach. It is still
+// nowhere near every US stock, so the response says `preset: null` and the
+// app names the list rather than implying a market-wide sweep.
+//
+// The merged case sorts before it truncates. The three presets arrive already
+// ranked, by volume or by percent change, so iterating them in order and
+// stopping at `limit` gives the top of that ranking. A merge has no such
+// order: concatenated, the first 60 are simply the most-active 60, and the
+// gainers and losers behind them would never be reached.
+//
+// `sort` and `dir` say how to rank before that cut. The app asks for them on
+// every request, because ranking is what its category chips now do: they no
+// longer choose a universe, they choose how this one is read. Ranking only
+// the rows that survived a cut made on some other column would answer a
+// different question than the one the chip asks, so the rank happens here,
+// across the whole universe, and the cut happens after it.
+//
+//   sort=changePct|volume|relVolume|price|symbol   dir=asc|desc
+//
+// Both are optional. Without them a preset keeps its own order and a merge
+// falls back to volume, which is what every build before this one expects.
 //
 // Everything returned is measured, never inferred:
 //   price / change / changePct    snapshot against the previous session's close
@@ -34,6 +61,9 @@ import {
 // Response: { rows, preset, universeSize, asOf, unsupported?, error? }
 
 export const revalidate = 300;
+// The merged universe roughly doubles the upstream work and the payload, and
+// this route had no ceiling of its own while its siblings set 30.
+export const maxDuration = 30;
 
 export type ScreenerPreset = "actives" | "gainers" | "losers";
 
@@ -102,6 +132,10 @@ export async function GET(request: NextRequest) {
 
     const params = request.nextUrl.searchParams;
     const presetParam = params.get("preset");
+    // Only an ABSENT or empty preset merges the lists. An unrecognized value
+    // still falls back to actives, so a typo cannot silently hand back a
+    // different screen than the one that was asked for.
+    const merged = presetParam === null || presetParam.trim() === "";
     const preset: ScreenerPreset =
         presetParam === "gainers" || presetParam === "losers" ? presetParam : "actives";
 
@@ -114,18 +148,50 @@ export async function GET(request: NextRequest) {
     const changeMax = num(params, "changeLowerThan");
     const relVolumeMin = num(params, "relVolumeMoreThan");
 
+    const SORTABLE = ["changePct", "volume", "relVolume", "price", "symbol"] as const;
+    type SortKey = (typeof SORTABLE)[number];
+    const sortParam = params.get("sort");
+    const sortKey: SortKey | null =
+        sortParam !== null && (SORTABLE as readonly string[]).includes(sortParam)
+            ? (sortParam as SortKey)
+            : null;
+    const ascending = params.get("dir") === "asc";
+    // A ranking has to see every row before it can pick a top, so the early
+    // break below is only safe when the universe already arrives in order.
+    const rankHere = merged || sortKey !== null;
+
     const asked = UNSUPPORTED.filter((key) => params.get(key));
 
     try {
         let symbols: string[] = [];
-        if (preset === "actives") {
+        if (merged) {
+            // One extra upstream call, not two: a single movers request
+            // already returns both sides, and the preset branch below has
+            // always thrown one of them away.
+            const [actives, both] = await Promise.all([
+                mostActives(UNIVERSE, "volume", revalidate),
+                movers(50, revalidate),
+            ]);
+            const seen = new Set<string>();
+            for (const entry of [...actives, ...both.gainers, ...both.losers]) {
+                if (entry.symbol && !seen.has(entry.symbol)) {
+                    seen.add(entry.symbol);
+                    symbols.push(entry.symbol);
+                }
+            }
+        } else if (preset === "actives") {
             symbols = (await mostActives(UNIVERSE, "volume", revalidate)).map((entry) => entry.symbol);
         } else {
             const { gainers, losers } = await movers(50, revalidate);
             symbols = (preset === "gainers" ? gainers : losers).map((entry) => entry.symbol);
         }
         if (symbols.length === 0) {
-            return NextResponse.json({ rows: [], preset, universeSize: 0, unsupported: asked });
+            return NextResponse.json({
+                rows: [],
+                preset: merged ? null : preset,
+                universeSize: 0,
+                unsupported: asked,
+            });
         }
 
         // Daily bars back a month give the session average relVolume needs;
@@ -196,17 +262,47 @@ export async function GET(request: NextRequest) {
                 dayLow: snapshot?.dailyBar?.l ?? null,
                 prevClose: snapshot?.prevDailyBar?.c ?? null,
             });
-            if (rows.length >= limit) break;
+            // A preset's own order is its ranking, so the first `limit` rows
+            // that clear the filters are the top of it and the rest of the
+            // universe cannot beat them. The merge has no inherent order, so
+            // it has to see every row before it can pick a top.
+            if (!rankHere && rows.length >= limit) break;
+        }
+
+        if (sortKey === "symbol") {
+            rows.sort((a, b) => (ascending ? 1 : -1) * a.symbol.localeCompare(b.symbol));
+        } else if (sortKey !== null) {
+            // A missing number is not a zero and must not win "smallest", so
+            // it sorts last whichever way the column is pointing. Same rule
+            // the app applies to the rows it already has.
+            rows.sort((a, b) => {
+                const left = a[sortKey];
+                const right = b[sortKey];
+                if (left === null && right === null) return 0;
+                if (left === null) return 1;
+                if (right === null) return -1;
+                return (ascending ? 1 : -1) * (left - right);
+            });
+        } else if (merged) {
+            rows.sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
         }
 
         return NextResponse.json({
-            rows,
-            preset,
+            rows: rows.slice(0, limit),
+            // Null, never a string the app has no case for: the iOS client
+            // decodes this into an enum with a plain JSONDecoder, and an
+            // unrecognized value throws on the WHOLE response rather than on
+            // one field, which would empty the screen instead of one label.
+            preset: merged ? null : preset,
             universeSize: symbols.length,
             asOf: new Date().toISOString(),
             ...(asked.length > 0 ? { unsupported: asked } : {}),
         });
     } catch (err: any) {
-        return NextResponse.json({ rows: [], preset, error: err.message || "Screener failed." });
+        return NextResponse.json({
+            rows: [],
+            preset: merged ? null : preset,
+            error: err.message || "Screener failed.",
+        });
     }
 }

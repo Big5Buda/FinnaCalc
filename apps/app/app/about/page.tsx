@@ -16,6 +16,7 @@ import {
     type LucideIcon,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives"
+import { PageBar, PageBody } from "@/components/shell/surface"
 
 export const metadata: Metadata = {
     title: "About",
@@ -110,8 +111,9 @@ const REASONS = [
 
 export default function AboutPage() {
     return (
-        <div className="bg-muted/40">
-            <div className="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-10">
+        <>
+            <PageBar back={{ href: "/", label: "Home" }} title="About Us" />
+            <PageBody className="flex max-w-3xl flex-col gap-12">
                 <section className="flex flex-col items-center gap-4 text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-foreground">
                         Empowering Smart Financial Decisions
@@ -128,7 +130,7 @@ export default function AboutPage() {
                         icon={Target}
                         tint="text-primary"
                         title="Our Mission"
-                        body="To put honest money tools in everyone's pocket. Budgeting, investing, taxes, and lessons in one app, showing real numbers and never inventing one, whatever your background or experience."
+                        body="To make managing money simple and affordable for everyone, no matter your background or experience. We strive to offer everything you need to make informed money decisions and reach your financial goals."
                     />
                     <StatementCard
                         icon={Heart}
@@ -192,12 +194,12 @@ export default function AboutPage() {
                         committed to continuously improving FinnaCalc based on user needs and feedback.
                     </p>
                     <div className="flex flex-col gap-2">
-                        <ContactLine label="Help:" email="helpfinnacalc@gmail.com" />
-                        <ContactLine label="Business Inquiries:" email="finnacalc@gmail.com" />
+                        <ContactLine label="Help:" email="help@finnacalc.com" />
+                        <ContactLine label="Business Inquiries:" email="info@finnacalc.com" />
                     </div>
                 </section>
-            </div>
-        </div>
+            </PageBody>
+        </>
     )
 }
 
