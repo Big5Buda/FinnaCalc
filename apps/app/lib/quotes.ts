@@ -10,11 +10,16 @@ import {
     isCryptoSymbol,
     snapshotChange,
     snapshotPrice,
+    activeAssets,
     stockSnapshots,
 } from "@/lib/alpaca"
 
 export type LiveQuote = {
     price: number
+    /** Timestamp of the observation used for `price`. */
+    asOf: string | null
+    /** True when provider has no timestamp or last observation is over 7 days old. */
+    isStale: boolean
     /**
      * The day's move, or null when Alpaca has no previous close to measure
      * against. Nullable rather than zero: these used to fall back to 0, which
@@ -27,6 +32,36 @@ export type LiveQuote = {
     changePct: number | null
     /** Instrument name, when the assets endpoint knows it. */
     name: string | null
+}
+
+// A week tolerates weekends, exchange holidays and quiet IEX trading while
+// rejecting retired symbols whose snapshots keep their final trade forever.
+const MAX_QUOTE_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * Current Alpaca listings, or null when the trading-API catalogue is
+ * unavailable. Callers must fall back to timestamp checks on null; an empty
+ * provider response must never be interpreted as "everything delisted".
+ */
+export async function activeSymbolSet(revalidate = 900): Promise<Set<string> | null> {
+    const assets = await activeAssets(revalidate)
+    if (assets.length === 0) return null
+    return new Set(assets.filter((asset) => asset.status.toLowerCase() === "active").map((asset) => asset.symbol.toUpperCase()))
+}
+
+function observationTime(snapshot: {
+    latestTrade?: { t: string }
+    minuteBar?: { t: string }
+    dailyBar?: { t: string }
+    prevDailyBar?: { t: string }
+} | undefined): string | null {
+    return snapshot?.latestTrade?.t ?? snapshot?.minuteBar?.t ?? snapshot?.dailyBar?.t ?? snapshot?.prevDailyBar?.t ?? null
+}
+
+function isStale(asOf: string | null, now = Date.now()): boolean {
+    if (!asOf) return true
+    const time = Date.parse(asOf)
+    return !Number.isFinite(time) || time > now + 5 * 60 * 1000 || now - time > MAX_QUOTE_AGE_MS
 }
 
 /**
@@ -56,8 +91,11 @@ export async function fetchQuotes(
         const price = snapshotPrice(snapshot)
         if (price === null) continue
         const move = snapshotChange(snapshot)
+        const asOf = observationTime(snapshot)
         out[symbol] = {
             price,
+            asOf,
+            isStale: isStale(asOf),
             change: move?.change ?? null,
             changePct: move?.changePct ?? null,
             name: null,
