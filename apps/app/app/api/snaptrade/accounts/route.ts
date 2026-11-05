@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
-import { brokerageLimitError } from "@/lib/snaptrade-access"
+import { brokerageReadScope, wantsCountedScope } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 export interface BrokerageAccount {
@@ -62,8 +62,10 @@ export async function GET(req: NextRequest) {
             clearLegacySnapTradeCookie(res)
             return res
         }
-        const denied = await brokerageLimitError(appUserId, session)
-        if (denied) return denied
+        const scope = await brokerageReadScope(appUserId, session, undefined, wantsCountedScope(req.url))
+        if ("denied" in scope) return scope.denied
+        // Set only when the plan covers fewer connections than are linked.
+        const limitedToConnection = scope.countedConnectionId
         const st = getSnapTrade(session)
 
         // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
@@ -74,7 +76,12 @@ export async function GET(req: NextRequest) {
             userId: session.userId,
             userSecret: session.userSecret,
         })
-        const accountList = Array.isArray(accountData) ? accountData : []
+        // Over the limit, only the counted connection's accounts are read at
+        // all, so no balance or holding from an extra connection is fetched or
+        // returned. An account with no connection cannot be attributed, and
+        // is left out rather than guessed into the figures.
+        const accountList = (Array.isArray(accountData) ? accountData : []).filter((a: any) =>
+            !limitedToConnection || a?.brokerage_authorization === limitedToConnection)
 
         // Keep failure distinct from a genuinely empty holdings list. A
         // partial portfolio would otherwise produce false totals and goals.
@@ -192,6 +199,7 @@ export async function GET(req: NextRequest) {
             positions,
             totalValue,
             currency,
+            ...(limitedToConnection ? { limitedToConnection } : {}),
         })
         clearLegacySnapTradeCookie(res)
         return res

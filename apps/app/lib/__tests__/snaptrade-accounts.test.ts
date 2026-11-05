@@ -14,7 +14,7 @@ vi.mock("@/lib/snaptrade", () => ({
     } }),
     snapTradeErrorMessage: (_error: unknown, fallback: string) => fallback,
 }))
-vi.mock("@/lib/snaptrade-access", () => ({ brokerageLimitError: async () => null }))
+vi.mock("@/lib/snaptrade-access", () => ({ brokerageLimitError: async () => null, brokerageReadScope: async () => ({ countedConnectionId: null }), wantsCountedScope: () => false }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "user" }))
 vi.mock("@/lib/snaptrade-session", () => ({
     loadSession: async () => ({ userId: "broker-user", userSecret: "test-secret", clientId: "legacy-test" }),
