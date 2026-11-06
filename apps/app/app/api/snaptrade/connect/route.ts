@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
-import { resolveOrCreateSession } from "@/lib/snaptrade-session"
+import { activeSnapTradeClientId, clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
+import { loadSession, resolveOrCreateSession } from "@/lib/snaptrade-session"
 import { brokerageLimitError, isReadOnlyConnection, listConnections } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { requireTradeConnection, TradingError } from "@/lib/snaptrade-trading"
+import { connectionFailure } from "@/lib/snaptrade-diagnostics"
 
 // Registers the user with SnapTrade if needed, then returns a one-time
 // connection-portal URL where the user picks and links their brokerage.
@@ -20,22 +22,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Sign in to connect a brokerage." }, { status: 401 })
     }
 
+    let stage: "session" | "connections" | "portal" = "session"
     try {
-        const session = await resolveOrCreateSession(appUserId)
-        const st = getSnapTrade(session)
 
         // The iOS app posts { platform: "ios" } so the portal redirects back
         // into the app's own callback scheme instead of the marketing site —
         // otherwise the native app was left showing this website post-connect.
         // { reconnect: <connectionId> } re-auths a specific disabled connection
         // (fix-broken-connections flow) instead of adding a new one.
-        // Any `access` field an older client sends is ignored: every link is
-        // view-only now, whatever the request asks for.
         let platform: string | undefined
         let reconnect: string | undefined
         let broker: string | undefined
+        let access: "read" | "trade" = "read"
+        let consent = false
         try {
             const body = await req.json()
+            if (body?.access != null && body.access !== "read" && body.access !== "trade")
+                throw new TradingError("connection_access_invalid", "Choose view-only access or explicitly authorize trading.")
+            access = body?.access === "trade" ? "trade" : "read"
+            consent = body?.consent === true
             platform = body?.platform
             reconnect = typeof body?.reconnect === "string" && body.reconnect.trim()
                 ? body.reconnect.trim()
@@ -48,10 +53,20 @@ export async function POST(req: NextRequest) {
             broker = typeof body?.broker === "string" && body.broker.trim()
                 ? body.broker.trim().toUpperCase()
                 : undefined
-        } catch {
+        } catch (error) {
+            if (error instanceof TradingError) throw error
             // No body (the web client posts none) — falls through to the web redirect.
         }
 
+        if (access === "trade") {
+            if (!consent || !broker) throw new TradingError("trading_consent_required", "Choose a brokerage and explicitly confirm trading authorization.")
+            const existingSession = await loadSession(appUserId)
+            await requireTradeConnection(existingSession?.clientId ?? activeSnapTradeClientId(), broker)
+        }
+        const session = await resolveOrCreateSession(appUserId)
+        const st = getSnapTrade(session)
+
+        stage = "connections"
         const connections = await listConnections(session)
         if (reconnect) {
             // Never let a forged reconnect ID bypass the new-connection gate.
@@ -63,11 +78,18 @@ export async function POST(req: NextRequest) {
             // link SnapTrade reports as exactly "read" may be repaired. A legacy
             // "trade" link, or one whose type is missing, has to be removed and
             // linked again to become view-only.
-            if (!isReadOnlyConnection(existing)) {
+            if (access === "read" && !isReadOnlyConnection(existing)) {
                 return NextResponse.json({
                     code: "connection_not_read_only",
-                    error: "This brokerage link wasn't confirmed as view-only, so FinnaCalc can't reconnect it. Disconnect it, then link your brokerage again for view-only access.",
+                    error: "This link has trading or unknown permissions. Use Manage connections to review its authorization before reconnecting.",
                 }, { status: 409 })
+            }
+            // Repair keeps a confirmed existing trade grant. Increasing a
+            // read grant uses the separate explicit owned upgrade endpoint.
+            if (access === "trade") {
+                const connection = existing as any
+                if (connection.type !== "trade" || connection.brokerage?.slug !== broker)
+                    throw new TradingError("trading_permission_required", "Use the explicit trading upgrade for an existing view-only connection.", 409)
             }
         } else {
             const denied = await brokerageLimitError(appUserId, session, connections, true)
@@ -77,12 +99,11 @@ export async function POST(req: NextRequest) {
         const origin = new URL(req.url).origin
         const customRedirect = platform === "ios" ? "finnacalc://snaptrade-callback" : `${origin}/investing`
 
+        stage = "portal"
         const login = await st.authentication.loginSnapTradeUser({
             userId: session.userId,
             userSecret: session.userSecret,
-            // FinnaCalc is view-only: every link, new or repaired, asks for
-            // read access and nothing else, whatever the client sent.
-            connectionType: "read",
+            connectionType: access,
             customRedirect,
             immediateRedirect: true,
             // Only set when repairing a disabled connection; the SDK ignores
@@ -99,9 +120,7 @@ export async function POST(req: NextRequest) {
         clearLegacySnapTradeCookie(res)
         return res
     } catch (err: any) {
-        return NextResponse.json(
-            { error: snapTradeErrorMessage(err, "Failed to start the brokerage connection.") },
-            { status: 500 }
-        )
+        if (err instanceof TradingError) return NextResponse.json({ code: err.code, error: err.message }, { status: err.status })
+        return connectionFailure(err, stage, "connect")
     }
 }
