@@ -57,8 +57,7 @@ export async function loadPortfolio(
 
 /**
  * A link SnapTrade doesn't report as exactly "read" — a legacy trading link or
- * one whose permission is unknown. It can't be reconnected in place; the user
- * has to disconnect and link again to get a view-only link.
+ * one whose permission is unknown. This web page cannot reconnect it in place or change its permissions.
  */
 export function isLegacyPermission(connection: Connection): boolean {
     return connection.type?.trim().toLowerCase() !== "read"
@@ -79,7 +78,7 @@ export function connectionNotice(connection: Connection): ConnectionNotice | nul
         return {
             kind: "relink",
             connectionId: connection.id,
-            message: `${cause} FinnaCalc is view-only and doesn't place or cancel orders, but it can't reconnect or convert this link. For a view-only link, disconnect (this removes every brokerage link on this account from FinnaCalc), then connect ${name} again.`,
+            message: `${cause} This web page cannot reconnect or change this link's permissions. Manage it in a supported client or at your brokerage. Disconnecting here removes every brokerage link on this account from FinnaCalc; reconnecting here requests view-only access.`,
         }
     }
     if (connection.disabled) {
@@ -98,5 +97,5 @@ export function disconnectConfirmation(linkCount: number): string {
         linkCount > 1
             ? `all ${linkCount} of your brokerage links`
             : "all of your brokerage links"
-    return `Disconnect ALL brokerage links?\n\nThis removes ${scope} from FinnaCalc, not just one, and FinnaCalc stops reading their accounts, holdings and order history. Nothing at your brokerage changes: your positions, orders and money stay exactly as they are. You can connect again afterwards, view-only.`
+    return `Disconnect ALL brokerage links?\n\nThis removes ${scope} from FinnaCalc, not just one, and FinnaCalc stops reading their accounts, holdings and order history. Nothing at your brokerage changes: your positions, orders and money stay exactly as they are. Connecting again on this web page requests view-only access.`
 }

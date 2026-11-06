@@ -53,16 +53,17 @@ it("allows owned reconnects and rejects a forged reconnect bypass", async () => 
     expect((await connect(request({ reconnect: "foreign" }))).status).toBe(404)
     expect(mocks.login).toHaveBeenCalledOnce()
 })
-it("always requests read-only access, whatever the client asks for", async () => {
-    for (const body of [{}, { access: "trade" }, { access: "TRADE" }, { access: "trade-if-available" }, { connectionType: "trade" }]) {
-        expect((await connect(request(body))).status).toBe(200)
-    }
-    mocks.list.mockResolvedValue({ data: [{ id: "first", disabled: true, type: "read" }] })
-    expect((await connect(request({ reconnect: "first", access: "trade" }))).status).toBe(200)
-    expect(mocks.login).toHaveBeenCalledTimes(6)
+it("defaults to read and never silently grants a trade request without explicit consent", async () => {
+    expect((await connect(request({}))).status).toBe(200)
+    expect((await connect(request({ connectionType: "trade" }))).status).toBe(200)
+    for (const body of [{ access: "trade" }, { access: "trade", broker: "BROKER" }])
+        expect((await connect(request(body))).status).toBe(400)
+    for (const access of ["TRADE", "trade-if-available", "unexpected"])
+        expect((await connect(request({ access }))).status).toBe(400)
+    expect(mocks.login).toHaveBeenCalledTimes(2)
     for (const [args] of mocks.login.mock.calls) expect(args.connectionType).toBe("read")
-    expect(mocks.login.mock.calls[5][0].reconnect).toBe("first")
 })
+
 it("refuses to reconnect a legacy trade or unknown-permission link", async () => {
     mocks.list.mockResolvedValue({ data: [
         { id: "trade", disabled: true, type: "trade" },
@@ -76,7 +77,7 @@ it("refuses to reconnect a legacy trade or unknown-permission link", async () =>
         expect(response.status).toBe(409)
         const body = await response.json()
         expect(body.code).toBe("connection_not_read_only")
-        expect(body.error).toContain("Disconnect")
+        expect(body.error).toContain("Manage connections")
         expect(body.error).not.toMatch(/revoked/i)
     }
     expect(mocks.login).not.toHaveBeenCalled()
@@ -212,9 +213,9 @@ it("a retry can clear the session after vendor deletion already succeeded", asyn
     expect((await disconnect(request())).status).toBe(200)
     expect(mocks.removeSession).toHaveBeenCalledWith("user", session)
 })
-it("ships no order placement, preview, cancellation or ticket-quote route", () => {
+it("keeps cancellation absent while trading restoration is separately gated", () => {
     const api = resolve(__dirname, "../../app/api/snaptrade")
-    for (const route of ["trade/place", "trade/impact", "orders/cancel", "quote"]) {
+    for (const route of ["orders/cancel"]) {
         expect(existsSync(resolve(api, route, "route.ts"))).toBe(false)
     }
     expect(existsSync(resolve(api, "orders/route.ts"))).toBe(true)

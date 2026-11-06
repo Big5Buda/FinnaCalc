@@ -40,7 +40,7 @@
     "react-plaid-link": "^4.1.1",
     "recharts": "^2.15.4",
     "resend": "^6.0.1",
-    "snaptrade-typescript-sdk": "^10.0.17",
+    "snaptrade-typescript-sdk": "^13.2.3",
     "stripe": "^22.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",

@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({ owner: "owner" as string | null, session: { client
     partner: vi.fn(), rpc: vi.fn(), select: vi.fn(), owners: [] as string[], namespace: "original" as "original" | "next", log: vi.fn() }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => m.owner }))
 vi.mock("@/lib/snaptrade-session", () => ({ loadSession: async () => m.session }))
-vi.mock("@/lib/snaptrade", () => ({ snapTradeKeyNamespace: () => m.namespace, activeSnapTradeClientId: () => "registration-key",
+vi.mock("@/lib/snaptrade", () => ({ isTradingKeyApproved: (id: string) => (process.env.SNAPTRADE_TRADING_APPROVED_CLIENT_IDS ?? "").split(",").includes(id), snapTradeKeyNamespace: () => m.namespace, activeSnapTradeClientId: () => "registration-key",
     getSnapTrade: ({ clientId }: any) => { m.owners.push(clientId); return { referenceData: { getPartnerInfo: m.partner } } } }))
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc: m.rpc,
     from: () => ({ select: () => ({ limit: m.select }) }) }) }))
@@ -27,7 +27,7 @@ beforeEach(() => {
         { slug: "UNREVIEWED", enabled: true, maintenance_mode: false, allows_trading: true },
         { slug: "PAUSED", enabled: true, maintenance_mode: true, allows_trading: true },
     ] } })
-    m.rpc.mockResolvedValue({ data: 1, error: null }); m.select.mockResolvedValue({ error: null })
+    m.rpc.mockResolvedValue({ data: 3, error: null }); m.select.mockResolvedValue({ error: null })
 })
 afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 it("authenticates before provider/storage calls and never caches a user's capability", async () => {
@@ -51,7 +51,7 @@ it("uses registration key only when this owner has no stored session", async () 
 })
 it("diagnostic artifact cannot claim absent execution/upgrade routes ready even with flags on", async () => {
     vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "true")
-    const body = await (await GET(req())).json()
+    const body = await integrationReadiness("original-owned-key")
     expect(body.enabled).toBe(false); expect(body.tradeConnectionsEnabled).toBe(false)
     expect(body.reasonCode).toBe("execution_routes_unavailable"); expect(m.rpc).not.toHaveBeenCalled()
 })
@@ -93,4 +93,14 @@ it("labels next namespace safely and never emits success metadata for unauthoriz
     const response = await GET(req())
     expect(await response.json()).toMatchObject({ reasonCode: "trading_readiness_unavailable" })
     expect(m.log).not.toHaveBeenCalled()
+})
+
+it("execution artifact reports included routes ready only with approved key, broker and working version3 storage", async () => {
+    vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "true")
+    expect(await (await GET(req())).json()).toMatchObject({ enabled: true, tradeConnectionsEnabled: true })
+    m.rpc.mockResolvedValue({ data: 1, error: null })
+    expect(await (await GET(req())).json()).toMatchObject({ enabled: false, reasonCode: "order_storage_unavailable" })
+    m.rpc.mockResolvedValue({ data: 3, error: null })
+    vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "false")
+    expect(await (await GET(req())).json()).toMatchObject({ enabled: false, tradeConnectionsEnabled: false })
 })

@@ -216,3 +216,45 @@ access, and changes no brokerage ownership, consent or trading execution gate.
 `investingDeveloperAccess` and `unlimitedBrokerageConnections`, with private/no-store
 and Vary: Authorization. Native may reflect this server grant; local preview choices
 cannot change it. Rebuild/redeploy production to apply or revoke operator config.
+
+## Optional brokerage execution release
+
+Execution routes remain disabled unless `SNAPTRADE_TRADING_RELEASE_APPROVED=true`
+and the stored session's original client is explicitly approved. Approval can use
+`SNAPTRADE_TRADING_APPROVED_CLIENT_IDS` for known exact IDs or
+`SNAPTRADE_TRADING_APPROVED_KEY_NAMESPACES=original` / `next` for existing server
+credential slots. Namespaces do not select registration keys, migrate users or
+change `SNAPTRADE_USE_PRODUCTION_KEY`. Unknown namespaces and missing/conflicting
+credentials deny access. Clear/review namespace approval before replacing a key
+in either slot; approval otherwise follows the configured slot.
+
+Also require narrow reviewed `SNAPTRADE_TRADING_BROKER_CAPABILITIES` and working
+version-3 order review storage. Prepare/apply the exact reviewed additive SQL only
+after the metadata preflight; use its read-only postflight to verify RLS, ACLs and
+version without consuming a review. No production fixture orders or reviews.
+New trading consent flows additionally require
+`SNAPTRADE_TRADE_CONNECTIONS_ENABLED=true`. Current artifact explicitly declares
+its included execution/upgrade routes to status; default-off flags still prevent
+both direct submission and native readiness. Never enable flags on an artifact
+whose route manifest does not match its actual routes.
+
+Initial reviewed scope can be whole-share USD common stocks/ETFs, Market/Day and
+Limit/Day or GTC with brokerage preview. Actual original-key partner metadata,
+per-link consent, account eligibility and listing support must agree. Alpaca Paper
+requires details.is_paper=true; live ETRADE/ALPACA/SCHWAB require false. Missing
+paper/live marker fails closed. BUY and SELL require provider-confirmed cash account;
+SELL additionally requires confirmed long holdings. This does not certify settled funds or
+fixed market costs. Developer investing access does not bypass these checks.
+
+Before any release designate the restricted operator/evidence location and follow
+[order reconciliation](snaptrade-order-reconciliation.md). Unknown/submitting
+reviews are never unlocked by elapsed time, missing history or resubmission.
+Rollback disables execution and retains durable rows for authoritative broker
+reconciliation. Do not drop the review table or delete evidence to clear a lock.
+
+Version3 captures durable owner generation before any provider review reads,
+compares it at atomic creation/consume, increments on claim and terminal resolution,
+and invalidates older reviews. Only exact known acknowledged orders can use bounded
+real-time terminal detail reconciliation; submitting/unknown remains manual. The
+next order always requires a new review and fresh provider reads. No automatic
+resubmission or timed unlock. See the reconciliation runbook for exact guarantees.

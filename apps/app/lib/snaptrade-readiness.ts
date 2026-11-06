@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import { getSnapTrade } from "./snaptrade"
+import { getSnapTrade, isTradingKeyApproved } from "./snaptrade"
 
 function reviewedSlugs(): string[] {
     try {
@@ -24,9 +24,10 @@ async function storageReady(): Promise<boolean> {
     // A read-only version RPC is supplied by the separately reviewed trading
     // migration. Missing migration/permissions fail closed; no consume probe.
     const { data, error } = await db.rpc("snaptrade_order_review_storage_version")
-    if (error || data !== 1) return false
-    const { error: tableError } = await db.from("snaptrade_order_reviews").select("id,impact_facts").limit(0)
-    return !tableError
+    if (error || data !== 3) return false
+    const { error: tableError } = await db.from("snaptrade_order_reviews").select("id,impact_facts,generation").limit(0)
+    const { error: ownerError } = await db.from("snaptrade_order_review_owners").select("owner_id,generation").limit(0)
+    return !tableError && !ownerError
 }
 
 /** Safe live metadata. This module has no execution routes or order SDK calls. */
@@ -41,7 +42,7 @@ export async function integrationReadiness(clientId: string, artifact = { execut
         tradingBrokerages: data.can_access_trades ? [...new Set(available.filter(b => b.allows_trading === true).map(b => b.slug!))].sort() : [] }
     const reviewed = reviewedSlugs()
     const supportedBrokerages = provider.tradingBrokerages.filter(slug => reviewed.includes(slug))
-    const keyApproved = (process.env.SNAPTRADE_TRADING_APPROVED_CLIENT_IDS ?? "").split(",").includes(clientId)
+    const keyApproved = isTradingKeyApproved(clientId)
     const released = process.env.SNAPTRADE_TRADING_RELEASE_APPROVED === "true" && keyApproved
     // Merely deploying this diagnostic endpoint cannot enable absent routes.
     // The caller's artifact manifest changes only with a reviewed route release.

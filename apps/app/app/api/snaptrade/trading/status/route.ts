@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         const session = await loadSession(owner)
         const clientId = session?.clientId ?? activeSnapTradeClientId()
         const keyNamespace = snapTradeKeyNamespace(clientId)
-        const status = await integrationReadiness(clientId)
+        const status = await integrationReadiness(clientId, { execution: true, tradeConnections: true })
         // Only computed, validated feature metadata. Never log raw SDK data,
         // request headers/body, owner/client/account IDs, URLs, or error objects.
         console.info("[snaptrade_capability_status]", { requestId, keyNamespace,
