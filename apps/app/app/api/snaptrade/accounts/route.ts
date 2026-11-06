@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
-import { brokerageLimitError } from "@/lib/snaptrade-access"
+import { brokerageReadScope, wantsCountedScope } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { accountPositions, hasUnitPrice, positionNumber } from "@/lib/snaptrade-positions"
 
 export interface BrokerageAccount {
     id: string
@@ -38,6 +39,9 @@ export interface BrokeragePosition {
      *  basis or a gain at all. This field is reported far more widely, and it
      *  is the basis directly rather than a figure the basis is inferred from. */
     averagePurchasePrice: number | null
+    currency: string | null
+    cashEquivalent: boolean
+    valuationSupported: boolean
 }
 
 function round2(n: number) {
@@ -62,25 +66,31 @@ export async function GET(req: NextRequest) {
             clearLegacySnapTradeCookie(res)
             return res
         }
-        const denied = await brokerageLimitError(appUserId, session)
-        if (denied) return denied
+        const scope = await brokerageReadScope(appUserId, session, undefined, wantsCountedScope(req.url))
+        if ("denied" in scope) return scope.denied
+        // Set only when the plan covers fewer connections than are linked.
+        const limitedToConnection = scope.countedConnectionId
         const st = getSnapTrade(session)
 
-        // getAllUserHoldings is deprecated and returns HTTP 410 Gone ("this
-        // endpoint is no longer available for your account") for every account
-        // created after 2026-04-25. Replaced by listUserAccounts plus a
-        // per-account getUserHoldings fetch (the account-specific endpoint).
+        // Both aggregate and per-account holdings endpoints are retired for
+        // newer clients (production returned 410). Use accounts, V2 positions
+        // and balances independently; never fall back to the retired endpoint.
         const { data: accountData } = await st.accountInformation.listUserAccounts({
             userId: session.userId,
             userSecret: session.userSecret,
         })
-        const accountList = Array.isArray(accountData) ? accountData : []
+        // Over the limit, only the counted connection's accounts are read at
+        // all, so no balance or holding from an extra connection is fetched or
+        // returned. An account with no connection cannot be attributed, and
+        // is left out rather than guessed into the figures.
+        const accountList = (Array.isArray(accountData) ? accountData : []).filter((a: any) =>
+            !limitedToConnection || a?.brokerage_authorization === limitedToConnection)
 
         // Keep failure distinct from a genuinely empty holdings list. A
         // partial portfolio would otherwise produce false totals and goals.
         //
-        // The balance is asked for in its OWN right rather than read off the
-        // holdings payload. getUserHoldings serves the daily holdings cache,
+        // The balance is asked for in its OWN right rather than read off a
+        // combined holdings payload. Positions can have a separate sync state,
         // so an account whose holdings have not synced returns no balances
         // either, and cash fails whenever positions do. That is what left a
         // Schwab account reporting a real total, no cash figure, and a client
@@ -96,16 +106,14 @@ export async function GET(req: NextRequest) {
         const holdingsByAccount = await Promise.all(
             accountList.map(async (a: any) => {
                 const positions = await st.accountInformation
-                    .getUserHoldings({
+                    .getAllAccountPositions({
                         accountId: a.id,
                         userId: session.userId,
                         userSecret: session.userSecret,
                     })
                     .then(({ data }) => {
-                        const positions = data?.positions
-                        const valid = Array.isArray(positions) && positions.every((position: any) =>
-                            position != null && typeof position.units === "number" && Number.isFinite(position.units))
-                        return { positions: valid ? positions : [], failed: !valid }
+                        if (a.sync_status?.holdings?.holdings_unavailable === true) throw new Error("Holdings unavailable")
+                        return { positions: accountPositions(data), failed: false }
                     })
                     .catch(() => ({ positions: [], failed: true }))
                 const balances = await st.accountInformation
@@ -127,6 +135,7 @@ export async function GET(req: NextRequest) {
                 return account?.name ?? account?.institution_name ?? "an account"
             })
             return NextResponse.json({
+                code: "holdings_unavailable",
                 error: `Holdings could not be refreshed for ${names.join(", ")}. Your complete portfolio is unavailable. Please try again.`,
             }, { status: 502 })
         }
@@ -159,25 +168,45 @@ export async function GET(req: NextRequest) {
 
         const positions: BrokeragePosition[] = holdingsByAccount.flatMap(({ accountId, positions: accountPositions }) =>
             (accountPositions ?? []).map((p: any) => {
-                const units = p.units
-                const price = typeof p.price === "number" && Number.isFinite(p.price) ? p.price : null
+                const units = positionNumber(p.units)!
+                const price = positionNumber(p.price)
+                const cashEquivalent = p.cash_equivalent === true || p.instrument.kind === "cash"
+                const unitPriced = !cashEquivalent && hasUnitPrice(p.instrument.kind)
+                const currency = typeof p.currency === "string" && /^[A-Z]{3}$/.test(p.currency) ? p.currency : null
+                const valuationSupported = unitPriced && currency != null
+                const basis = valuationSupported ? positionNumber(p.cost_basis) : null
                 return {
                     accountId,
                     symbol:
-                        p.symbol?.symbol?.symbol ??
-                        p.symbol?.symbol?.raw_symbol ??
-                        p.symbol?.description ??
+                        p.instrument.symbol ??
+                        p.instrument.raw_symbol ??
+                        p.instrument.description ??
                         "—",
-                    description: p.symbol?.symbol?.description ?? p.symbol?.description ?? "",
+                    description: p.instrument.description ?? "",
                     units,
                     price: price != null ? round2(price) : null,
-                    marketValue: price != null ? round2(units * price) : null,
-                    openPnl: typeof p.open_pnl === "number" && Number.isFinite(p.open_pnl) ? round2(p.open_pnl) : null,
-                    averagePurchasePrice:
-                        typeof p.average_purchase_price === "number" && Number.isFinite(p.average_purchase_price) ? round2(p.average_purchase_price) : null,
+                    marketValue: valuationSupported && price != null ? round2(units * price) : null,
+                    // V2 does not supply open P&L; avoid inventing it from
+                    // prices/basis that can have different vintages.
+                    openPnl: null,
+                    averagePurchasePrice: basis != null ? round2(basis) : null,
+                    currency,
+                    cashEquivalent,
+                    valuationSupported,
                 }
             })
         )
+
+        // Shipped clients treat every row as a same-currency equity and can
+        // replace a null value with a market quote. Require explicit adoption
+        // of the V2 currency/cash/valuation contract before returning rows that
+        // those clients would mislabel, double-count or value with a multiplier.
+        const acceptsV2 = new URL(req.url).searchParams.get("positions") === "v2"
+        if (!acceptsV2 && positions.some(p => p.cashEquivalent || !p.valuationSupported
+            || p.currency !== accounts.find(a => a.id === p.accountId)?.currency)) {
+            return NextResponse.json({ code: "brokerage_client_update_required",
+                error: "Update FinnaCalc to read this account's currencies and holding types accurately. Your brokerage connection is preserved." }, { status: 409 })
+        }
 
         const currencies = new Set(accounts.map((a) => a.currency))
         const currency = currencies.size === 1 && accounts[0]?.currency ? accounts[0].currency : null
@@ -192,6 +221,7 @@ export async function GET(req: NextRequest) {
             positions,
             totalValue,
             currency,
+            ...(limitedToConnection ? { limitedToConnection } : {}),
         })
         clearLegacySnapTradeCookie(res)
         return res

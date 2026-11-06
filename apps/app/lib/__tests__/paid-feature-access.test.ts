@@ -33,6 +33,15 @@ it("expired Stripe access cannot grant paid APIs", async () => {
     expect((await paidFeatureError("user", "budgeting"))?.status).toBe(403)
 })
 it("unavailable entitlement verification fails closed", async () => {
-    mocks.apple.mockRejectedValue(new Error("offline"))
-    expect((await paidFeatureError("user", "budgeting"))?.status).toBe(503)
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    mocks.apple.mockRejectedValue(Object.assign(new Error("SECRET-DO-NOT-LOG"), { storeCode: "PGRST205" }))
+    const response = await paidFeatureError("user", "budgeting")
+    expect(response?.status).toBe(503)
+    const body = await response!.json()
+    expect(body.code).toBe("entitlement_unavailable")
+    expect(body.requestId).toMatch(/^[a-f0-9-]{36}$/)
+    expect(warn).toHaveBeenCalledWith("[entitlement_unavailable]", { requestId: body.requestId,
+        failures: [{ stage: "apple_entitlements", code: "PGRST205" }] })
+    expect(JSON.stringify([warn.mock.calls, body])).not.toContain("SECRET-DO-NOT-LOG")
+    warn.mockRestore()
 })
