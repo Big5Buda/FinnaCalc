@@ -252,3 +252,19 @@ describe("SnapTrade webhook namespaces", () => {
         expect((await webhook("fixture-legacy-key")).status).toBe(503)
     })
 })
+
+it("safe namespace labels follow actual stored credential ownership without key cutover", async () => {
+    const { snapTradeKeyNamespace, activeSnapTradeClientId } = await import("../snaptrade")
+    expect(snapTradeKeyNamespace(legacy)).toBe("original")
+    expect(snapTradeKeyNamespace(active)).toBe("next")
+    expect(activeSnapTradeClientId()).toBe(active)
+    expect(() => snapTradeKeyNamespace("unknown-client")).toThrow()
+    expect(calls).toHaveLength(0)
+})
+it("safe namespace classification rejects conflicting credential slots", async () => {
+    vi.stubEnv("SNAPTRADE_NEXT_CLIENT_ID", legacy)
+    vi.stubEnv("SNAPTRADE_NEXT_CONSUMER_KEY", "conflicting-fixture")
+    const { snapTradeKeyNamespace } = await import("../snaptrade")
+    expect(() => snapTradeKeyNamespace(legacy)).toThrow()
+    expect(calls).toHaveLength(0)
+})

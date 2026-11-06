@@ -200,3 +200,19 @@ Budgets, goals and watchlists were saved in `localStorage` on
 empty. The marketing site detects anything stranded there and offers to hand it
 over to `app.finnacalc.com/migrate`; the old copy is cleared only after the new
 one is written. See `packages/shared/src/storage.ts`.
+
+## Internal developer investing access
+
+`FINNACALC_DEVELOPER_INVESTING_USER_IDS` is an optional server-only comma-separated
+list of exact verified Supabase user UUIDs. It defaults to no grants. Configure
+only the owner-designated account after resolving its canonical UUID through
+Supabase admin records; never use a client DEBUG flag, email/domain pattern, or
+client-submitted user ID as authority. Do not expose this variable as NEXT_PUBLIC.
+
+This dedicated allowance permits unlimited brokerage connections through the
+existing investing plan gate. It creates no paid billing tier, grants no budgeting
+access, and changes no brokerage ownership, consent or trading execution gate.
+`GET /api/access/developer` verifies the current bearer identity and returns only
+`investingDeveloperAccess` and `unlimitedBrokerageConnections`, with private/no-store
+and Vary: Authorization. Native may reflect this server grant; local preview choices
+cannot change it. Rebuild/redeploy production to apply or revoke operator config.

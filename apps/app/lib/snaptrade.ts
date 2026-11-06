@@ -53,6 +53,13 @@ export function snapTradeCredentials(ownerClientId: string): Credentials {
     throw new Error("This brokerage connection's key is unavailable. Your connection has been preserved; please contact support.")
 }
 
+/** Safe diagnostic label for the credential selected by stored ownership.
+ * Returns no client ID/secret and cannot select or change registration keys. */
+export function snapTradeKeyNamespace(ownerClientId: string): "original" | "next" {
+    snapTradeCredentials(ownerClientId) // Unknown/missing/conflicting credentials fail closed.
+    return ownerClientId === originalClientId ? "original" : "next"
+}
+
 export function activeSnapTradeClientId(): string {
     if (!clientId || !consumerKey) throw new Error("SnapTrade is not configured.")
     snapTradeCredentials(clientId)
