@@ -2,6 +2,7 @@ import { entitlementIsActive, loadEntitlement } from "./billing-entitlements"
 import { loadActiveAppleGrants } from "./apple-entitlement-store"
 import type { AppleProductKind } from "./apple-subscriptions"
 import { randomUUID } from "node:crypto"
+import { developerInvestingAccess } from "./developer-access"
 
 export type PaidFeature = "budgeting" | "investing"
 
@@ -18,6 +19,9 @@ export function tierAllows(tier: AppleProductKind, feature: PaidFeature): boolea
 /** Server-authoritative access; no request body can supply its own plan. */
 export async function paidFeatureError(userId: string | null, feature: PaidFeature): Promise<Response | null> {
     if (!userId) return Response.json({ error: "Sign in to use your subscription." }, { status: 401 })
+    // Dedicated server-authorized investing access does not fabricate a paid
+    // tier and never trusts a client DEBUG/developer selection.
+    if (feature === "investing" && developerInvestingAccess(userId)) return null
     const results = await Promise.allSettled([loadActiveAppleGrants(userId), loadEntitlement(userId)])
     const apple = results[0]
     if (apple.status === "fulfilled" && apple.value.some((grant) => tierAllows(grant.tier, feature))) return null
