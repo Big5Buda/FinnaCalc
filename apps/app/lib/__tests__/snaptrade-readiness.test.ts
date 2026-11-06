@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 const m = vi.hoisted(() => ({ owner: "owner" as string | null, session: { clientId: "original-owned-key" } as any,
-    partner: vi.fn(), rpc: vi.fn(), select: vi.fn(), owners: [] as string[], namespace: "original" as "original" | "next", log: vi.fn() }))
+    reference: vi.fn(), partner: vi.fn(), rpc: vi.fn(), select: vi.fn(), owners: [] as string[], namespace: "original" as "original" | "next", log: vi.fn() }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => m.owner }))
 vi.mock("@/lib/snaptrade-session", () => ({ loadSession: async () => m.session }))
 vi.mock("@/lib/snaptrade", () => ({ isTradingKeyApproved: (id: string) => (process.env.SNAPTRADE_TRADING_APPROVED_CLIENT_IDS ?? "").split(",").includes(id), snapTradeKeyNamespace: () => m.namespace, activeSnapTradeClientId: () => "registration-key",
     getSnapTrade: ({ clientId }: any) => { m.owners.push(clientId); return { referenceData: { getPartnerInfo: m.partner } } } }))
+vi.mock("@/lib/snaptrade-symbol-reference", () => ({ publicSymbolReference: m.reference }))
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc: m.rpc,
     from: () => ({ select: () => ({ limit: m.select }) }) }) }))
 import { GET } from "../../app/api/snaptrade/trading/status/route"
@@ -103,4 +104,17 @@ it("execution artifact reports included routes ready only with approved key, bro
     m.rpc.mockResolvedValue({ data: 3, error: null })
     vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "false")
     expect(await (await GET(req())).json()).toMatchObject({ enabled: false, tradeConnectionsEnabled: false })
+})
+
+it("reads fixed public reference metadata only for an authenticated stored owner and isolates failures", async () => {
+    m.reference.mockResolvedValue([{ symbol: "AAPL", currency: "USD", type: "cs", exchange: "NASDAQ", mic: "XNAS" }])
+    const res = await GET(req())
+    expect(m.reference).toHaveBeenCalledExactlyOnceWith("original-owned-key")
+    expect(m.log.mock.calls[1]).toEqual(["[snaptrade_symbol_reference]", { requestId: res.headers.get("X-FinnaCalc-Request-Id"),
+        keyNamespace: "original", symbols: [{ symbol: "AAPL", currency: "USD", type: "cs", exchange: "NASDAQ", mic: "XNAS" }] }])
+    expect(await res.json()).not.toHaveProperty("symbols")
+    m.reference.mockClear(); m.owner = null; await GET(req()); expect(m.reference).not.toHaveBeenCalled()
+    m.owner = "owner"; m.session = null; await GET(req()); expect(m.reference).not.toHaveBeenCalled()
+    m.session = { clientId: "original-owned-key" }; m.reference.mockRejectedValue(new Error("SECRET"))
+    expect(await (await GET(req())).json()).toMatchObject({ reasonCode: "trading_not_enabled" })
 })
