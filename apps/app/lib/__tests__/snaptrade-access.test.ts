@@ -10,7 +10,7 @@ vi.mock("@/lib/snaptrade", () => ({
     snapTradeErrorMessage: (_error: unknown, fallback: string) => fallback,
     getSnapTrade: () => ({ connections: { listBrokerageAuthorizations: mocks.list, refreshBrokerageAuthorization: mocks.refresh },
         authentication: { loginSnapTradeUser: mocks.login, deleteSnapTradeUser: mocks.removeVendor },
-        accountInformation: { listUserAccounts: mocks.accounts, getUserHoldings: mocks.holdings, getUserAccountBalance: mocks.balance } }),
+        accountInformation: { listUserAccounts: mocks.accounts, getAllAccountPositions: mocks.holdings, getUserAccountBalance: mocks.balance } }),
 }))
 vi.mock("@/lib/paid-feature-access", () => ({ paidFeatureError: mocks.paid }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "user" }))
@@ -98,7 +98,7 @@ it("over the free limit, reads only the first connection made and never the extr
         { id: "acct-second", brokerage_authorization: "second", balance: { total: { amount: 900, currency: "USD" } } },
         { id: "acct-unattributed", balance: { total: { amount: 50, currency: "USD" } } },
     ] })
-    mocks.holdings.mockResolvedValue({ data: { positions: [] } })
+    mocks.holdings.mockResolvedValue({ data: { results: [] } })
     mocks.balance.mockResolvedValue({ data: [] })
     const response = await accounts(new NextRequest(counted))
     expect(response.status).toBe(200)
@@ -116,7 +116,7 @@ it("a paid plan reads every connection and reports no limit", async () => {
     mocks.accounts.mockResolvedValue({ data: [
         { id: "a1", brokerage_authorization: "first" }, { id: "a2", brokerage_authorization: "second" },
     ] })
-    mocks.holdings.mockResolvedValue({ data: { positions: [] } })
+    mocks.holdings.mockResolvedValue({ data: { results: [] } })
     mocks.balance.mockResolvedValue({ data: [] })
     const body = await (await accounts(new NextRequest("https://example.test/api/snaptrade/accounts"))).json()
     expect(body.accounts).toHaveLength(2)
