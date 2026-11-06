@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 const m = vi.hoisted(() => ({ owner: "owner" as string | null, session: { clientId: "original-owned-key" } as any,
-    partner: vi.fn(), rpc: vi.fn(), select: vi.fn(), owners: [] as string[] }))
+    partner: vi.fn(), rpc: vi.fn(), select: vi.fn(), owners: [] as string[], namespace: "original" as "original" | "next", log: vi.fn() }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => m.owner }))
 vi.mock("@/lib/snaptrade-session", () => ({ loadSession: async () => m.session }))
-vi.mock("@/lib/snaptrade", () => ({ activeSnapTradeClientId: () => "registration-key",
+vi.mock("@/lib/snaptrade", () => ({ snapTradeKeyNamespace: () => m.namespace, activeSnapTradeClientId: () => "registration-key",
     getSnapTrade: ({ clientId }: any) => { m.owners.push(clientId); return { referenceData: { getPartnerInfo: m.partner } } } }))
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc: m.rpc,
     from: () => ({ select: () => ({ limit: m.select }) }) }) }))
@@ -13,7 +13,8 @@ import { integrationReadiness } from "../snaptrade-readiness"
 const req = () => new NextRequest("https://test.invalid/api/snaptrade/trading/status")
 const caps = { ETRADE: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }
 beforeEach(() => {
-    vi.resetAllMocks(); m.owner = "owner"; m.session = { clientId: "original-owned-key" }; m.owners = []
+    vi.resetAllMocks(); m.owner = "owner"; m.session = { clientId: "original-owned-key" }; m.owners = []; m.namespace = "original"
+    vi.spyOn(console, "info").mockImplementation(m.log)
     vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "false")
     vi.stubEnv("SNAPTRADE_TRADING_APPROVED_CLIENT_IDS", "original-owned-key")
     vi.stubEnv("SNAPTRADE_TRADE_CONNECTIONS_ENABLED", "true")
@@ -28,7 +29,7 @@ beforeEach(() => {
     ] } })
     m.rpc.mockResolvedValue({ data: 1, error: null }); m.select.mockResolvedValue({ error: null })
 })
-afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 it("authenticates before provider/storage calls and never caches a user's capability", async () => {
     m.owner = null
     const res = await GET(req()); expect(res.status).toBe(401)
@@ -68,4 +69,28 @@ it("does not infer trading from catalog presence, malformed config, or unavailab
     expect(await (await GET(req())).json()).toMatchObject({ enabled: false, supportedBrokerages: [], reasonCode: "provider_trading_not_enabled" })
     m.partner.mockRejectedValue(new Error("SECRET-DO-NOT-EXPOSE"))
     expect(await (await GET(req())).json()).toEqual({ enabled: false, tradeConnectionsEnabled: false, supportedBrokerages: [], reasonCode: "trading_readiness_unavailable" })
+})
+
+it("logs only safe original-owner capabilities with generated correlation even while release is off", async () => {
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, clientId: "SECRET-CLIENT-ID", userSecret: "SECRET-USER-SECRET", consumerKey: "SECRET-KEY",
+        allowed_brokerages: [{ slug: "ETRADE", enabled: true, maintenance_mode: false, allows_trading: true, accountId: "SECRET-ACCOUNT-ID", redirectURI: "https://secret.invalid/portal" },
+            { slug: "INVALID/SECRET", enabled: true, maintenance_mode: false, allows_trading: true }] } })
+    const res = await GET(new NextRequest("https://test.invalid/api/snaptrade/trading/status", { headers: { "X-Request-Id": "SECRET-CALLER-HEADER" } }))
+    const requestId = res.headers.get("X-FinnaCalc-Request-Id")
+    expect(requestId).toMatch(/^[a-f0-9-]{36}$/)
+    expect(m.log).toHaveBeenCalledExactlyOnceWith("[snaptrade_capability_status]", { requestId, keyNamespace: "original", tradingEnabled: true, connectionBrokerages: ["ETRADE"], tradingBrokerages: ["ETRADE"] })
+    expect(JSON.stringify(m.log.mock.calls)).not.toMatch(/SECRET|original-owned-key|owner|registration-key|clientId|accountId|userSecret|consumerKey|redirectURI/)
+    expect(await res.json()).toMatchObject({ enabled: false, tradeConnectionsEnabled: false })
+    expect(m.rpc).not.toHaveBeenCalled()
+})
+it("labels next namespace safely and never emits success metadata for unauthorized or failed reads", async () => {
+    m.namespace = "next"
+    await GET(req())
+    expect(m.log.mock.calls[0][1].keyNamespace).toBe("next")
+    m.log.mockClear(); m.owner = null
+    expect((await GET(req())).status).toBe(401); expect(m.log).not.toHaveBeenCalled()
+    m.owner = "owner"; m.partner.mockRejectedValue(new Error("SECRET-SDK-ERROR"))
+    const response = await GET(req())
+    expect(await response.json()).toMatchObject({ reasonCode: "trading_readiness_unavailable" })
+    expect(m.log).not.toHaveBeenCalled()
 })
