@@ -23,9 +23,12 @@ async function storageReady(): Promise<boolean> {
     const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
     // A read-only version RPC is supplied by the separately reviewed trading
     // migration. Missing migration/permissions fail closed; no consume probe.
+    // Version 3 serves share orders; 4 adds dollar reviews (columns probed).
+    // Dollar availability itself is decided per quote, never by this flag.
     const { data, error } = await db.rpc("snaptrade_order_review_storage_version")
-    if (error || data !== 3) return false
-    const { error: tableError } = await db.from("snaptrade_order_reviews").select("id,impact_facts,generation").limit(0)
+    if (error || (data !== 3 && data !== 4)) return false
+    const { error: tableError } = await db.from("snaptrade_order_reviews")
+        .select(data === 4 ? "id,impact_facts,generation,amount_mode,notional_value,estimate_units,amount_verification" : "id,impact_facts,generation").limit(0)
     const { error: ownerError } = await db.from("snaptrade_order_review_owners").select("owner_id,generation").limit(0)
     return !tableError && !ownerError
 }

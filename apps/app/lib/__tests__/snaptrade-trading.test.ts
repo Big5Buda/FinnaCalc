@@ -226,7 +226,10 @@ it("quote returns verified listing ISO rather than account base currency", async
     m.list.mockResolvedValue({ data: [{ id: "a", brokerage_authorization: "c", raw_type: "fixture-cash", status: "open", account_category: "INVESTMENT", balance: { total: { currency: "CAD", amount: 100 } } }] })
     const response = await quote(req({ accountId: "a", symbol: "AAPL" }))
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ symbol: "AAPL", bid: null, ask: 10, last: null, currency: "USD" })
+    // Additive V4 field: whole-share rule only (no dollars for this broker).
+    expect(await response.json()).toEqual({ symbol: "AAPL", bid: null, ask: 10, last: null, currency: "USD",
+        orderCapabilities: { version: 1, currency: "USD", rules: [{ amountMode: "shares", fractional: false, actions: ["BUY", "SELL"],
+            orderTypes: { Market: ["Day"], Limit: ["Day", "GTC"] }, previewRequired: false }] } })
     expect(m.force).not.toHaveBeenCalled(); expect(m.place).not.toHaveBeenCalled()
 })
 

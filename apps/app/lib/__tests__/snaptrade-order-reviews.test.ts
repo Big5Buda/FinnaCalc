@@ -43,3 +43,26 @@ it("requires routine resolution RPC to advance exactly one durable generation", 
     m.rpc.mockResolvedValue({ data: "9007199254740993", error: null })
     expect(await resolveAcknowledgedReview(review, "9007199254740993", {})).toBe(false)
 })
+
+it("storage version 3 serves shares only, 4 requires the V4 columns, anything else fails closed", async () => {
+    const { reviewStorageVersion, V4_REVIEW_COLUMNS } = await import("../snaptrade-order-reviews")
+    m.rpc.mockResolvedValue({ data: 4, error: null }); expect(await reviewStorageVersion()).toBe(4)
+    expect(m.select).toHaveBeenCalledWith(V4_REVIEW_COLUMNS)
+    m.limit.mockResolvedValueOnce({ error: { message: "column amount_mode does not exist" } })
+    expect(await reviewStorageVersion()).toBeNull()
+    m.rpc.mockResolvedValue({ data: 3, error: null }); expect(await reviewStorageVersion()).toBe(3); expect(await reviewStorageReady()).toBe(true)
+    for (const data of [5, "4", null]) { m.rpc.mockResolvedValue({ data, error: null }); expect(await reviewStorageVersion()).toBeNull() }
+    m.rpc.mockResolvedValue({ data: null, error: { message: "missing" } }); expect(await reviewStorageReady()).toBe(false)
+})
+it("dollar reviews add the V4 parameters; share reviews keep the exact V3 parameter set", async () => {
+    const dollarTerms = { accountId: "account-fixture", symbol: "AAPL", action: "BUY" as const, amountMode: "dollars" as const, units: null,
+        notionalValue: "25.00", orderType: "Market" as const, timeInForce: "Day" as const, price: null, stop: null }
+    m.rpc.mockResolvedValue({ data: { state: "reviewing" }, error: null })
+    const review = await saveReview({ ...row, trade_id: "checked", terms: dollarTerms }, { estimate_units: null, amount_verification: "request_bound" })
+    expect(m.rpc).toHaveBeenCalledExactlyOnceWith("create_snaptrade_order_review", expect.objectContaining({ p_id: review.id, p_terms: dollarTerms,
+        p_trade: "checked", p_amount_mode: "dollars", p_notional: "25.00", p_estimate_units: null, p_amount_verification: "request_bound" }))
+    // Mismatched mode/fields never reach storage.
+    await expect(saveReview({ ...row, terms: dollarTerms })).rejects.toThrow("Order review storage unavailable")
+    await expect(saveReview(row, { estimate_units: null, amount_verification: "request_bound" })).rejects.toThrow("Order review storage unavailable")
+    expect(m.rpc).toHaveBeenCalledOnce()
+})

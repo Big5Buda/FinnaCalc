@@ -5,9 +5,32 @@ import { accountPositions, positionNumber } from "./snaptrade-positions"
 export class TradingError extends Error {
     constructor(public code: string, message: string, public status = 400) { super(message) }
 }
-export type Terms = { accountId: string; symbol: string; action: "BUY" | "SELL"; units: number;
+/** V4 canonical terms. Shares: units set, notionalValue null. Dollars:
+ * notionalValue is a canonical 2-place USD decimal string, units null.
+ * Legacy V3 share bodies omit amountMode/notionalValue and canonicalize to shares. */
+export type AmountMode = "shares" | "dollars"
+export type Terms = { accountId: string; symbol: string; action: "BUY" | "SELL";
+    amountMode: AmountMode; units: number | null; notionalValue: string | null;
     orderType: "Market" | "Limit"; timeInForce: "Day" | "GTC"; price: number | null; stop: null }
-export type Capability = { orderTypes: string[]; timeInForce: string[]; fractional: boolean; preview: boolean; exchanges: string[] }
+export type NotionalCapability = { orderTypes: ["Market"]; timeInForce: ["Day"]; minAmount: string; maxAmount: string }
+export type Capability = { orderTypes: string[]; timeInForce: string[]; fractional: boolean; preview: boolean; exchanges: string[];
+    notional?: NotionalCapability }
+/** Code-level allowlist: env configuration alone can never enable dollar
+ * orders elsewhere. ETRADE is whole-share only per SnapTrade's brokerage table. */
+export const NOTIONAL_BROKERAGES: readonly string[] = ["ALPACA-PAPER"]
+/** Application bounds (root-approved): USD 1.00 – 10,000.00. */
+export const NOTIONAL_MIN_CENTS = 100, NOTIONAL_MAX_CENTS = 1_000_000
+const NOTIONAL_PATTERN = /^(0|[1-9][0-9]{0,6})(?:\.([0-9]{1,2}))?$/
+/** Integer cents for a canonical/input decimal string, or null. Never parses floats. */
+export function notionalCents(value: unknown): number | null {
+    if (typeof value !== "string") return null
+    const match = NOTIONAL_PATTERN.exec(value)
+    if (!match) return null
+    return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"))
+}
+export function centsString(cents: number): string {
+    return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`
+}
 export function tradingGate(clientId?: string): void {
     if (process.env.SNAPTRADE_TRADING_RELEASE_APPROVED !== "true" || !clientId || !isTradingKeyApproved(clientId))
         throw new TradingError("trading_unavailable", "Trading is not enabled for this integration.", 503)
@@ -17,18 +40,30 @@ export function terms(body: any): Terms {
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail()
     const accountId = typeof body.accountId === "string" ? body.accountId.trim() : ""
     const symbol = typeof body.symbol === "string" ? body.symbol.trim().toUpperCase() : ""
-    if (!accountId || !/^[A-Z0-9][A-Z0-9.\-]{0,19}$/.test(symbol)
+    const amountMode: AmountMode | null = body.amountMode === undefined || body.amountMode === "shares" ? "shares"
+        : body.amountMode === "dollars" ? "dollars" : null
+    if (!amountMode || !accountId || !/^[A-Z0-9][A-Z0-9.\-]{0,19}$/.test(symbol)
         || !["BUY", "SELL"].includes(body.action) || !["Market", "Limit"].includes(body.orderType)
-        || !["Day", "GTC"].includes(body.timeInForce) || !Number.isFinite(body.units) || body.units <= 0
-        || body.units > 1e9 || Math.abs(body.units * 1e6 - Math.round(body.units * 1e6)) > 0.0001
-        || body.notionalValue != null || body.stop != null) return fail()
+        || !["Day", "GTC"].includes(body.timeInForce) || body.stop != null) return fail()
     if (body.orderType === "Market" && (body.price != null || body.timeInForce !== "Day")) return fail()
     if (body.orderType === "Limit" && (!Number.isFinite(body.price) || body.price <= 0 || body.price > 1e9
         || Math.abs(body.price * 1e4 - Math.round(body.price * 1e4)) > 0.0001)) return fail()
-    return { accountId, symbol, action: body.action, units: body.units, orderType: body.orderType,
+    const common = { accountId, symbol, action: body.action as Terms["action"], amountMode }
+    if (amountMode === "dollars") {
+        // Dollar orders are a real notional request: Market/Day only, a JSON
+        // string amount (no float/exponent ambiguity), never a share count.
+        const cents = notionalCents(body.notionalValue)
+        if (body.units != null || cents == null || cents < NOTIONAL_MIN_CENTS || cents > NOTIONAL_MAX_CENTS
+            || body.orderType !== "Market" || body.timeInForce !== "Day") return fail()
+        return { ...common, units: null, notionalValue: centsString(cents), orderType: "Market", timeInForce: "Day", price: null, stop: null }
+    }
+    if (!Number.isFinite(body.units) || body.units <= 0
+        || body.units > 1e9 || Math.abs(body.units * 1e6 - Math.round(body.units * 1e6)) > 0.0001
+        || body.notionalValue != null) return fail()
+    return { ...common, units: body.units, notionalValue: null, orderType: body.orderType,
         timeInForce: body.timeInForce, price: body.orderType === "Limit" ? body.price : null, stop: null }
 }
-export function sameTerms(a: Terms, b: Terms): boolean { return JSON.stringify(terms(a)) === JSON.stringify(terms(b)) }
+export function sameTerms(a: unknown, b: unknown): boolean { return JSON.stringify(terms(a)) === JSON.stringify(terms(b)) }
 
 /** No broker is enabled by default. Values require reviewed institution/account evidence before release. */
 export function capability(slug: string): Capability {
@@ -42,7 +77,21 @@ export function capability(slug: string): Capability {
         || !value.exchanges.every((v: unknown) => typeof v === "string" && /^[A-Z0-9]{2,12}$/.test(v))
         || typeof value.fractional !== "boolean" || typeof value.preview !== "boolean")
         throw new TradingError("trading_unavailable", "Trading support for this brokerage has not been confirmed.", 503)
-    return value
+    const { notional, ...shares } = value
+    const parsed = notionalCapability(slug, notional)
+    return { orderTypes: shares.orderTypes, timeInForce: shares.timeInForce, fractional: shares.fractional,
+        preview: shares.preview, exchanges: shares.exchanges, ...(parsed ? { notional: parsed } : {}) }
+}
+/** Optional reviewed dollar-order block. Anything malformed or outside the
+ * code allowlist/application bounds hides dollars only; share trading for the
+ * brokerage is unaffected. Exact shape required — no extra keys. */
+function notionalCapability(slug: string, value: any): NotionalCapability | undefined {
+    if (value == null || !NOTIONAL_BROKERAGES.includes(slug) || typeof value !== "object" || Array.isArray(value)) return undefined
+    const min = notionalCents(value.minAmount), max = notionalCents(value.maxAmount)
+    if (Object.keys(value).sort().join() !== "maxAmount,minAmount,orderTypes,timeInForce"
+        || JSON.stringify(value.orderTypes) !== '["Market"]' || JSON.stringify(value.timeInForce) !== '["Day"]'
+        || min == null || max == null || min < NOTIONAL_MIN_CENTS || max > NOTIONAL_MAX_CENTS || min > max) return undefined
+    return { orderTypes: ["Market"], timeInForce: ["Day"], minAmount: centsString(min), maxAmount: centsString(max) }
 }
 export function configuredTradingBrokerages(): string[] {
     try {
@@ -136,9 +185,16 @@ export async function bindImpact(context: Awaited<ReturnType<typeof ownedTrading
 }
 export async function validateFunds(context: Awaited<ReturnType<typeof ownedTradingAccount>>, order: Terms, q: any, facts: ImpactFacts | null = null) {
     const { st, auth, cap, connection } = context
-    if (!cap.orderTypes.includes(order.orderType) || !cap.timeInForce.includes(order.timeInForce)
-        || (!Number.isInteger(order.units) && (!cap.fractional || connection.brokerage?.allows_fractional_units !== true)))
+    const dollars = order.amountMode === "dollars"
+    const cents = dollars ? notionalCents(order.notionalValue) : null
+    if (dollars
+        ? !cap.notional || cents == null || order.units != null || order.orderType !== "Market" || order.timeInForce !== "Day"
+            || cents < notionalCents(cap.notional.minAmount)! || cents > notionalCents(cap.notional.maxAmount)!
+        : order.units == null || order.notionalValue != null
+            || !cap.orderTypes.includes(order.orderType) || !cap.timeInForce.includes(order.timeInForce)
+            || (!Number.isInteger(order.units) && (!cap.fractional || connection.brokerage?.allows_fractional_units !== true)))
         throw new TradingError("order_invalid", "These order terms are not enabled for this brokerage.")
+    const notional = cents == null ? null : cents / 100
     // Exclude simultaneous/open orders rather than guessing reservations or available-to-sell quantities.
     const { data: open } = await st.accountInformation.getUserAccountOrders({ ...auth, accountId: order.accountId, state: "open" })
     if (!Array.isArray(open) || open.length) throw new TradingError("order_invalid", "Review outstanding orders at your brokerage before placing another order.", 409)
@@ -147,8 +203,18 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
         const positions = accountPositions(data).filter(p => ["stock", "etf"].includes(p.instrument.kind)
             && samePositionListing(p, q.symbol)
             && p.currency === q.symbol.currency?.code && p.cash_equivalent !== true)
-        if (!positions.length || positions.some(p => positionNumber(p.units)! < 0)
-            || positions.reduce((n, p) => n + positionNumber(p.units)!, 0) < order.units)
+        if (!positions.length || positions.some(p => !(positionNumber(p.units)! >= 0)))
+            throw new TradingError("order_invalid", "The requested shares are not confirmed as available to sell.")
+        const held = positions.reduce((n, p) => n + positionNumber(p.units)!, 0)
+        if (notional != null) {
+            // Dollar SELL is bounded by exact-listing held units at the current
+            // positive bid. No synthetic "sell all"; the broker enforces long-only.
+            const bid = q.bid_price
+            if (!(typeof bid === "number" && Number.isFinite(bid) && bid > 0))
+                throw new TradingError("order_funds_unverified", "A current bid is needed to confirm this dollar amount is available to sell.")
+            if (!(held > 0) || held * bid < notional)
+                throw new TradingError("order_invalid", "The requested dollar amount is not confirmed as available to sell at the current bid.")
+        } else if (held < order.units!)
             throw new TradingError("order_invalid", "The requested shares are not confirmed as available to sell.")
     } else {
         const { data } = await st.accountInformation.getUserAccountBalance({ ...auth, accountId: order.accountId })
@@ -161,10 +227,18 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
         // Known fees are included as a lower-bound check, never as a promise
         // that unknown fees/slippage cannot cause a margin debit.
         const knownFees = (facts?.estimatedCommission ?? 0) + (facts?.forexFees ?? 0)
+        if (notional != null) {
+            // Dollar BUY cost is the requested notional itself, never quote-derived.
+            if (!Number.isFinite(cash))
+                throw new TradingError("order_funds_unverified", "Available cash could not be confirmed.")
+            if (cash! < notional + knownFees)
+                throw new TradingError("order_funds_insufficient", "Available cash does not cover this dollar amount and the known reviewed fees. Final fees may differ.")
+            return
+        }
         const price = order.price ?? q.ask_price
         if (!Number.isFinite(cash) || !Number.isFinite(price) || price <= 0)
             throw new TradingError("order_funds_unverified", "Available cash and order cost could not be confirmed.")
-        if (cash! < price * order.units + knownFees)
+        if (cash! < price * order.units! + knownFees)
             throw new TradingError("order_funds_insufficient", "Available cash does not cover these terms and the known reviewed fees. Final fees and execution price may differ.")
     }
 }

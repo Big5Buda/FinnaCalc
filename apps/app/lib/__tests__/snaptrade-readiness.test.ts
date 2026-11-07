@@ -118,3 +118,13 @@ it("reads fixed public reference metadata only for an authenticated stored owner
     m.session = { clientId: "original-owned-key" }; m.reference.mockRejectedValue(new Error("SECRET"))
     expect(await (await GET(req())).json()).toMatchObject({ reasonCode: "trading_not_enabled" })
 })
+it("readiness accepts storage V3 (shares) and V4 (with dollar columns) and nothing else", async () => {
+    vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "true")
+    const manifest = { execution: true, tradeConnections: true }
+    m.rpc.mockResolvedValue({ data: 4, error: null })
+    expect(await integrationReadiness("original-owned-key", manifest)).toMatchObject({ enabled: true })
+    m.select.mockResolvedValueOnce({ error: { message: "column amount_mode does not exist" } })
+    expect(await integrationReadiness("original-owned-key", manifest)).toMatchObject({ enabled: false, reasonCode: "order_storage_unavailable" })
+    m.rpc.mockResolvedValue({ data: 5, error: null })
+    expect(await integrationReadiness("original-owned-key", manifest)).toMatchObject({ enabled: false, reasonCode: "order_storage_unavailable" })
+})

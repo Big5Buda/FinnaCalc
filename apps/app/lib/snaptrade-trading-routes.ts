@@ -3,8 +3,22 @@ import { loadSession } from "./snaptrade-session"
 import { getSnapTrade, mapOrderRecord } from "./snaptrade"
 import { verifiedAppUserId } from "./supabase-auth"
 import { accountQuote, bindImpact, requireTradeConnection, requireExecutionFundingMode, ownedTradingAccount, sameTerms, terms, TradingError, tradingGate, unavailableImpact, validateFunds } from "./snaptrade-trading"
-import { prepareReviewGeneration } from "./snaptrade-reconciliation"
+import { ackQuantityEvidence, prepareReviewGeneration } from "./snaptrade-reconciliation"
 import { consumeReview, finishReview, loadReview, saveReview } from "./snaptrade-order-reviews"
+import { dollarEligibility, orderCapabilities, requireDollarEligibility } from "./snaptrade-order-capabilities"
+import type { Terms } from "./snaptrade-trading"
+
+/** Approximate reciprocal for display: shares → dollars, dollars → shares.
+ * Basis is the limit price, else ask for BUY / bid for SELL. */
+export function quoteEstimate(order: Terms, q: any) {
+    const side = order.action === "BUY" ? q?.ask_price : q?.bid_price
+    const basis = order.orderType === "Limit" ? "limit" : order.action === "BUY" ? "ask" : "bid"
+    const price = order.orderType === "Limit" ? order.price : side
+    if (!(typeof price === "number" && Number.isFinite(price) && price > 0)) return null
+    if (order.amountMode === "dollars")
+        return { basis, price, approxUnits: Math.round(Number(order.notionalValue) / price * 1e6) / 1e6 }
+    return { basis, price, approxNotional: Math.round(order.units! * price * 100) / 100 }
+}
 
 async function identity(req: NextRequest) {
     const owner = await verifiedAppUserId(req)
@@ -26,11 +40,16 @@ export async function quote(req: NextRequest) {
     try {
         const { owner, session } = await identity(req), body = await json(req)
         // Reuse quantity-independent validation without letting client account/symbol bypass ownership.
-        const order = terms({ ...body, action: "BUY", units: 1, orderType: "Market", timeInForce: "Day", price: null, stop: null })
+        // Only accountId/symbol are read; client amount/capability fields are ignored.
+        const order = terms({ accountId: body?.accountId, symbol: body?.symbol, action: "BUY", units: 1, orderType: "Market", timeInForce: "Day", price: null, stop: null })
         const context = await ownedTradingAccount(owner, session, order.accountId)
         const q = await accountQuote(context, order.symbol)
         const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
-        return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency: q.symbol.currency.code })
+        // Metadata failure hides dollars only; the share quote is still returned.
+        const dollars = await dollarEligibility(context, session.clientId!, q, { fresh: false })
+        return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency: q.symbol.currency.code,
+            orderCapabilities: orderCapabilities(context, q.symbol.currency.code, dollars) },
+            { headers: { "Cache-Control": "private, no-store" } })
     } catch (error) { return errorResponse(error) }
 }
 export async function impact(req: NextRequest) {
@@ -41,37 +60,57 @@ export async function impact(req: NextRequest) {
         const context = await ownedTradingAccount(owner, session, order.accountId)
         const q = await accountQuote(context, order.symbol)
         requireExecutionFundingMode(order, context, session)
+        const dollars = order.amountMode === "dollars"
+        // Dollar eligibility (allowlist, env block, preview, paper cash, V4
+        // storage, bound tradeable+fractionable instrument) before any preview.
+        if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: false })
         await validateFunds(context, order, q)
         let impactFacts: import("./snaptrade-trading").ImpactFacts | null = null
         let tradeId: string | null = null, estimate: any = { source: "unavailable", disclosure: unavailableImpact }
+        let brokerageEstimatedUnits: number | null = null
+        const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
+        if (dollars && !context.cap.preview) throw new TradingError("dollar_orders_unavailable", "Dollar orders require a brokerage preview.", 409)
         if (context.cap.preview) {
             // Preview errors do not silently select direct execution. Capability,
-            // not a vendor outage, selects the no-preview flow.
+            // not a vendor outage, selects the no-preview flow. Dollar orders send
+            // the exact notional with units null — never units derived from a quote.
             const { data } = await context.st.trading.getOrderImpact({ ...context.auth,
                 account_id: order.accountId, action: order.action, universal_symbol_id: q.symbol.id,
-                order_type: order.orderType, time_in_force: order.timeInForce, units: order.units,
-                notional_value: null, price: order.price, stop: null })
-            if (!data.trade?.id) throw new TradingError("order_invalid", "The brokerage did not validate this order.", 502)
+                order_type: order.orderType, time_in_force: order.timeInForce,
+                units: dollars ? null : order.units, notional_value: dollars ? order.notionalValue : null,
+                price: order.price, stop: null })
+            if (typeof data?.trade?.id !== "string" || !data.trade.id.trim()) throw new TradingError("order_invalid", "The brokerage did not validate this order.", 502)
             tradeId = data.trade.id
             // Never let provider-normalized terms silently differ from reviewed terms.
-            if (data.trade.units !== order.units || data.trade.account !== order.accountId
+            // ManualTrade has no notional echo; for dollars the request binding is
+            // impact(canonical request) → trade.id → placeOrder(stored trade.id).
+            // Provider `units` for dollars is a nullable brokerage estimate only.
+            const unitsMismatch = dollars
+                ? data.trade.units != null && !(number(data.trade.units) != null && data.trade.units > 0)
+                : data.trade.units !== order.units
+            if (unitsMismatch || data.trade.account !== order.accountId
                 || data.trade.action !== order.action || data.trade.order_type !== order.orderType
                 || data.trade.time_in_force !== order.timeInForce || data.trade.symbol?.universal_symbol_id !== q.symbol.id
                 || (order.orderType === "Limit" && data.trade.price !== order.price)) throw new TradingError("order_invalid", "The brokerage returned different order terms. Review at your brokerage.", 502)
+            if (dollars) brokerageEstimatedUnits = number(data.trade.units)
             impactFacts = await bindImpact(context, order, q, data.trade_impacts)
             await validateFunds(context, order, q, impactFacts)
-            const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
             // Monetary estimates require verified matching-account currency metadata.
-            estimate = { source: impactFacts ? "brokerage" : "unavailable", units: number(data.trade.units),
+            estimate = { source: impactFacts ? "brokerage" : "unavailable",
+                ...(dollars ? { brokerageEstimatedUnits } : { units: number(data.trade.units) }),
                 ...(impactFacts ? { price: number(data.trade.price) } : {}), symbolCurrency: q.symbol.currency?.code ?? null,
                 exchange: q.symbol.exchange?.code ?? null,
                 ...(impactFacts ? { estimatedCommission: impactFacts.estimatedCommission, forexFees: impactFacts.forexFees,
                     remainingCash: impactFacts.remainingCash, currency: impactFacts.currency } : { disclosure: unavailableImpact }) }
-
         }
+        // Reciprocal display estimate from the live quote, labelled approximate;
+        // null when the relevant quote side is missing. Never execution input.
+        estimate = { ...estimate, amountMode: order.amountMode, quoteEstimate: quoteEstimate(order, q),
+            ...(dollars ? { amountVerification: "request_bound" } : {}) }
         const expiresAt = new Date(Date.now() + 4 * 60_000).toISOString()
         const review = await saveReview({ owner_id: owner, client_id: session.clientId!, vendor_user_id: session.userId,
-            generation, terms: order, symbol_id: q.symbol.id, impact_facts: impactFacts, trade_id: tradeId, expires_at: expiresAt })
+            generation, terms: order, symbol_id: q.symbol.id, impact_facts: impactFacts, trade_id: tradeId, expires_at: expiresAt },
+            dollars ? { estimate_units: brokerageEstimatedUnits, amount_verification: "request_bound" } : undefined)
         return Response.json({ reviewId: review.id, expiresAt, terms: order, estimate })
     } catch (error) { return errorResponse(error) }
 }
@@ -91,26 +130,34 @@ export async function place(req: NextRequest) {
         if (review.client_id !== session.clientId || review.vendor_user_id !== session.userId || !sameTerms(review.terms, terms(body.terms)))
             throw new TradingError("order_review_mismatch", "These terms no longer match the review. Nothing was submitted by this request.", 409)
         if (Date.parse(review.expires_at) <= Date.now()) throw new TradingError("order_review_expired", "This unsubmitted review expired. Review the order again.", 409)
-        const context = await ownedTradingAccount(owner, session, review.terms.accountId)
-        const q = await accountQuote(context, review.terms.symbol)
-        if (q.symbol.id !== review.symbol_id || (Boolean(review.trade_id) !== context.cap.preview))
+        // Stored V3 share rows omit amountMode; canonicalize the stored terms.
+        const order = terms(review.terms), dollars = order.amountMode === "dollars"
+        const context = await ownedTradingAccount(owner, session, order.accountId)
+        const q = await accountQuote(context, order.symbol)
+        if (q.symbol.id !== review.symbol_id || (Boolean(review.trade_id) !== context.cap.preview)
+            || (dollars && (typeof review.trade_id !== "string" || !review.trade_id.trim())))
             throw new TradingError("order_review_mismatch", "The listing or execution workflow changed. Nothing was submitted by this request.", 409)
-        await validateFunds(context, review.terms, q, review.impact_facts)
-        requireExecutionFundingMode(review.terms, context, session)
+        // Confirm re-reads instrument metadata upstream (no TTL reuse).
+        if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: true })
+        await validateFunds(context, order, q, review.impact_facts)
+        requireExecutionFundingMode(order, context, session)
         if (!await consumeReview(review.id, owner, session.clientId!, session.userId))
             throw new TradingError("order_review_used", "A submission may already be in progress. Check order history; do not submit again.", 409)
         submitted = true
-        const order = review.terms
-        // Retain the same provider symbol and execution mode on confirm.
+        // Retain the same provider symbol and execution mode on confirm. Dollar
+        // orders place ONLY the stored checked trade; never a direct order.
         const raw = review.trade_id
             ? await context.st.trading.placeOrder({ ...context.auth, tradeId: review.trade_id, wait_to_confirm: true })
+            : dollars ? (() => { throw new Error("Dollar order without checked trade") })()
             : await context.st.trading.placeForceOrder({ ...context.auth, account_id: order.accountId,
                 action: order.action, universal_symbol_id: review.symbol_id, symbol: null, units: order.units,
                 notional_value: null, order_type: order.orderType, time_in_force: order.timeInForce,
                 price: order.price, stop: null, client_order_id: review.id })
         const mapped = mapOrderRecord(raw.data)
         if (!mapped.brokerageOrderId || !mapped.status) throw new Error("Unconfirmed brokerage response")
-        const result = { ...mapped, accountId: order.accountId }
+        // Display fields are unchanged; dollar orders also persist a strict,
+        // presence-preserving ACK quantity record from the raw body for reconciliation.
+        const result = { ...mapped, accountId: order.accountId, ...(dollars ? { ackQuantity: ackQuantityEvidence(raw.data) } : {}) }
         await finishReview(review.id, owner, result, false)
         return Response.json(result)
     } catch (error) {
