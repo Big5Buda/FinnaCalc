@@ -6,7 +6,7 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "build": "next build",
+    "build": "node scripts/verify-v4-postgrest.mjs",
     "dev": "next dev -p 3001",
     "lint": "next lint",
     "start": "next start -p 3001",
