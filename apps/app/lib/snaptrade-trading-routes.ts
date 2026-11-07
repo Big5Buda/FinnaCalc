@@ -5,7 +5,7 @@ import { verifiedAppUserId } from "./supabase-auth"
 import { accountQuote, bindImpact, requireTradeConnection, requireExecutionFundingMode, ownedTradingAccount, sameTerms, terms, TradingError, tradingGate, unavailableImpact, validateFunds } from "./snaptrade-trading"
 import { ackQuantityEvidence, prepareReviewGeneration } from "./snaptrade-reconciliation"
 import { consumeReview, finishReview, loadReview, saveReview } from "./snaptrade-order-reviews"
-import { dollarEligibility, orderCapabilities, requireDollarEligibility } from "./snaptrade-order-capabilities"
+import { dollarEligibility, fractionalEligibility, requireFractionalEligibility, orderCapabilities, requireDollarEligibility } from "./snaptrade-order-capabilities"
 import type { Terms } from "./snaptrade-trading"
 
 /** Approximate reciprocal for display: shares → dollars, dollars → shares.
@@ -18,6 +18,12 @@ export function quoteEstimate(order: Terms, q: any) {
     if (order.amountMode === "dollars")
         return { basis, price, approxUnits: Math.round(Number(order.notionalValue) / price * 1e6) / 1e6 }
     return { basis, price, approxNotional: Math.round(order.units! * price * 100) / 100 }
+}
+
+const REVIEW_BUDGET_MS = 4 * 60_000
+function requireReviewBudget(expiresAt: number): void {
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt)
+        throw new TradingError("order_review_expired", "This unsubmitted review expired. Review the order again.", 409)
 }
 
 async function identity(req: NextRequest) {
@@ -45,10 +51,10 @@ export async function quote(req: NextRequest) {
         const context = await ownedTradingAccount(owner, session, order.accountId)
         const q = await accountQuote(context, order.symbol)
         const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
-        // Metadata failure hides dollars only; the share quote is still returned.
+        // Sizing eligibility may be unavailable while whole-share quotes remain valid.
         const dollars = await dollarEligibility(context, session.clientId!, q, { fresh: false })
         return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency: q.symbol.currency.code,
-            orderCapabilities: orderCapabilities(context, q.symbol.currency.code, dollars) },
+            orderCapabilities: orderCapabilities(context, q.symbol.currency.code, dollars, await fractionalEligibility(context, session.clientId!, q, { fresh: false })) },
             { headers: { "Cache-Control": "private, no-store" } })
     } catch (error) { return errorResponse(error) }
 }
@@ -61,15 +67,19 @@ export async function impact(req: NextRequest) {
         const q = await accountQuote(context, order.symbol)
         requireExecutionFundingMode(order, context, session)
         const dollars = order.amountMode === "dollars"
-        // Dollar eligibility (allowlist, env block, preview, paper cash, V4
-        // storage, bound tradeable+fractionable instrument) before any preview.
+        // Sizing policy, cash and instrument eligibility precede the required
+        // exact checked preview. No caller capability claims are trusted.
         if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: false })
+        await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: false })
         await validateFunds(context, order, q)
         let impactFacts: import("./snaptrade-trading").ImpactFacts | null = null
         let tradeId: string | null = null, estimate: any = { source: "unavailable", disclosure: unavailableImpact }
         let brokerageEstimatedUnits: number | null = null
         const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
         if (dollars && !context.cap.preview) throw new TradingError("dollar_orders_unavailable", "Dollar orders require a brokerage preview.", 409)
+        // Capture before the checked trade can be created. Slow preview or
+        // subsequent reads must never extend its five-minute provider lifetime.
+        const expiresAtMs = Date.now() + REVIEW_BUDGET_MS
         if (context.cap.preview) {
             // Preview errors do not silently select direct execution. Capability,
             // not a vendor outage, selects the no-preview flow. Dollar orders send
@@ -107,7 +117,8 @@ export async function impact(req: NextRequest) {
         // null when the relevant quote side is missing. Never execution input.
         estimate = { ...estimate, amountMode: order.amountMode, quoteEstimate: quoteEstimate(order, q),
             ...(dollars ? { amountVerification: "request_bound" } : {}) }
-        const expiresAt = new Date(Date.now() + 4 * 60_000).toISOString()
+        requireReviewBudget(expiresAtMs)
+        const expiresAt = new Date(expiresAtMs).toISOString()
         const review = await saveReview({ owner_id: owner, client_id: session.clientId!, vendor_user_id: session.userId,
             generation, terms: order, symbol_id: q.symbol.id, impact_facts: impactFacts, trade_id: tradeId, expires_at: expiresAt },
             dollars ? { estimate_units: brokerageEstimatedUnits, amount_verification: "request_bound" } : undefined)
@@ -129,26 +140,30 @@ export async function place(req: NextRequest) {
         reviewedUnconsumed = true
         if (review.client_id !== session.clientId || review.vendor_user_id !== session.userId || !sameTerms(review.terms, terms(body.terms)))
             throw new TradingError("order_review_mismatch", "These terms no longer match the review. Nothing was submitted by this request.", 409)
-        if (Date.parse(review.expires_at) <= Date.now()) throw new TradingError("order_review_expired", "This unsubmitted review expired. Review the order again.", 409)
+        requireReviewBudget(Date.parse(review.expires_at))
         // Stored V3 share rows omit amountMode; canonicalize the stored terms.
         const order = terms(review.terms), dollars = order.amountMode === "dollars"
         const context = await ownedTradingAccount(owner, session, order.accountId)
         const q = await accountQuote(context, order.symbol)
         if (q.symbol.id !== review.symbol_id || (Boolean(review.trade_id) !== context.cap.preview)
-            || (dollars && (typeof review.trade_id !== "string" || !review.trade_id.trim())))
+            || ((dollars || !Number.isInteger(order.units)) && (typeof review.trade_id !== "string" || !review.trade_id.trim())))
             throw new TradingError("order_review_mismatch", "The listing or execution workflow changed. Nothing was submitted by this request.", 409)
         // Confirm re-reads instrument metadata upstream (no TTL reuse).
         if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: true })
+        await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: true })
         await validateFunds(context, order, q, review.impact_facts)
         requireExecutionFundingMode(order, context, session)
+        // Revalidation may have exhausted the fixed preview budget. Check
+        // immediately before the RPC, whose atomic expiry check remains final.
+        requireReviewBudget(Date.parse(review.expires_at))
         if (!await consumeReview(review.id, owner, session.clientId!, session.userId))
             throw new TradingError("order_review_used", "A submission may already be in progress. Check order history; do not submit again.", 409)
         submitted = true
         // Retain the same provider symbol and execution mode on confirm. Dollar
-        // orders place ONLY the stored checked trade; never a direct order.
+        // and fractional orders use ONLY the stored checked trade; never direct execution.
         const raw = review.trade_id
             ? await context.st.trading.placeOrder({ ...context.auth, tradeId: review.trade_id, wait_to_confirm: true })
-            : dollars ? (() => { throw new Error("Dollar order without checked trade") })()
+            : dollars || !Number.isInteger(order.units) ? (() => { throw new Error("Sized order without checked trade") })()
             : await context.st.trading.placeForceOrder({ ...context.auth, account_id: order.accountId,
                 action: order.action, universal_symbol_id: review.symbol_id, symbol: null, units: order.units,
                 notional_value: null, order_type: order.orderType, time_in_force: order.timeInForce,

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server"
 // Fixtures and no-network SDK doubles only; no live or paper orders.
 const m = vi.hoisted(() => ({ list: vi.fn(), links: vi.fn(), quotes: vi.fn(), orders: vi.fn(), positions: vi.fn(), details: vi.fn(),
     partner: vi.fn(), balances: vi.fn(), preview: vi.fn(), place: vi.fn(), force: vi.fn(), instruments: vi.fn(), orderDetail: vi.fn(),
-    storageVersion: 4 as number | null, saved: [] as any[], rows: new Map<string, any>(), sequence: 0, generation: 0, client: null as any }))
+    consumeCalls: 0, storageVersion: 4 as number | null, saved: [] as any[], rows: new Map<string, any>(), sequence: 0, generation: 0, client: null as any }))
 vi.mock("@/lib/snaptrade-session", () => ({ loadSession: async () => ({ clientId: "key", userId: "vendor-user", userSecret: "fixture" }) }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "owner" }))
 vi.mock("@/lib/snaptrade-access", () => ({ brokerageReadScope: async () => ({ countedConnectionId: null }) }))
@@ -25,6 +25,7 @@ vi.mock("@/lib/snaptrade-order-reviews", () => ({
     },
     loadReview: async (id: string) => m.rows.has(id) ? { ...m.rows.get(id) } : null,
     consumeReview: async (id: string) => {
+        m.consumeCalls++
         const r = m.rows.get(id); if (!r || r.state !== "reviewing" || r.generation !== String(m.generation)) return false
         r.state = "submitting"; m.generation++; return true
     },
@@ -47,7 +48,7 @@ async function review(body: any = dollarBuy) { const res = await impact(req(body
 const submit = (r: any, extra: any = {}) => place(req({ reviewId: r.reviewId, confirmed: true, terms: r.terms, ...extra }))
 
 beforeEach(() => {
-    vi.resetAllMocks(); m.rows.clear(); m.saved = []; m.sequence = 0; m.generation = 0; m.storageVersion = 4
+    vi.resetAllMocks(); m.rows.clear(); m.saved = []; m.sequence = 0; m.generation = 0; m.storageVersion = 4; m.consumeCalls = 0
     // Fresh client object per test isolates the module-level instrument cache.
     m.client = { accountInformation: { listUserAccounts: m.list, getAccountDetails: m.details, getUserAccountOrders: m.orders,
         getAllAccountPositions: m.positions, getUserAccountBalance: m.balances, getUserAccountOrderDetail: m.orderDetail },
@@ -70,7 +71,7 @@ beforeEach(() => {
     m.preview.mockResolvedValue(checkedTrade())
     m.place.mockResolvedValue({ data: { brokerage_order_id: "broker-order", status: "ACCEPTED", total_quantity: "2.5" } })
 })
-afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+afterEach(() => { vi.useRealTimers(); expect(fetch).not.toHaveBeenCalled(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
 // ---- Terms contract -------------------------------------------------------
 it("canonicalizes dollar terms to a 2-place string with units null, Market/Day only", () => {
@@ -159,7 +160,7 @@ it("quote hides dollars on metadata transport failure, storage V3, missing MIC, 
     m.instruments.mockRejectedValue(new Error("timeout")); expect(await modes()).toEqual(["shares"])
     m.instruments.mockResolvedValue({ data: { instruments: [instrument] } })
     m.storageVersion = 3; expect(await modes()).toEqual(["shares"]); m.storageVersion = null; expect(await modes()).toEqual(["shares"]); m.storageVersion = 4
-    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "NASDAQ", mic_code: null } }, ask_price: 10 }] }); expect(await modes()).toEqual(["shares"])
+    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "NASDAQ", mic_code: null } }, ask_price: 10 }] }); expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
     m.quotes.mockResolvedValue({ data: [{ symbol: listing, ask_price: 10 }] })
     m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } }); expect(await modes()).toEqual(["shares"])
 })
@@ -420,4 +421,189 @@ it("share placements keep the existing result shape (no ackQuantity) and display
     const res = await submit(r); expect(res.status).toBe(200)
     const body = await res.json(); expect(body).not.toHaveProperty("ackQuantity"); expect(body.totalQuantity).toBe(2)
     expect(ackQuantityEvidence(undefined)).toEqual({ state: "absent" })
+})
+
+it.each(["ALPACA", "PUBLIC", "TASTYTRADE", "ROBINHOOD-AGENTIC", "WEBULL"])("offers real dollars for %s only after namespace, cash and listing proof", async slug => {
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ [slug]: { ...alpacaCaps["ALPACA-PAPER"], timeInForce: ["Day"], notional: { ...notionalBlock, minAmount: slug === "WEBULL" ? "5.00" : "1.00" } } }))
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug, allows_trading: true, enabled: true, maintenance_mode: false }] } })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", disabled: false, brokerage: { slug, allows_trading: true } }] })
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: "cash" } })
+    const res = await quote(req({ accountId: "a", symbol: "AAPL" }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares", "dollars"])
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [] } })
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(503)
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+
+it("rejects unknown US policy, Public GTC, and sub-$5 Webull configuration", () => {
+    const base = alpacaCaps["ALPACA-PAPER"]
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({
+        SCHWAB: base, UNKNOWN: base, PUBLIC: base, WEBULL: { ...base, notional: { ...notionalBlock, minAmount: "1.00" } },
+        ETRADE: { ...base, fractional: true },
+    }))
+    for (const slug of ["SCHWAB", "UNKNOWN", "PUBLIC", "ETRADE"]) expect(() => capability(slug)).toThrow()
+    expect(capability("WEBULL")).not.toHaveProperty("notional")
+})
+
+const fractionalBuy = { accountId: "a", symbol: "AAPL", action: "BUY", units: 0.75, orderType: "Market", timeInForce: "Day" }
+function fractionalBroker(slug: string, decimalPlaces = 6) {
+    const min = ["MOOMOO", "WEBULL"].includes(slug) ? "5.00" : undefined
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ [slug]: {
+        ...alpacaCaps["ALPACA-PAPER"], timeInForce: ["Day"],
+        notional: slug === "MOOMOO" ? undefined : { ...notionalBlock, minAmount: min ?? "1.00" },
+        fractionalOrders: { orderTypes: { Market: ["Day"] }, decimalPlaces, ...(min ? { minOrderValue: min } : {}) },
+    } }))
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug, allows_trading: true, enabled: true, maintenance_mode: false }] } })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", disabled: false, brokerage: { slug, allows_trading: true, allows_fractional_units: false } }] })
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: slug === "ALPACA-PAPER", cash_or_margin: "cash" } })
+    m.preview.mockResolvedValue(checkedTrade({ units: 0.75 }))
+}
+it.each(["ALPACA-PAPER", "MOOMOO", "PUBLIC", "TASTYTRADE", "WEBULL"])("%s fractional quote/review/checked placement uses additive V1 proof, never deprecated flag", async slug => {
+    fractionalBroker(slug)
+    if (["MOOMOO", "WEBULL"].includes(slug)) m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    const body = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(body.orderCapabilities.version).toBe(1)
+    expect(body.orderCapabilities.rules[0]).toMatchObject({ fractional: false, fractionalOrderTypes: { Market: ["Day"] }, fractionalDecimalPlaces: 6, fractionalAvailability: "broker_confirmed_at_review", previewRequired: true })
+    if (["MOOMOO", "WEBULL"].includes(slug)) expect(body.orderCapabilities.rules[0].fractionalMinOrderValue).toBe("5.00")
+    const r = await review(fractionalBuy); expect(r.status).toBe(200)
+    expect(m.preview.mock.calls[0][0]).toMatchObject({ units: 0.75, notional_value: null })
+    expect((await submit(r.body)).status).toBe(200)
+    expect(m.place).toHaveBeenCalledWith(expect.objectContaining({ tradeId: "checked-trade" }))
+    expect(m.force).not.toHaveBeenCalled()
+})
+it.each([{ units: 0.75000001 }, { units: 0.750001 }, { orderType: "Limit", price: 10 }, { timeInForce: "GTC" }])("fractional order server rejects unsupported precision/type/TIF %j", async changes => {
+    fractionalBroker("ALPACA-PAPER", 3)
+    expect((await review({ ...fractionalBuy, ...changes })).status).not.toBe(200)
+    expect(m.preview).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it.each(["MOOMOO", "WEBULL"])("%s enforces documented fractional $5 minimum", async slug => {
+    fractionalBroker(slug); m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    expect((await review({ ...fractionalBuy, units: 0.4 })).status).toBe(400)
+    expect(m.preview).not.toHaveBeenCalled()
+})
+it.each([null, {}, { instruments: null }, { instruments: [{ ...instrument, fractionable: false }] }, { instruments: [{ ...instrument, tradeable: false }] }, { instruments: [{ ...instrument, universal_symbol_id: "other" }] }, { instruments: [{ ...instrument, fractionable: null }] }])("preview-only policy never bypasses malformed/negative/conflicting instrument facts %j", async data => {
+    fractionalBroker("WEBULL"); m.instruments.mockResolvedValue({ data })
+    expect((await review(fractionalBuy)).status).not.toBe(200)
+    expect(m.preview).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it("preview-only transport errors stay closed; instrument-capable empty list stays closed", async () => {
+    fractionalBroker("WEBULL"); m.instruments.mockRejectedValue(new Error("timeout"))
+    expect((await review(fractionalBuy)).status).not.toBe(200)
+    fractionalBroker("PUBLIC"); m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    expect((await review(fractionalBuy)).status).not.toBe(200)
+    expect(m.preview).not.toHaveBeenCalled()
+})
+it.each([{ units: 0.7 }, { account: "other" }, { action: "SELL" }, { symbol: { universal_symbol_id: "other" } }, { order_type: "Limit" }, { time_in_force: "GTC" }, { id: null }])("fractional preview must echo exact request %j", async changes => {
+    fractionalBroker("PUBLIC"); m.preview.mockResolvedValue(checkedTrade({ units: 0.75, ...changes }))
+    expect((await review(fractionalBuy)).status).not.toBe(200)
+    expect(m.rows.size).toBe(0); expect(m.force).not.toHaveBeenCalled()
+})
+it("fractional preview failure never chooses force placement", async () => {
+    fractionalBroker("PUBLIC"); m.preview.mockRejectedValue(new Error("broker rejection"))
+    expect((await review(fractionalBuy)).status).not.toBe(200)
+    expect(m.rows.size).toBe(0); expect(m.force).not.toHaveBeenCalled()
+})
+it("fractional confirm requires saved checked ID and fresh positive capable metadata", async () => {
+    fractionalBroker("PUBLIC"); const r = await review(fractionalBuy); expect(r.status).toBe(200)
+    m.instruments.mockResolvedValue({ data: { instruments: [{ ...instrument, fractionable: false }] } })
+    expect((await submit(r.body)).status).toBe(409)
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it("fractional confirm without a trade ID cannot consume or force submit", async () => {
+    fractionalBroker("PUBLIC"); const r = await review(fractionalBuy); m.rows.get(r.body.reviewId).trade_id = null
+    expect((await submit(r.body)).status).toBe(409)
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it("Webull dollars with valid unsupported instruments binds real notional to checked trade", async () => {
+    fractionalBroker("WEBULL"); m.instruments.mockResolvedValue({ data: { instruments: [] } }); m.preview.mockResolvedValue(checkedTrade())
+    const body = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(body.orderCapabilities.rules[1]).toMatchObject({ amountMode: "dollars", availability: "broker_confirmed_at_review", minAmount: "5.00" })
+    const r = await review(); expect(r.status).toBe(200)
+    expect(m.preview.mock.calls[0][0]).toMatchObject({ units: null, notional_value: "25.00" })
+    expect((await submit(r.body)).status).toBe(200); expect(m.force).not.toHaveBeenCalled()
+})
+it.each(["XNAS", "XNYS", "ARCX"])("accepts verified US equity MIC %s regardless short display code", async mic => {
+    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "provider-short-name", mic_code: mic } }, ask_price: 10 }] })
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(200)
+})
+it.each([null, "", "XLON", "XOTC", "XNYS ", "xnys"])("rejects unknown, non-US or non-normalized quote MIC %j", async mic => {
+    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "NYSE", mic_code: mic } }, ask_price: 10 }] })
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
+})
+
+it.each([0, 7, 1.5, "6", null])("rejects malformed fractional app precision %j", async precision => {
+    fractionalBroker("PUBLIC", precision as any)
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(503)
+})
+it("fractional map cannot bypass preview:false or whole-order capability intersection", () => {
+    for (const changes of [{ preview: false }, { orderTypes: ["Limit"] }, { timeInForce: ["GTC"] }]) {
+        vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ "ALPACA-PAPER": { ...alpacaCaps["ALPACA-PAPER"], fractionalOrders: { orderTypes: { Market: ["Day"] }, decimalPlaces: 6 }, ...changes } }))
+        expect(() => capability("ALPACA-PAPER")).toThrow()
+    }
+})
+it("Webull preview-only fresh negative blocks confirm and never forces", async () => {
+    fractionalBroker("WEBULL"); m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    const r = await review(fractionalBuy); expect(r.status).toBe(200)
+    m.instruments.mockResolvedValue({ data: { instruments: [{ ...instrument, tradeable: false }] } })
+    expect((await submit(r.body)).status).toBe(409)
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it.each(["CAD", "EUR"])("USD launch rejects foreign listing currency %s even on NYSE MIC", async code => {
+    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, currency: { code }, exchange: { mic_code: "XNYS" } }, ask_price: 10 }] })
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
+})
+it.each(["op", "crypto", "ad"])("stock/ETF launch rejects other asset type %s", async code => {
+    m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, type: { code } }, ask_price: 10 }] })
+    expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
+})
+
+const expiryEpoch = Date.parse("2026-11-07T20:00:00Z")
+function expiryClock() { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(expiryEpoch) }
+it("anchors checked review expiry before slow preview and post-preview cash reads", async () => {
+    expiryClock()
+    m.preview.mockImplementation(async () => { vi.setSystemTime(expiryEpoch + 90_000); return checkedTrade() })
+    let balances = 0
+    m.balances.mockImplementation(async () => {
+        if (++balances >= 2) vi.setSystemTime(expiryEpoch + 150_000)
+        return { data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 100 }] }
+    })
+    const r = await review(); expect(r.status).toBe(200)
+    expect(Date.parse(r.body.expiresAt)).toBe(expiryEpoch + 240_000)
+    expect(m.rows.get(r.body.reviewId).expires_at).toBe(r.body.expiresAt)
+    expect(Date.now()).toBe(expiryEpoch + 150_000)
+    expect(m.consumeCalls).toBe(0); expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it.each(["preview", "post-preview balances"])("rejects exhausted %s budget before saving any review", async slowStage => {
+    expiryClock()
+    if (slowStage === "preview") m.preview.mockImplementation(async () => { vi.setSystemTime(expiryEpoch + 240_000); return checkedTrade() })
+    else {
+        let balances = 0
+        m.balances.mockImplementation(async () => {
+            if (++balances >= 2) vi.setSystemTime(expiryEpoch + 240_000)
+            return { data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 100 }] }
+        })
+    }
+    const r = await review(); expect(r.status).toBe(409); expect(r.body.code).toBe("order_review_expired")
+    expect(m.saved).toHaveLength(0); expect(m.rows.size).toBe(0); expect(m.consumeCalls).toBe(0)
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it.each([240_000, 241_000])("confirm reads crossing fixed expiry to %d reject before consume and preserve an unsubmitted review", async elapsed => {
+    expiryClock(); const r = await review(); expect(r.status).toBe(200)
+    vi.setSystemTime(expiryEpoch + 239_000)
+    m.balances.mockImplementation(async () => {
+        vi.setSystemTime(expiryEpoch + elapsed)
+        return { data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 100 }] }
+    })
+    const response = await submit(r.body); expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "order_review_expired", submissionStatus: "not_submitted_by_this_request" })
+    expect(m.consumeCalls).toBe(0); expect(m.rows.get(r.body.reviewId).state).toBe("reviewing")
+    expect(m.generation).toBe(0); expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled()
+})
+it("accepts confirm one millisecond before the conservative cutoff, retaining the provider safety minute", async () => {
+    expiryClock(); const r = await review(); expect(r.status).toBe(200)
+    vi.setSystemTime(expiryEpoch + 239_999)
+    expect((await submit(r.body)).status).toBe(200)
+    expect(m.consumeCalls).toBe(1); expect(m.place).toHaveBeenCalledOnce(); expect(m.force).not.toHaveBeenCalled()
+    expect(m.rows.get(r.body.reviewId).state).toBe("complete")
 })

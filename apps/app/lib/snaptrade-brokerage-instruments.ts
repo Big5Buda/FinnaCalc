@@ -103,3 +103,27 @@ export async function brokerageInstrument(clientId: string, slug: string, listin
         return bindInstrument(await value, listing)
     } catch { return null }
 }
+
+/** Explicitly policy-selected preview-only institutions may lack this endpoint.
+ * Only a valid empty instruments list means unsupported. Errors, malformed or
+ * ambiguous bindings never grant eligibility; matching explicit false revokes it.
+ * No cache: even quote/confirm checks observe current negative provider facts.
+ */
+export async function previewOnlyInstrumentEligibility(clientId: string, slug: string, listing: Listing): Promise<boolean> {
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<boolean>(resolve => { timer = setTimeout(() => { controller.abort(); resolve(false) }, INSTRUMENT_TIMEOUT_MS) })
+    const read = async () => {
+        try {
+            const client = getSnapTrade({ clientId })
+            const { data } = await client.referenceData.listAllBrokerageInstruments({ slug },
+                { timeout: INSTRUMENT_TIMEOUT_MS, maxContentLength: INSTRUMENT_MAX_BYTES, signal: controller.signal })
+            if (controller.signal.aborted || !Array.isArray(data?.instruments)) return false
+            if (data.instruments.length === 0) return true
+            const facts = bindInstrument(parseInstruments(data), listing)
+            return facts?.tradeable === true && facts.fractionable === true
+        } catch { return false }
+    }
+    try { return await Promise.race([read(), deadline]) }
+    finally { clearTimeout(timer) }
+}

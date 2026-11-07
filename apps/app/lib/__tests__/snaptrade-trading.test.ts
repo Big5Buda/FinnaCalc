@@ -52,15 +52,15 @@ beforeEach(() => {
     vi.resetAllMocks(); m.rows.clear(); m.generations.clear(); m.sequence = 0; m.owner = "owner"; m.scope = null; m.denied = null
     vi.stubEnv("SNAPTRADE_TRADING_RELEASE_APPROVED", "true")
     vi.stubEnv("SNAPTRADE_TRADE_CONNECTIONS_ENABLED", "true")
-    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug: "BROKER", allows_trading: true, enabled: true, maintenance_mode: false }] } })
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug: "ALPACA", allows_trading: true, enabled: true, maintenance_mode: false }] } })
     vi.stubEnv("SNAPTRADE_TRADING_APPROVED_CLIENT_IDS", "key")
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Market", "Limit"], timeInForce: ["Day", "GTC"], fractional: false, preview: false, exchanges: ["XNAS"] } }))
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Market", "Limit"], timeInForce: ["Day", "GTC"], fractional: false, preview: false, exchanges: ["XNAS"] } }))
     vi.stubEnv("SNAPTRADE_TRADING_CASH_ACCOUNT_POLICIES", JSON.stringify([{ clientId: "key", vendorUserId: "vendor-user", accountId: "a", mode: "cash", providerRawType: "fixture-cash", evidenceRef: "fixture-reviewed-policy", validUntil: "2100-01-01T00:00:00Z" }]))
     vi.stubGlobal("fetch", vi.fn(() => { throw new Error("LIVE REQUEST FORBIDDEN") }))
     m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: "cash" } })
     m.list.mockResolvedValue({ data: [{ id: "a", brokerage_authorization: "c", status: "open", raw_type: "fixture-cash", account_category: "INVESTMENT" }] })
-    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", disabled: false, brokerage: { slug: "BROKER", allows_trading: true } }] })
-    m.quotes.mockResolvedValue({ data: [{ symbol: { id: "listing", symbol: "AAPL", type: { code: "cs" }, currency: { id: "currency-usd", code: "USD" }, exchange: { code: "XNAS" } }, ask_price: 10 }] })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", disabled: false, brokerage: { slug: "ALPACA", allows_trading: true } }] })
+    m.quotes.mockResolvedValue({ data: [{ symbol: { id: "listing", symbol: "AAPL", type: { code: "cs" }, currency: { id: "currency-usd", code: "USD" }, exchange: { code: "XNAS", mic_code: "XNAS" } }, ask_price: 10 }] })
     m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 100 }] })
     m.positions.mockResolvedValue({ data: { results: [{ units: "3", instrument: { kind: "stock", id: "v2-instrument", symbol: "AAPL", exchange: "XNAS", currency: "USD" }, currency: "USD" }] } })
     m.orders.mockResolvedValue({ data: [] })
@@ -121,20 +121,20 @@ it("revalidates permission, holdings, cash and listing immediately before consum
 it("explicit owned upgrade never deletes a link or silently grants permission", async () => {
     expect((await upgrade(req({ connectionId: "c" }))).status).toBe(400)
     expect((await upgrade(req({ connectionId: "foreign", consent: true }))).status).toBe(404)
-    m.links.mockResolvedValue({ data: [{ id: "c", type: "read", disabled: false, brokerage: { slug: "BROKER", allows_trading: true } }] })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "read", disabled: false, brokerage: { slug: "ALPACA", allows_trading: true } }] })
     m.login.mockResolvedValue({ data: { redirectURI: "https://portal.invalid/consent" } })
     expect((await upgrade(req({ connectionId: "c", consent: true }))).status).toBe(200)
     expect(m.login.mock.calls[0][0]).toMatchObject({ reconnect: "c", connectionType: "trade" })
 })
 it("honors broker-supported preview mode with real nullable fee fields and checked-only submission", async () => {
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }))
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }))
     m.preview.mockResolvedValue({ data: { trade: { id: "checked", account: "a", action: "BUY", units: 2, order_type: "Limit", time_in_force: "Day", price: 10, symbol: { universal_symbol_id: "listing" } }, trade_impacts: [{ account: "a", estimated_commission: 0, remaining_cash: 80, forex_fees: null, currency: "currency-usd" }] } })
     m.place.mockResolvedValue({ data: { brokerage_order_id: "checked-order", status: "ACCEPTED" } })
     const r = await review(); expect(r.estimate).toMatchObject({ source: "brokerage", estimatedCommission: 0, forexFees: null })
     expect((await submit(r)).status).toBe(200); expect(m.place).toHaveBeenCalledOnce(); expect(m.force).not.toHaveBeenCalled()
 })
 it("never converts a preview outage to a direct order and never uses provider-mutated terms", async () => {
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }))
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }))
     m.preview.mockRejectedValue(new Error("unavailable")); expect((await impact(req(order))).status).toBe(503)
     m.preview.mockResolvedValue({ data: { trade: { id: "bad", units: 3 } } }); expect((await impact(req(order))).status).toBe(502)
     expect(m.rows.size).toBe(0); expect(m.force).not.toHaveBeenCalled(); expect(m.place).not.toHaveBeenCalled()
@@ -156,7 +156,7 @@ it("different simultaneous reviews serialize submissions across an owner", async
     finish({ data: { brokerage_order_id: "recorded-order", status: "ACCEPTED" } }); expect((await first).status).toBe(200)
 })
 function previewSetup(impacts: any[], changes = {}) {
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: true, preview: true, exchanges: ["XNAS"] } }))
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: true, preview: true, exchanges: ["XNAS"] } }))
     m.preview.mockResolvedValue({ data: { trade: { id: "checked", account: "a", action: "BUY", units: 2, order_type: "Limit", time_in_force: "Day", price: 50, symbol: { universal_symbol_id: "listing" }, ...changes }, trade_impacts: impacts } })
 }
 it("rejects exact gross-affordable100 plus1 commission / matching-account net cash minus1", async () => {
@@ -197,21 +197,21 @@ it("finds the correct matching-account impact beyond the first item, with provid
     const r = await review(); expect(r.estimate).toMatchObject({ estimatedCommission: 2, remainingCash: 78, currency: "USD" })
 })
 it("preserves structured subscription outage503 on upgrade without issuing portal URL", async () => {
-    m.links.mockResolvedValue({ data: [{ id: "c", type: "read", brokerage: { slug: "BROKER", allows_trading: true } }] })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "read", brokerage: { slug: "ALPACA", allows_trading: true } }] })
     m.denied = Response.json({ code: "entitlement_unavailable", error: "Subscription service unavailable" }, { status: 503 })
     const response = await upgrade(req({ connectionId: "c", consent: true }))
     expect(response.status).toBe(503); expect((await response.json()).code).toBe("entitlement_unavailable")
     expect(m.login).not.toHaveBeenCalled()
 })
-it.each([false, undefined])("requires positive provider fractional capability, not allowlist alone: %s", async allows => {
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: true, preview: false, exchanges: ["XNAS"] } }))
-    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", brokerage: { slug: "BROKER", allows_trading: true, allows_fractional_units: allows } }] })
-    expect((await impact(req({ ...order, units: 0.5 }))).status).toBe(400); expect(m.force).not.toHaveBeenCalled()
+it.each([false, undefined])("deprecated fractional provider flags cannot authorize an order: %s", async allows => {
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: true, preview: false, exchanges: ["XNAS"] } }))
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", brokerage: { slug: "ALPACA", allows_trading: true, allows_fractional_units: allows } }] })
+    expect((await impact(req({ ...order, units: 0.5 }))).status).toBe(409); expect(m.force).not.toHaveBeenCalled()
 })
-it("permits fractional review only when provider and reviewed policy agree", async () => {
-    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ BROKER: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: true, preview: false, exchanges: ["XNAS"] } }))
-    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", brokerage: { slug: "BROKER", allows_trading: true, allows_fractional_units: true } }] })
-    expect((await impact(req({ ...order, units: 0.5 }))).status).toBe(200)
+it("legacy fractional boolean cannot authorize review without per-order proof", async () => {
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ALPACA: { orderTypes: ["Limit"], timeInForce: ["Day"], fractional: true, preview: false, exchanges: ["XNAS"] } }))
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", brokerage: { slug: "ALPACA", allows_trading: true, allows_fractional_units: true } }] })
+    expect((await impact(req({ ...order, units: 0.5 }))).status).toBe(409)
 })
 it.each(["margin", "unknown", null, undefined])("rejects unsupported provider cash mode at review and confirm: %s", async mode => {
     const r = await review()
@@ -263,7 +263,7 @@ it.each([
     expect(m.force).not.toHaveBeenCalled()
 })
 it("SELL accepts matching venue FIGI but rejects conflicting venue FIGI even when tickers match", async () => {
-    m.quotes.mockResolvedValue({ data: [{ symbol: { id: "listing", symbol: "AAPL", figi_code: "VENUE-FIGI", type: { code: "cs" }, currency: { code: "USD" }, exchange: { code: "XNAS" } }, ask_price: 10 }] })
+    m.quotes.mockResolvedValue({ data: [{ symbol: { id: "listing", symbol: "AAPL", figi_code: "VENUE-FIGI", type: { code: "cs" }, currency: { code: "USD" }, exchange: { code: "XNAS", mic_code: "XNAS" } }, ask_price: 10 }] })
     const position = { units: "3", instrument: { kind: "stock", id: "v2-id", symbol: "AAPL", exchange: "XNAS", figi_instrument: { figi_code: "VENUE-FIGI" } }, currency: "USD" }
     m.positions.mockResolvedValue({ data: { results: [position] } })
     expect((await impact(req({ ...order, action: "SELL" }))).status).toBe(200)
@@ -291,7 +291,7 @@ it.each(["deposit", "line_of_credit", "annuity", undefined])("rejects unsupporte
 
 it.each([
     ["ALPACA-PAPER", true, 200], ["ALPACA-PAPER", false, 409], ["ALPACA-PAPER", undefined, 409],
-    ["ETRADE", false, 200], ["ETRADE", true, 409], ["ETRADE", undefined, 409],
+    ["ALPACA", false, 200], ["ALPACA", true, 409], ["ALPACA", undefined, 409],
 ])("binds paper/live account details to %s: paper=%s", async (slug, paper, status) => {
     vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ [slug as string]: { orderTypes: ["Market", "Limit"], timeInForce: ["Day"], fractional: false, preview: true, exchanges: ["XNAS"] } }))
     m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug, allows_trading: true, enabled: true, maintenance_mode: false }] } })
@@ -364,7 +364,7 @@ it("rejects a slow pre-A impact that finishes AFTER A terminal reconciliation", 
     const a = await review(); expect((await submit(a)).status).toBe(200)
     m.orderDetail.mockResolvedValue({ data: terminalDetail() })
     const fresh = await review(); expect(fresh.reviewId).toBeTruthy()
-    release({ data: [{ symbol: { id: "listing", symbol: "AAPL", type: { code: "cs" }, currency: { code: "USD" }, exchange: { code: "XNAS" } }, ask_price: 10 }] })
+    release({ data: [{ symbol: { id: "listing", symbol: "AAPL", type: { code: "cs" }, currency: { code: "USD" }, exchange: { code: "XNAS", mic_code: "XNAS" } }, ask_price: 10 }] })
     expect(await slow).toMatchObject({ code: "order_review_stale" })
     expect(m.rows.size).toBe(2); expect(m.force).toHaveBeenCalledOnce()
 })

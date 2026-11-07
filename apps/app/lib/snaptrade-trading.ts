@@ -1,4 +1,5 @@
 import { getSnapTrade, isTradingKeyApproved, type SnapTradeSession } from "./snaptrade"
+import { usEquitySupport, US_EQUITY_SUPPORT, usEquityMic, documentedMinimum } from "./snaptrade-broker-policy"
 import { brokerageReadScope } from "./snaptrade-access"
 import { accountPositions, positionNumber } from "./snaptrade-positions"
 
@@ -13,11 +14,12 @@ export type Terms = { accountId: string; symbol: string; action: "BUY" | "SELL";
     amountMode: AmountMode; units: number | null; notionalValue: string | null;
     orderType: "Market" | "Limit"; timeInForce: "Day" | "GTC"; price: number | null; stop: null }
 export type NotionalCapability = { orderTypes: ["Market"]; timeInForce: ["Day"]; minAmount: string; maxAmount: string }
+export type FractionalCapability = { orderTypes: { Market: ["Day"] }; decimalPlaces: number; minOrderValue?: string }
 export type Capability = { orderTypes: string[]; timeInForce: string[]; fractional: boolean; preview: boolean; exchanges: string[];
-    notional?: NotionalCapability }
-/** Code-level allowlist: env configuration alone can never enable dollar
- * orders elsewhere. ETRADE is whole-share only per SnapTrade's brokerage table. */
-export const NOTIONAL_BROKERAGES: readonly string[] = ["ALPACA-PAPER"]
+    notional?: NotionalCapability; fractionalOrders?: FractionalCapability }
+/** Sourced sizing ceiling: configuration is still required, as are live
+ * namespace/account/listing checks. Fractional units never imply dollars. */
+export const NOTIONAL_BROKERAGES: readonly string[] = Object.keys(US_EQUITY_SUPPORT).filter(slug => usEquitySupport(slug)?.dollars === true)
 /** Application bounds (root-approved): USD 1.00 – 10,000.00. */
 export const NOTIONAL_MIN_CENTS = 100, NOTIONAL_MAX_CENTS = 1_000_000
 const NOTIONAL_PATTERN = /^(0|[1-9][0-9]{0,6})(?:\.([0-9]{1,2}))?$/
@@ -27,6 +29,10 @@ export function notionalCents(value: unknown): number | null {
     const match = NOTIONAL_PATTERN.exec(value)
     if (!match) return null
     return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"))
+}
+/** Numeric units must round-trip at the app's advertised precision ceiling. */
+export function fractionalPrecision(value: number, places: number): boolean {
+    return Number.isFinite(value) && Number(value.toFixed(places)) === value
 }
 export function centsString(cents: number): string {
     return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`
@@ -58,7 +64,7 @@ export function terms(body: any): Terms {
         return { ...common, units: null, notionalValue: centsString(cents), orderType: "Market", timeInForce: "Day", price: null, stop: null }
     }
     if (!Number.isFinite(body.units) || body.units <= 0
-        || body.units > 1e9 || Math.abs(body.units * 1e6 - Math.round(body.units * 1e6)) > 0.0001
+        || body.units > 1e9 || !fractionalPrecision(body.units, 6)
         || body.notionalValue != null) return fail()
     return { ...common, units: body.units, notionalValue: null, orderType: body.orderType,
         timeInForce: body.timeInForce, price: body.orderType === "Limit" ? body.price : null, stop: null }
@@ -77,10 +83,32 @@ export function capability(slug: string): Capability {
         || !value.exchanges.every((v: unknown) => typeof v === "string" && /^[A-Z0-9]{2,12}$/.test(v))
         || typeof value.fractional !== "boolean" || typeof value.preview !== "boolean")
         throw new TradingError("trading_unavailable", "Trading support for this brokerage has not been confirmed.", 503)
+    const support = usEquitySupport(slug)
+    // Unknown or non-US equity integrations require an explicit policy review.
+    if (!support) throw new TradingError("trading_unavailable", "US stock and ETF trading support has not been confirmed for this brokerage.", 503)
     const { notional, ...shares } = value
+    if (shares.fractional && !support.fractional || shares.timeInForce.includes("GTC") && !support.gtc)
+        throw new TradingError("trading_unavailable", "Configured brokerage order support exceeds confirmed provider support.", 503)
     const parsed = notionalCapability(slug, notional)
+    const fractionalOrders = fractionalCapability(slug, value.fractionalOrders, value.preview)
+    if (fractionalOrders && (!shares.orderTypes.includes("Market") || !shares.timeInForce.includes("Day")))
+        throw new TradingError("trading_unavailable", "Fractional order support conflicts with the configured order types.", 503)
     return { orderTypes: shares.orderTypes, timeInForce: shares.timeInForce, fractional: shares.fractional,
-        preview: shares.preview, exchanges: shares.exchanges, ...(parsed ? { notional: parsed } : {}) }
+        preview: shares.preview, exchanges: shares.exchanges, ...(parsed ? { notional: parsed } : {}), ...(fractionalOrders ? { fractionalOrders } : {}) }
+}
+/** Explicit per-order fractional configuration; no deprecated provider flag.
+ * Market/Day is the reviewed conservative subset, app precision <=6.
+ */
+function fractionalCapability(slug: string, value: any, preview: boolean): FractionalCapability | undefined {
+    if (value == null) return undefined
+    const minimum = documentedMinimum(slug)
+    if (!usEquitySupport(slug)?.fractional || preview !== true || !value || typeof value !== "object"
+        || Array.isArray(value) || Object.keys(value).some(k => !["orderTypes", "decimalPlaces", "minOrderValue"].includes(k))
+        || JSON.stringify(value.orderTypes) !== '{"Market":["Day"]}'
+        || !Number.isInteger(value.decimalPlaces) || value.decimalPlaces < 1 || value.decimalPlaces > 6
+        || (minimum ? value.minOrderValue !== minimum : value.minOrderValue !== undefined))
+        throw new TradingError("trading_unavailable", "Fractional order support has not been confirmed.", 503)
+    return { orderTypes: { Market: ["Day"] }, decimalPlaces: value.decimalPlaces, ...(minimum ? { minOrderValue: minimum } : {}) }
 }
 /** Optional reviewed dollar-order block. Anything malformed or outside the
  * code allowlist/application bounds hides dollars only; share trading for the
@@ -90,7 +118,7 @@ function notionalCapability(slug: string, value: any): NotionalCapability | unde
     const min = notionalCents(value.minAmount), max = notionalCents(value.maxAmount)
     if (Object.keys(value).sort().join() !== "maxAmount,minAmount,orderTypes,timeInForce"
         || JSON.stringify(value.orderTypes) !== '["Market"]' || JSON.stringify(value.timeInForce) !== '["Day"]'
-        || min == null || max == null || min < NOTIONAL_MIN_CENTS || max > NOTIONAL_MAX_CENTS || min > max) return undefined
+        || min == null || max == null || min < (slug === "WEBULL" ? 500 : NOTIONAL_MIN_CENTS) || max > NOTIONAL_MAX_CENTS || min > max) return undefined
     return { orderTypes: ["Market"], timeInForce: ["Day"], minAmount: centsString(min), maxAmount: centsString(max) }
 }
 export function configuredTradingBrokerages(): string[] {
@@ -141,8 +169,7 @@ export async function ownedTradingAccount(userId: string, session: SnapTradeSess
     // Current details require a boolean environment marker. For launch brokers
     // also bind that marker to the documented paper/live institution slug.
     if (typeof account.is_paper !== "boolean"
-        || slug === "ALPACA-PAPER" && account.is_paper !== true
-        || ["ETRADE", "ALPACA", "SCHWAB"].includes(slug) && account.is_paper !== false)
+        || !usEquitySupport(slug) || account.is_paper !== usEquitySupport(slug)?.paper)
         throw new TradingError("account_environment_unverified", "The brokerage account's paper or live environment could not be confirmed.", 409)
     const cap = capability(connection.brokerage.slug ?? "")
     if (!(await liveTradingBrokerages(session.clientId)).includes(connection.brokerage.slug ?? ""))
@@ -157,7 +184,7 @@ export async function accountQuote(context: Awaited<ReturnType<typeof ownedTradi
     const q = Array.isArray(quotes) ? quotes.find(q => q.symbol?.symbol?.toUpperCase() === symbol) : null
     if (!q?.symbol?.id) throw new TradingError("quote_unsupported", "This security could not be confirmed for this account.", 422)
     if (!["cs", "et"].includes(q.symbol.type?.code) || q.symbol.currency?.code !== "USD"
-        || !cap.exchanges.includes(q.symbol.exchange?.code))
+        || !usEquityMic(q.symbol.exchange?.mic_code))
         throw new TradingError("quote_unsupported", "Trading support for this listing has not been confirmed.", 422)
     return q
 }
@@ -192,7 +219,9 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
             || cents < notionalCents(cap.notional.minAmount)! || cents > notionalCents(cap.notional.maxAmount)!
         : order.units == null || order.notionalValue != null
             || !cap.orderTypes.includes(order.orderType) || !cap.timeInForce.includes(order.timeInForce)
-            || (!Number.isInteger(order.units) && (!cap.fractional || connection.brokerage?.allows_fractional_units !== true)))
+            || (!Number.isInteger(order.units) && (!cap.fractionalOrders || !cap.preview
+                || order.orderType !== "Market" || order.timeInForce !== "Day"
+                || !fractionalPrecision(order.units, cap.fractionalOrders.decimalPlaces))))
         throw new TradingError("order_invalid", "These order terms are not enabled for this brokerage.")
     const notional = cents == null ? null : cents / 100
     // Exclude simultaneous/open orders rather than guessing reservations or available-to-sell quantities.
