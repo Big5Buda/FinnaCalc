@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         const connections = (Array.isArray(data) ? data : []).map((c: any) => ({
             id: c.id ?? "",
             brokerage: c.brokerage?.name ?? c.name ?? "Brokerage",
+            brokerageSlug: typeof c.brokerage?.slug === "string" ? c.brokerage.slug : null,
             disabled: c.disabled ?? false,
             // "read" | "trade" | missing. Only "read" is view-only; the app
             // flags anything else for disconnect-and-relink.

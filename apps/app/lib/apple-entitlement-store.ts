@@ -44,7 +44,7 @@ async function loadBoundAppleGrants(userId: string): Promise<StoredGrant[]> {
     const { data, error } = await admin.from(TABLE)
         .select("user_id, active, verified_at, original_transaction_id, transaction_id, product_id, tier, expires_at, environment, app_account_token")
         .eq("user_id", userId)
-    if (error) throw new AppleSubscriptionError("Subscription storage is unavailable. Please contact support.", 503)
+    if (error) throw Object.assign(new AppleSubscriptionError("Subscription storage is unavailable. Please contact support.", 503), { storeCode: error.code })
     const rows: StoredGrant[] = (data ?? []).map((row) => ({
         user_id: row.user_id, active: row.active, verified_at: row.verified_at,
         originalTransactionId: row.original_transaction_id, transactionId: row.transaction_id,
