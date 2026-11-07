@@ -31,11 +31,11 @@ function adminClient(): SupabaseClient {
 /** Wraps Supabase errors with a hint when the table hasn't been created yet. */
 function dbError(error: { code?: string; message?: string }): Error {
     if (error.code === "42P01") {
-        return new Error(
+        return Object.assign(new Error(
             "The billing_entitlements table doesn't exist yet — run supabase/billing_entitlements.sql in the Supabase SQL editor."
-        )
+        ), { storeCode: error.code })
     }
-    return new Error(error.message || "Billing entitlement store error.")
+    return Object.assign(new Error(error.message || "Billing entitlement store error."), { storeCode: error.code })
 }
 
 export interface EntitlementRow {

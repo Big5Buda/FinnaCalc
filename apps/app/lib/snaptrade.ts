@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { Snaptrade } from "snaptrade-typescript-sdk"
+import { Snaptrade, SnaptradeAuth } from "snaptrade-typescript-sdk"
 
 /**
  * Server-side SnapTrade client.
@@ -40,7 +40,8 @@ export interface SnapTradeSession {
 }
 
 type Credentials = { clientId: string; consumerKey: string }
-const clients = new Map<string, Snaptrade>()
+type CommercialClient = Snaptrade<ReturnType<typeof SnaptradeAuth.commercialApiKey>>
+const clients = new Map<string, CommercialClient>()
 
 /** Existing ownership survives flag rollback; the flag selects NEW users only. */
 export function snapTradeCredentials(ownerClientId: string): Credentials {
@@ -51,6 +52,23 @@ export function snapTradeCredentials(ownerClientId: string): Credentials {
     if (ownerClientId === originalClientId && originalConsumerKey) return { clientId: originalClientId, consumerKey: originalConsumerKey }
     if (ownerClientId === productionClientId && productionConsumerKey) return { clientId: productionClientId, consumerKey: productionConsumerKey }
     throw new Error("This brokerage connection's key is unavailable. Your connection has been preserved; please contact support.")
+}
+
+/** Operator approval for an existing owned credential, never a key selector.
+ * Namespaces avoid retrieving sensitive environment values during rollout.
+ * Clear/review namespace approval before replacing either credential slot. */
+export function snapTradeKeyNamespace(ownerClientId: string): "original" | "next" {
+    snapTradeCredentials(ownerClientId)
+    return ownerClientId === originalClientId ? "original" : "next"
+}
+
+export function isTradingKeyApproved(ownerClientId: string): boolean {
+    try { snapTradeCredentials(ownerClientId) } catch { return false }
+    const exact = (process.env.SNAPTRADE_TRADING_APPROVED_CLIENT_IDS ?? "").split(",").map(v => v.trim()).filter(Boolean)
+    if (exact.includes(ownerClientId)) return true
+    const namespaces = (process.env.SNAPTRADE_TRADING_APPROVED_KEY_NAMESPACES ?? "").split(",").map(v => v.trim()).filter(Boolean)
+    if (!namespaces.length || namespaces.some(v => v !== "original" && v !== "next")) return false
+    return namespaces.some(v => v === "original" ? ownerClientId === originalClientId : ownerClientId === productionClientId)
 }
 
 export function activeSnapTradeClientId(): string {
@@ -66,11 +84,11 @@ export function configuredSnapTradeClientIds(): string[] {
     ])]
 }
 
-export function getSnapTrade(owner: Pick<SnapTradeSession, "clientId">): Snaptrade {
+export function getSnapTrade(owner: Pick<SnapTradeSession, "clientId">): CommercialClient {
     const credentials = snapTradeCredentials(owner.clientId)
     let client = clients.get(credentials.clientId)
     if (!client) {
-        client = new Snaptrade(credentials)
+        client = new Snaptrade({ auth: SnaptradeAuth.commercialApiKey(credentials) })
         clients.set(credentials.clientId, client)
     }
     return client

@@ -35,7 +35,7 @@ const OFFER: { icon: LucideIcon; tint: string; title: string; body: string }[] =
         icon: TrendingUp,
         tint: "text-primary",
         title: "Investing",
-        body: "Connect a brokerage view-only to see your portfolio and order history, follow markets and news, and explore up to ten years of company financials, where available.",
+        body: "Connect a brokerage to see your portfolio and order history, follow markets and news, and explore company financials. View-only access is available; where enabled, separately authorized trading lets you review and confirm your own stock and ETF orders for supported cash accounts.",
     },
     {
         icon: FileText,

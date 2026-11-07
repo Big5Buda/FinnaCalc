@@ -36,7 +36,7 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  *
  * View-only. Every link asks SnapTrade for read access; nothing on this page
  * places, previews or cancels an order. A legacy link that isn't reported as
- * read-only is flagged, with disconnect-and-relink as the way out.
+ * read-only is flagged because this web page cannot repair its permissions.
  *
  * Nothing here is ever placeheld: a value the brokerage hasn't reported and a
  * quote we can't fetch both render as a dash. Holdings the daily sync hasn't
@@ -179,8 +179,8 @@ export default function PortfolioPage() {
                     <Link href="/sign-in?next=/investing/portfolio" className="font-semibold text-primary">
                         Sign in
                     </Link>{" "}
-                    to connect a brokerage. Links are view-only: FinnaCalc reads your balances, holdings and
-                    order history, and never places or cancels orders.
+                    to connect a brokerage. Connections made on this web page request view-only access to balances, holdings and
+                    order history. This page does not submit or cancel orders.
                 </Notice>
             </Shell>
         )
@@ -395,8 +395,8 @@ function ConnectPanel({
             </div>
 
             <p className="text-xs text-muted-foreground">
-                View only. FinnaCalc reads your balances, holdings and order history; it can&rsquo;t place
-                or cancel orders. Trades happen in your brokerage&rsquo;s own app or site.
+                This web page requests view-only access to balances, holdings and order history. It does not
+                submit or cancel orders. Separately authorized trading is available only where enabled in a supported client.
             </p>
 
             <input

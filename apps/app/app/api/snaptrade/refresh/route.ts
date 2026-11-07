@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSnapTrade, isSnapTradeConfigured, snapTradeErrorMessage } from "@/lib/snaptrade"
 import { loadSession } from "@/lib/snaptrade-session"
-import { brokerageLimitError } from "@/lib/snaptrade-access"
+import { brokerageReadScope, wantsCountedScope } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 
 // Triggers a manual holdings sync for the user's active connections.
@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        // The iOS app opts in with a JSON body; a query string works too.
+        const body = await req.json().catch(() => null)
+        const countedScope = wantsCountedScope(req.url) || body?.scope === "counted"
         const session = await loadSession(appUserId)
         if (!session) {
             return NextResponse.json({ error: "No brokerage connection." }, { status: 401 })
@@ -31,9 +34,11 @@ export async function POST(req: NextRequest) {
             userId: session.userId,
             userSecret: session.userSecret,
         })
-        const denied = await brokerageLimitError(appUserId, session, Array.isArray(data) ? data : undefined)
-        if (denied) return denied
-        const active = (Array.isArray(data) ? data : []).filter((c: any) => c?.id && !c?.disabled)
+        const scope = await brokerageReadScope(appUserId, session, Array.isArray(data) ? data : undefined, countedScope)
+        if ("denied" in scope) return scope.denied
+        // Over the limit, only the counted connection is refreshed.
+        const active = (Array.isArray(data) ? data : []).filter((c: any) => c?.id && !c?.disabled
+            && (!scope.countedConnectionId || c.id === scope.countedConnectionId))
 
         // Refresh each active connection; a single failure shouldn't block the
         // others (and SnapTrade may reject with 429 if refreshed too often).
