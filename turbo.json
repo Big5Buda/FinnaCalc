@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
+    "@finnacalc/app#build": {
+      "passThroughEnv": ["SUPABASE_SERVICE_ROLE_KEY"],
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true
