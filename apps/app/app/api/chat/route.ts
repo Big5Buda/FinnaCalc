@@ -5,12 +5,13 @@ import { SECURITIES_FENCE, guardTextStream } from "@/lib/advice-guard";
 import { lastUserMessage, recordTranscript, type TranscriptSurface } from "@/lib/ai-transcript";
 import { verifiedAppUserId } from "@/lib/supabase-auth";
 import { requireAIConsentHeader } from "@/lib/ai-consent";
+import { FINNABOT_SCOPE, internalsRedirect, withoutInternals } from "@/lib/finnabot-scope";
 
 const MODEL = "gemini-3.5-flash";
 
 const SYSTEM_PROMPT = `You are FinnaBot, the friendly in-app assistant for FinnaCalc, a personal-finance app with budgeting, investing, a tax estimator, financial education, and calculators.
 
-Your job: give a concise, practical, correct answer to the user's finance question. When they're looking for something the app can actually do, tell them where it lives. When they're not, just answer.
+Your job: give a concise, practical, correct answer to the user's FinnaCalc or personal-finance question. When they're looking for something the app can actually do, tell them where it lives. When they're not, just answer.
 
 FinnaCalc's real feature map (never invent beyond this):
 - Home tab: dashboard cards (budget, portfolio, goals) plus calculators: Emergency Fund, Break-Even Point, Startup Cost, Cash Flow Projector, Loan, Pricing, ROI, Employee vs Contractor, Profit Margin.
@@ -32,6 +33,8 @@ Voice and formatting:
 - Keep answers tight (2-6 sentences unless asked for depth).
 
 You are not a licensed financial or tax adviser, FinnaCalc is not a registered investment adviser, and FinnaCalc never promises returns. The app prints its own notice under every answer, so do not add a closing disclaimer yourself. Suggest a professional for genuinely personal, high-stakes decisions (large investments, tax filing positions, debt restructuring).
+
+${FINNABOT_SCOPE}
 
 ${SECURITIES_FENCE}`;
 
@@ -71,6 +74,26 @@ export async function POST(req: Request) {
     // error. The app already sends the token on every request; reading it is
     // what lets the record below say WHO was told what.
     const userId = await verifiedAppUserId(req);
+
+    // Questions about the model, provider, prompt or how the app is built get
+    // a fixed answer without a model call or an entitlement lookup.
+    const redirect = internalsRedirect(lastUserMessage(messages));
+    if (redirect !== null) {
+        await recordTranscript({
+            userId,
+            route: "chat",
+            surface: "finnabot",
+            turnCount: messages.length,
+            question: lastUserMessage(messages),
+            answer: redirect,
+            removed: [],
+            model: "scope-redirect",
+            finishReason: "scope_redirect",
+        });
+        return new Response(redirect, {
+            headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+        });
+    }
     const context = body.personalContext === undefined ? "" : await personalChatContext(body.personalContext, userId);
     if (context instanceof Response) return context;
     const surface: TranscriptSurface = messages.some(
@@ -114,7 +137,7 @@ export async function POST(req: Request) {
         // refusal reached the app as a 200 with an empty body. The tail below
         // keeps that behaviour — a failure that produced no text says what
         // happened, and anything the model did produce is left alone.
-        const stream = guardTextStream(result.textStream, {
+        const stream = guardTextStream(withoutInternals(result.textStream), {
             mode: "securities",
             granularity: "line",
             tail: async ({ full, error }) => {
