@@ -50,7 +50,7 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Bank and brokerage links run through Plaid and SnapTrade. Your bank credentials go to them directly and never touch FinnaCalc's servers",
-                            "Imported transactions and holdings are stored on your device. The ticker symbols and weights that the Portfolio Analysis chat sends with a message are kept with that conversation\u2019s record",
+                            "Imported transactions and holdings are stored on your device. Optional AI questions can share portfolio holdings and weights with Google. Home FinnaBot can receive a selected budget summary with Budgeting Plus, portfolio context with Investing Plus, or both with Pro, where available and after AI-sharing permission. Financial details included in messages or responses are kept in conversation records",
                         ]}
                     />
                     <P>
