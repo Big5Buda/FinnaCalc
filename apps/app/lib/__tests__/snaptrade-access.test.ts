@@ -1,3 +1,4 @@
+vi.mock("@/lib/connection-activity", async (original) => ({...await original<typeof import("../connection-activity")>(), connectionLinkGuard: vi.fn().mockResolvedValue(null)}))
 import { beforeEach, expect, it, vi } from "vitest"
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"

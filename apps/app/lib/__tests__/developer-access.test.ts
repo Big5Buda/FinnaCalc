@@ -1,3 +1,4 @@
+vi.mock("@/lib/connection-activity", async (original) => ({...await original<typeof import("../connection-activity")>(), connectionLinkGuard: vi.fn().mockResolvedValue(null)}))
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 const OWNER = "35245322-f950-4f2a-a980-80a17bd134ab"
@@ -25,7 +26,7 @@ it("authorizes only the exact verified configured UUID without billing reads or 
     expect(await paidFeatureError(OWNER, "investing")).toBeNull()
     expect(m.apple).not.toHaveBeenCalled(); expect(m.stripe).not.toHaveBeenCalled()
     const res = await GET(new NextRequest("https://test.invalid/api/access/developer"))
-    expect(await res.json()).toEqual({ investingDeveloperAccess: true, unlimitedBrokerageConnections: true })
+    expect(await res.json()).toEqual({ investingDeveloperAccess: true, unlimitedBrokerageConnections: true, finnaBotPersonalContextDeveloperAccess: false })
     expect(res.headers.get("Cache-Control")).toBe("private, no-store")
     expect(res.headers.get("Vary")).toBe("Authorization")
 })
@@ -36,7 +37,7 @@ it("leaves budgeting and ordinary free investing policy unchanged", async () => 
 it("does not grant another verified user through a query parameter, body-like field or debug header", async () => {
     m.user = OTHER
     const req = new NextRequest(`https://test.invalid/api/access/developer?userId=${OWNER}&developer=true`, { headers: { "X-Developer": "true", "X-User-Id": OWNER } })
-    expect(await (await GET(req)).json()).toEqual({ investingDeveloperAccess: false, unlimitedBrokerageConnections: false })
+    expect(await (await GET(req)).json()).toEqual({ investingDeveloperAccess: false, unlimitedBrokerageConnections: false, finnaBotPersonalContextDeveloperAccess: false })
 })
 it("requires verified authentication even if the request claims the allowlisted UUID", async () => {
     m.user = null
@@ -55,7 +56,7 @@ it("accepts canonical UUID case/whitespace and rechecks configuration without ca
     expect(developerInvestingAccess("owner@example.com")).toBe(false)
     vi.stubEnv("FINNACALC_DEVELOPER_INVESTING_USER_IDS", "")
     expect(developerInvestingAccess(OWNER)).toBe(false)
-    expect(await (await GET(new NextRequest("https://test.invalid/api/access/developer"))).json()).toEqual({ investingDeveloperAccess: false, unlimitedBrokerageConnections: false })
+    expect(await (await GET(new NextRequest("https://test.invalid/api/access/developer"))).json()).toEqual({ investingDeveloperAccess: false, unlimitedBrokerageConnections: false, finnaBotPersonalContextDeveloperAccess: false })
 })
 it("preserves verified paid access for ordinary users", async () => {
     m.stripe.mockResolvedValue({ tier: "trader", status: "active", current_period_end: "2100-01-01T00:00:00Z" })

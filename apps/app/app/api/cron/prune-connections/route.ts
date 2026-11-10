@@ -1,126 +1,65 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { activityAdmin, missingActivityMigration } from "@/lib/connection-activity"
+import { verifiedInactivityPlan, annualCleanupIO, repairConfirmedCleanup } from "@/lib/connection-inactivity"
+import { runAnnualCleanup } from "@/lib/annual-inactivity-runner"
 import { paidFeatureError } from "@/lib/paid-feature-access"
 import { getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 import { SnaptradeError } from "snaptrade-typescript-sdk"
 import { deleteSession } from "@/lib/snaptrade-session"
-
-/**
- * Hangs up on brokerage connections nobody has come back for.
- *
- * SnapTrade bills per connected user every month whether or not the app is
- * ever opened again, and brokerage connections are open to free accounts, so
- * there is no subscription lapse to hang the teardown on. Time since last use
- * is the only signal available.
- *
- * PLAID IS DELIBERATELY NOT HERE, and this is the correction that matters.
- * An earlier version pruned bank connections on the same timer, which would
- * have disconnected a Budgeting Plus subscriber who simply had not opened the
- * app for six weeks. They are still paying. Banks are torn down when the
- * subscription that paid for them ends, which the app handles the moment it
- * sees the entitlement go (EntitlementStore.tearDownLapsedConnections), and
- * never on a clock. Do not add plaid_items to this file.
- *
- * Paying investing subscribers are exempt for the same reason. The app stamps
- * `has_investing` alongside the ping as a conservative retention hint. Before
- * any removal the server verifies current Apple/Stripe access independently;
- * a failed subscription check retains the connection. Only unpaid, unused
- * connections are pruned, which is the only case that is pure cost.
- *
- * DORMANT_DAYS is generous on purpose. Someone who checks a portfolio
- * quarterly is a real user, and a disconnection they did not ask for is a bad
- * surprise that costs them a reconnection.
- *
- * Safety, ordered by how badly each would go wrong:
- *
- *   1. NO COLUMN, NO ACTION. Before supabase/last_seen.sql has been run there
- *      is no last_seen_at. Treating missing or null as "never seen" would
- *      disconnect every user at once on the first run. The query asks for rows
- *      OLDER than the cutoff, so a missing column errors and aborts before
- *      touching anything.
- *   2. NULL IS NEVER DORMANT. A row written before this shipped means
- *      "unknown", not "abandoned".
- *   3. Removal happens at SnapTrade first, the row goes second, because the
- *      reverse strands a billed connection with its credential discarded.
- *   4. Idempotent: a connection already gone counts as success.
- *
- * Scheduled by vercel.json. Vercel sends CRON_SECRET as a bearer token and the
- * route refuses anything else, so it cannot be triggered from outside.
- */
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
-const DORMANT_DAYS = 45
-
-function authorised(req: NextRequest): boolean {
-    const secret = process.env.CRON_SECRET
-    if (!secret) return false
-    return req.headers.get("authorization") === `Bearer ${secret}`
-}
-
+/** Free brokerage: 45 days. Annual subscribers who acknowledged the policy:
+ * 60 days for banks AND brokerages. Monthly paid connections are retained.
+ * No subscription is canceled. All status comes from verified server billing;
+ * client has_investing hints cannot prove eligibility for either rule.
+ * Rollout flag stays OFF until migration and new consent UI are deployed.
+ */
 export async function GET(req: NextRequest) {
-    if (!authorised(req)) {
-        return NextResponse.json({ error: "Not authorised." }, { status: 401 })
-    }
-    if (!isSnapTradeConfigured) {
-        return NextResponse.json({ skipped: "SnapTrade not configured." })
-    }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !serviceRole) {
-        return NextResponse.json({ error: "Not configured." }, { status: 503 })
-    }
-    const admin = createClient(url, serviceRole, {
-        auth: { autoRefreshToken: false, persistSession: false },
-    })
-
-    const cutoff = new Date(Date.now() - DORMANT_DAYS * 86_400_000).toISOString()
-    const errors: string[] = []
-    let removed = 0
-
-    const { data, error } = await admin
-        .from("snaptrade_users")
-        .select("user_id, st_user_id, client_id, has_investing")
-        .lt("last_seen_at", cutoff)
-    if (error) {
-        // A missing column lands here, and aborting is the point: see 1.
-        return NextResponse.json({ error: `snaptrade_users: ${error.message}` }, { status: 500 })
-    }
-
-    let exempt = 0
-    for (const row of (data ?? []) as any[]) {
-        // Paying for investing keeps the connection, however long the gap.
-        if (row.has_investing === true) {
-            exempt += 1
-            continue
-        }
-        // A device hint cannot prove a subscription ended. Apple/Stripe must
-        // explicitly confirm there is no investing access before deletion.
-        try {
-            const denied = await paidFeatureError(row.user_id, "investing")
-            if (!denied) { exempt += 1; continue }
-            if (denied.status !== 403) { errors.push(`entitlement ${row.user_id}`); continue }
-        } catch {
-            errors.push(`entitlement ${row.user_id}`)
-            continue
-        }
-        try {
-            const st = getSnapTrade({ clientId: row.client_id })
-            await st.authentication.deleteSnapTradeUser({ userId: row.st_user_id })
-        } catch (err: any) {
-            // 404 means SnapTrade has already forgotten them, which is the
-            // state we wanted.
-            if (!(err instanceof SnaptradeError) || err.status !== 404) {
-                errors.push(`snaptrade ${row.user_id}`)
-                continue
+    const secret=process.env.CRON_SECRET
+    if(!secret || req.headers.get("authorization")!==`Bearer ${secret}`) return NextResponse.json({error:"Not authorised."},{status:401})
+    let db: ReturnType<typeof activityAdmin>
+    try {db=activityAdmin()} catch {return NextResponse.json({error:"Not configured."},{status:503})}
+    const now=Date.now(), freeCutoff=new Date(now-45*86400000).toISOString(), annualCutoff=new Date(now-60*86400000).toISOString()
+    let freeRemoved=0, annualProcessed=0, errors=0, annualSkipped="disabled"
+    if(process.env.FINNACALC_ANNUAL_INACTIVITY_CLEANUP_ENABLED==="true") {
+        await db.rpc("settle_expired_connection_cleanup",{p_user_id:null})
+        const {data,error}=await db.from("app_activity").select("user_id").eq("annual_policy_acknowledged",true).lte("last_seen_at",annualCutoff).order("cleanup_checked_at",{ascending:true,nullsFirst:true}).limit(100)
+        if(error) {
+            annualSkipped=missingActivityMigration(error)?"migration_required":"storage_unavailable"
+            errors+=missingActivityMigration(error)?0:1
+        } else {
+            annualSkipped=""
+            try {await repairConfirmedCleanup()} catch {errors++}
+            for(const row of data??[]) {
+                if(Date.now()-now>45000) break // bounded cron, leave untouched work for next day
+                await db.from("app_activity").update({cleanup_checked_at:new Date().toISOString()}).eq("user_id",row.user_id)
+                try {await runAnnualCleanup(row.user_id,annualCutoff,annualCleanupIO);annualProcessed++} catch {errors++}
             }
         }
-        try {
-            await deleteSession(row.user_id, { userId: row.st_user_id, clientId: row.client_id })
-        } catch { errors.push(`session ${row.user_id}`); continue }
-        removed += 1
     }
-
-    return NextResponse.json({ cutoff, dormantDays: DORMANT_DAYS, removed, exempt, errors })
+    if(isSnapTradeConfigured) {
+        const {data,error}=await db.from("snaptrade_users").select("user_id,st_user_id,client_id,last_seen_at").lte("last_seen_at",freeCutoff).limit(100)
+        if(error) return NextResponse.json({error:"Connection activity unavailable."},{status:503})
+        for(const row of data??[]) {
+            if(Date.now()-now>50000) break
+            try {
+                const plan=await verifiedInactivityPlan(row.user_id)
+                // Annual accounts always wait for 60d and the new policy acknowledgment;
+                // unknown billing and internal developers are retained.
+                if(plan==="annual" || plan==="retain") continue
+                if(plan==="monthly") {
+                    const denied=await paidFeatureError(row.user_id,"investing")
+                    if(!denied || denied.status!==403) continue
+                }
+                // Activity/new identity after selection cancels a free removal too.
+                const {data:current,error}=await db.from("snaptrade_users").select("last_seen_at,st_user_id,client_id").eq("user_id",row.user_id).maybeSingle()
+                if(error || !current || !current.last_seen_at || current.last_seen_at>freeCutoff || current.st_user_id!==row.st_user_id || current.client_id!==row.client_id) continue
+                try {await getSnapTrade({clientId:row.client_id}).authentication.deleteSnapTradeUser({userId:row.st_user_id})}
+                catch(e) {if(!(e instanceof SnaptradeError) || e.status!==404) throw e}
+                await deleteSession(row.user_id,{userId:row.st_user_id,clientId:row.client_id});freeRemoved++
+            } catch {errors++}
+        }
+    }
+    return NextResponse.json({freeDormantDays:45,annualDormantDays:60,freeRemoved,annualProcessed,annualSkipped,errors})
 }

@@ -1,3 +1,4 @@
+vi.mock("@/lib/connection-activity", async (original) => ({...await original<typeof import("../connection-activity")>(), connectionLinkGuard: vi.fn().mockResolvedValue(null)}))
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({ load: vi.fn(), owner: vi.fn(), save: vi.fn(), exchange: vi.fn(), remove: vi.fn(), allowance: vi.fn() }))

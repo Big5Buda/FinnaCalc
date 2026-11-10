@@ -1,3 +1,4 @@
+import { connectionLinkGuard } from "@/lib/connection-activity"
 import { NextRequest, NextResponse } from "next/server"
 import { activeSnapTradeClientId, clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured } from "@/lib/snaptrade"
 import { loadSession, resolveOrCreateSession } from "@/lib/snaptrade-session"
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
             const existingSession = await loadSession(appUserId)
             await requireTradeConnection(existingSession?.clientId ?? activeSnapTradeClientId(), broker)
         }
+        const cleanupError = await connectionLinkGuard(appUserId)
+        if (cleanupError) return cleanupError
         const session = await resolveOrCreateSession(appUserId)
         const st = getSnapTrade(session)
 

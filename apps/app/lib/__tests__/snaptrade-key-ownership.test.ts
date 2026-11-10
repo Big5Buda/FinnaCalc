@@ -1,9 +1,11 @@
+vi.mock("@/lib/connection-inactivity",()=>({verifiedInactivityPlan:async()=>state.free?"free":"monthly",annualCleanupIO:{},repairConfirmedCleanup:vi.fn()}))
+vi.mock("@/lib/connection-activity", async (original) => ({...await original<typeof import("../connection-activity")>(), connectionLinkGuard: vi.fn().mockResolvedValue(null)}))
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import axios, { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios"
 import { createHmac } from "node:crypto"
 import { NextRequest } from "next/server"
 
-type Row = { user_id: string; st_user_id: string; st_user_secret: string; client_id: string | null }
+type Row = { user_id: string; st_user_id: string; st_user_secret: string; client_id: string | null; last_seen_at?: string }
 const state = vi.hoisted(() => ({
     rows: new Map<string, Row>(), writes: vi.fn(), rpc: vi.fn(),
     account: "app-user", dbError: false, free: false,
@@ -17,7 +19,7 @@ vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({
                 data: [...state.rows.values()].find(row => row[column as keyof Row] === value) ?? null,
                 error: state.dbError ? { message: "fixture storage failure" } : null,
             }) }),
-            lt: async () => ({ data: [...state.rows.values()], error: null }),
+            lte: () => ({limit: async () => ({data:[...state.rows.values()],error:null})}),
         }),
         upsert: async (row: Row) => {
             state.writes(row)
@@ -42,7 +44,7 @@ const originalAdapter = axios.defaults.adapter
 let calls: InternalAxiosRequestConfig[]
 let deletionStatus: number
 function seed(clientId: string | null = legacy) {
-    const row = { user_id: state.account, st_user_id: "existing-user", st_user_secret: "fixture-user-secret", client_id: clientId }
+    const row = { user_id: state.account, st_user_id: "existing-user", st_user_secret: "fixture-user-secret", client_id: clientId, last_seen_at:"2020-01-01T00:00:00Z" }
     state.rows.set(state.account, row)
     return row
 }
@@ -185,7 +187,7 @@ describe("SnapTrade key ownership", () => {
         const response = await GET(new NextRequest("https://example.test/api/cron/prune-connections", {
             headers: { authorization: "Bearer fixture-cron" },
         }))
-        expect(await response.json()).toMatchObject({ removed: 1, errors: [] })
+        expect(await response.json()).toMatchObject({ freeRemoved: 1, errors: 0 })
         expectRequestsOwnedBy(clientId)
         expect(state.rpc).toHaveBeenCalledWith("delete_snaptrade_session", {
             p_user_id: state.account, p_client_id: clientId, p_st_user_id: "existing-user",
@@ -197,7 +199,7 @@ describe("SnapTrade key ownership", () => {
         const response = await GET(new NextRequest("https://example.test/api/cron/prune-connections", {
             headers: { authorization: "Bearer fixture-cron" },
         }))
-        expect(await response.json()).toMatchObject({ removed: 0, errors: ["snaptrade app-user"] })
+        expect(await response.json()).toMatchObject({ freeRemoved: 0, errors: 1 })
         expect(calls).toHaveLength(0)
         expect(state.rpc).not.toHaveBeenCalled()
         expect(state.rows.get(state.account)).toEqual(original)

@@ -1,3 +1,4 @@
+import { touchConnectionActivity } from "@/lib/connection-activity"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
@@ -30,6 +31,7 @@ import { verifiedAppUserId } from "@/lib/supabase-auth"
 export const dynamic = "force-dynamic"
 
 export async function POST(req: NextRequest) {
+    const policyBody = req.clone().json().catch(() => ({}))
     const appUserId = await verifiedAppUserId(req)
     if (!appUserId) return new NextResponse(null, { status: 204 })
 
@@ -50,6 +52,9 @@ export async function POST(req: NextRequest) {
         auth: { autoRefreshToken: false, persistSession: false },
     })
     const now = new Date().toISOString()
+    const policy = await policyBody
+    try { await touchConnectionActivity(appUserId, policy?.inactivityPolicyVersion === "annual-inactivity-60d-v1") }
+    catch { return NextResponse.json({error: "Activity could not be recorded."}, {status:503}) }
 
     // Both ignored on failure. Before last_seen.sql has been run these columns
     // do not exist; the pruning job independently refuses to run without them.

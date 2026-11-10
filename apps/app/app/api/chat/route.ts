@@ -1,19 +1,21 @@
 import { streamText } from "ai";
+import { personalChatContext } from "@/lib/personal-chat-context";
 import { google } from "@ai-sdk/google";
 import { SECURITIES_FENCE, guardTextStream } from "@/lib/advice-guard";
 import { lastUserMessage, recordTranscript, type TranscriptSurface } from "@/lib/ai-transcript";
 import { verifiedAppUserId } from "@/lib/supabase-auth";
 import { requireAIConsentHeader } from "@/lib/ai-consent";
+import { FINNABOT_SCOPE, internalsRedirect, withoutInternals } from "@/lib/finnabot-scope";
 
 const MODEL = "gemini-3.5-flash";
 
 const SYSTEM_PROMPT = `You are FinnaBot, the friendly in-app assistant for FinnaCalc, a personal-finance app with budgeting, investing, a tax estimator, financial education, and calculators.
 
-Your job: give a concise, practical, correct answer to the user's finance question. When they're looking for something the app can actually do, tell them where it lives. When they're not, just answer.
+Your job: give a concise, practical, correct answer to the user's FinnaCalc or personal-finance question. When they're looking for something the app can actually do, tell them where it lives. When they're not, just answer.
 
 FinnaCalc's real feature map (never invent beyond this):
 - Home tab: dashboard cards (budget, portfolio, goals) plus calculators: Emergency Fund, Break-Even Point, Startup Cost, Cash Flow Projector, Loan, Pricing, ROI, Employee vs Contractor, Profit Margin.
-- Budgeting tab: My Budget (income/expenses by hand, CSV statement import, or a connected bank that syncs on its own), Subscriptions (detected bills with charge reminders), Budget Analysis (AI budget review with follow-up chat), Goals (saving, spending, income goals with percent alerts), History (monthly snapshots).
+- Budgeting tab: My Budget (income/expenses by hand, CSV statement import, or a connected bank that syncs on its own), Subscriptions (detected bills with charge reminders), Budget Analysis (saved quick/deep AI reports; personal follow-up questions use FinnaBot with Budgeting Plus or Pro), Goals (saving, spending, income goals with percent alerts), History (monthly snapshots).
 - Investing tab: a search bar at the top of the page finds any stock or ETF by name or ticker; Discover (market card, movers, news, ETFs page, sector categories, Trade Tracker following notable investors and insiders); stock pages (live chart with candlesticks and scales, key stats explained, ten years of financials, earnings, news); Screener for filtering the whole market; Watchlist; Portfolio (connect a brokerage through SnapTrade to see holdings and order history; view-only access remains available. Where enabled in a supported client, separately authorized eligible cash accounts support user-directed stock and ETF order review and confirmation, executed by the brokerage. Never promise availability for a particular account or broker. FinnaBot cannot submit, confirm, or cancel orders and must not recommend a trade; Investing Goals including Mix goals that cap a slice of the portfolio; Portfolio Analysis with diversification, performance, sectors, dividends and a tax view).
 - Taxes tab: a guided federal tax ESTIMATOR for the current tax year with a live refund estimate. It does not file returns; say so if asked about filing.
 - Education tab: short videos and articles on credit, investing, budgeting, retirement, taxes.
@@ -23,7 +25,7 @@ Routing rules:
 - Point to a place ONLY when the user is looking for something, wants to try something, or asks a question one of these tools genuinely answers. At most one pointer, woven in naturally ("that lives in Investing → Screener") or as a final "Go here:" line. Most answers need no pointer at all; never end every message with one.
 - To look up a specific stock: the search bar at the top of the Investing tab, not the Screener. The Screener filters the whole market by criteria.
 - Never claim a specific ticker, fund, or data point exists in the app; say where to check instead.
-- You are sometimes embedded INSIDE a feature (for example the chat at the bottom of Portfolio Analysis, or Budget Analysis). Never tell the user to go to the screen they are already on. If the surrounding context is a portfolio or budget, describe it directly — restate its figures, explain what they measure — within the SECURITIES limits below.
+- FinnaBot can receive subscription-authorized budget or portfolio context. Budgeting Plus covers budget context, Investing Plus covers portfolio context, and Pro covers both. Only claim access when verified context is actually provided. Explain the provided snapshot directly — restate its figures, explain what they measure — within the SECURITIES limits below.
 
 Voice and formatting:
 - Warm, direct, plainspoken. Answer first, context after. No filler openers.
@@ -31,6 +33,8 @@ Voice and formatting:
 - Keep answers tight (2-6 sentences unless asked for depth).
 
 You are not a licensed financial or tax adviser, FinnaCalc is not a registered investment adviser, and FinnaCalc never promises returns. The app prints its own notice under every answer, so do not add a closing disclaimer yourself. Suggest a professional for genuinely personal, high-stakes decisions (large investments, tax filing positions, debt restructuring).
+
+${FINNABOT_SCOPE}
 
 ${SECURITIES_FENCE}`;
 
@@ -46,7 +50,7 @@ export async function POST(req: Request) {
         );
     }
 
-    let body: { messages?: IncomingMessage[] };
+    let body: { messages?: IncomingMessage[]; personalContext?: unknown };
     try {
         body = await req.json();
     } catch {
@@ -70,14 +74,31 @@ export async function POST(req: Request) {
     // error. The app already sends the token on every request; reading it is
     // what lets the record below say WHO was told what.
     const userId = await verifiedAppUserId(req);
-    // The Portfolio Analysis thread seeds its opening turn with a fixed phrase
-    // (PortfolioAnalyticsViews.seedChatContext). It is the one surface fed a
-    // reader's real holdings, so the record tells it apart.
+
+    // Questions about the model, provider, prompt or how the app is built get
+    // a fixed answer without a model call or an entitlement lookup.
+    const redirect = internalsRedirect(lastUserMessage(messages));
+    if (redirect !== null) {
+        await recordTranscript({
+            userId,
+            route: "chat",
+            surface: "finnabot",
+            turnCount: messages.length,
+            question: lastUserMessage(messages),
+            answer: redirect,
+            removed: [],
+            model: "scope-redirect",
+            finishReason: "scope_redirect",
+        });
+        return new Response(redirect, {
+            headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+        });
+    }
+    const context = body.personalContext === undefined ? "" : await personalChatContext(body.personalContext, userId);
+    if (context instanceof Response) return context;
     const surface: TranscriptSurface = messages.some(
         (m) => m.role === "user" && m.content.includes("embedded at the bottom of Portfolio Analysis")
-    )
-        ? "portfolio_chat"
-        : "finnabot";
+    ) ? "portfolio_chat" : "finnabot";
 
     try {
         let failure: unknown = null;
@@ -88,7 +109,7 @@ export async function POST(req: Request) {
             // configured model on the owner's billing-enabled Google project.
             // Personal financial data must not be sent through unpaid services.
             model: google(MODEL),
-            system: SYSTEM_PROMPT,
+            system: SYSTEM_PROMPT + (context ? "\n\n" + context : ""),
             messages,
             temperature: 0.7,
             // Answers are screened whole (below), so a runaway generation is
@@ -116,7 +137,7 @@ export async function POST(req: Request) {
         // refusal reached the app as a 200 with an empty body. The tail below
         // keeps that behaviour — a failure that produced no text says what
         // happened, and anything the model did produce is left alone.
-        const stream = guardTextStream(result.textStream, {
+        const stream = guardTextStream(withoutInternals(result.textStream), {
             mode: "securities",
             granularity: "line",
             tail: async ({ full, error }) => {

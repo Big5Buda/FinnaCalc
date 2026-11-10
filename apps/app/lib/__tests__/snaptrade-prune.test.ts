@@ -1,43 +1,19 @@
-import { beforeEach, expect, it, vi } from "vitest"
+import { afterEach,beforeEach,expect,it,vi } from "vitest"
 import { NextRequest } from "next/server"
-const mocks = vi.hoisted(() => ({ paid: vi.fn(), rows: vi.fn(), removeVendor: vi.fn(), removeSession: vi.fn() }))
-vi.mock("@/lib/paid-feature-access", () => ({ paidFeatureError: mocks.paid }))
-vi.mock("@/lib/snaptrade", () => ({ isSnapTradeConfigured: true, getSnapTrade: () => ({ authentication: { deleteSnapTradeUser: mocks.removeVendor } }) }))
-vi.mock("@/lib/snaptrade-session", () => ({ deleteSession: mocks.removeSession }))
-vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ from: () => ({
-    select: () => ({ lt: mocks.rows }), delete: () => ({ eq: mocks.removeSession }),
-}) }) }))
+const m=vi.hoisted(()=>({plan:vi.fn(),paid:vi.fn(),remove:vi.fn(),forget:vi.fn(),row:{user_id:"u",st_user_id:"vendor",client_id:"owner",last_seen_at:"2020-01-01T00:00:00Z",has_investing:true} as any}))
+vi.mock("@/lib/connection-inactivity",()=>({verifiedInactivityPlan:m.plan,annualCleanupIO:{},repairConfirmedCleanup:vi.fn()}))
+vi.mock("@/lib/paid-feature-access",()=>({paidFeatureError:m.paid}))
+vi.mock("@/lib/snaptrade",()=>({isSnapTradeConfigured:true,getSnapTrade:()=>({authentication:{deleteSnapTradeUser:m.remove}})}))
+vi.mock("@/lib/snaptrade-session",()=>({deleteSession:m.forget}))
+vi.mock("@/lib/connection-activity",()=>({missingActivityMigration:()=>false,activityAdmin:()=>({from:()=>({select:()=>({lte:()=>({limit:async()=>({data:[m.row],error:null})}),eq:()=>({maybeSingle:async()=>({data:m.row,error:null})})})})})}))
 import { GET } from "../../app/api/cron/prune-connections/route"
-const request = () => GET(new NextRequest("https://example.test/api/cron/prune-connections", { headers: { authorization: "Bearer test-cron" } }))
-beforeEach(() => {
-    vi.resetAllMocks()
-    vi.stubEnv("CRON_SECRET", "test-cron")
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.test")
-    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-only")
-    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", client_id: "legacy-test", has_investing: false }], error: null })
-    mocks.paid.mockResolvedValue(Response.json({ error: "No active plan" }, { status: 403 }))
-    mocks.removeVendor.mockResolvedValue({})
-    mocks.removeSession.mockResolvedValue({ error: null })
-})
-it("keeps a paid account despite an old false device hint", async () => {
-    mocks.paid.mockResolvedValue(null)
-    expect((await (await request()).json()).exempt).toBe(1)
-    expect(mocks.removeVendor).not.toHaveBeenCalled()
-})
-it("retains brokerage access during verification uncertainty", async () => {
-    mocks.paid.mockResolvedValue(Response.json({ error: "Apple unavailable" }, { status: 503 }))
-    expect((await (await request()).json()).errors).toEqual(["entitlement user"])
-    expect(mocks.removeVendor).not.toHaveBeenCalled()
-    expect(mocks.removeSession).not.toHaveBeenCalled()
-})
-it("requires an explicit server free result before pruning a dormant connection", async () => {
-    expect((await (await request()).json()).removed).toBe(1)
-    expect(mocks.paid).toHaveBeenCalledWith("user", "investing")
-    expect(mocks.removeVendor).toHaveBeenCalledWith({ userId: "broker" })
-    expect(mocks.removeSession).toHaveBeenCalledWith("user", { userId: "broker", clientId: "legacy-test" })
-})
-it("keeps a conservative paid hint even before verification", async () => {
-    mocks.rows.mockResolvedValue({ data: [{ user_id: "user", st_user_id: "broker", client_id: "legacy-test", has_investing: true }], error: null })
-    expect((await (await request()).json()).exempt).toBe(1)
-    expect(mocks.removeVendor).not.toHaveBeenCalled()
-})
+const req=()=>GET(new NextRequest("https://test.invalid/api/cron/prune-connections",{headers:{Authorization:"Bearer fixture"}}))
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv("CRON_SECRET","fixture");vi.stubEnv("FINNACALC_ANNUAL_INACTIVITY_CLEANUP_ENABLED","false");m.plan.mockResolvedValue("free");m.paid.mockResolvedValue(new Response("no",{status:403}));m.remove.mockResolvedValue({});m.forget.mockResolvedValue(undefined);m.row.last_seen_at="2020-01-01T00:00:00Z"})
+afterEach(()=>vi.unstubAllEnvs())
+it.each(["annual","retain"])("never subjects %s accounts to the 45-day free rule",async plan=>{m.plan.mockResolvedValue(plan);await req();expect(m.remove).not.toHaveBeenCalled()})
+it("server-verified free overrides a stale/forged client paid hint",async()=>{expect((await(await req()).json()).freeRemoved).toBe(1);expect(m.remove).toHaveBeenCalledWith({userId:"vendor"});expect(m.forget).toHaveBeenCalledWith("u",{userId:"vendor",clientId:"owner"})})
+it("monthly investing access is retained",async()=>{m.plan.mockResolvedValue("monthly");m.paid.mockResolvedValue(null);await req();expect(m.remove).not.toHaveBeenCalled()})
+it("unknown monthly feature verification is retained",async()=>{m.plan.mockResolvedValue("monthly");m.paid.mockResolvedValue(new Response("offline",{status:503}));await req();expect(m.remove).not.toHaveBeenCalled()})
+it("recent app activity prevents free removal",async()=>{m.row.last_seen_at=new Date().toISOString();await req();expect(m.remove).not.toHaveBeenCalled()})
+it("vendor failure keeps the credential",async()=>{m.remove.mockRejectedValue(new Error("offline"));await req();expect(m.forget).not.toHaveBeenCalled()})
+it("requires cron authorization",async()=>{const res=await GET(new NextRequest("https://test.invalid"));expect(res.status).toBe(401);expect(m.plan).not.toHaveBeenCalled()})
