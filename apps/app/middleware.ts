@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { websiteReview } from "./lib/website-review"
 
 /**
- * Public Investing research, with personal Investing pages behind sign-in.
+ * Public Investing research and browser-local manual trackers. Authenticated
+ * brokerage pages remain preserved in code; brokerage APIs verify identity.
  * Set FINNACALC_REQUIRE_INVESTING_SIGN_IN=true to restore the original
  * Investing-wide page gate once the owner wants it back. Public access is
  * limited to the explicit research routes below; new routes stay gated.
@@ -11,9 +13,9 @@ import type { NextRequest } from "next/server"
  * set on sign-in and cleared on sign-out. It is deliberately NOT the session:
  * Supabase's tokens live in this origin's localStorage, which middleware
  * cannot read. So this gate is a door, not a lock; it decides which page
- * shell is served, and the real session check stays in the client's
- * AuthProvider. Forging the cookie gets an anonymous visitor an empty shell
- * with no data behind it.
+ * shell is served. Private APIs verify Supabase identity on the server;
+ * the client's AuthProvider supplies the browser's signed-in context.
+ * Forging the hint does not grant access to brokerage data.
  *
  * /api is kept out of the matcher entirely: every installed iOS build calls
  * those routes directly and unauthenticated through the www proxy, and
@@ -29,11 +31,13 @@ const PUBLIC_INVESTING_PAGES = new Set([
     "/investing/cash-options",
     "/investing/bonds",
     "/investing/tracker",
+    "/investing/research",
 ])
 
 function isPublicInvestingResearch(pathname: string) {
     const path = pathname.replace(/\/$/, "")
-    return PUBLIC_INVESTING_PAGES.has(path) ||
+    const manual = websiteReview.manualPortfolio && ["/investing/portfolio", "/investing/portfolio/analysis", "/investing/watchlist"].includes(path)
+    return manual || PUBLIC_INVESTING_PAGES.has(path) ||
         /^\/investing\/(?:stocks|sectors|tracker)\/[^/]+$/.test(path)
 }
 

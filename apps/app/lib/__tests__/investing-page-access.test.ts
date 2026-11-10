@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server"
 import { config, middleware } from "../../middleware"
+import { websiteReview } from "../website-review"
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -16,14 +17,23 @@ const research = [
     "/investing/screener", "/investing/etfs", "/investing/cash-options",
     "/investing/bonds", "/investing/tracker", "/investing/tracker/pelosi",
     "/investing/stocks/AAPL", "/investing/stocks/BRK.B", "/investing/sectors/technology",
+    "/investing/portfolio", "/investing/portfolio/analysis", "/investing/portfolio/", "/investing/watchlist", "/investing/research?tvwidgetsymbol=NASDAQ%3AAAPL",
 ]
 const personal = [
-    "/investing/portfolio", "/investing/portfolio/analysis", "/investing/portfolio/",
-    "/investing/watchlist", "/investing/goals", "/investing/new-private-page",
+    "/investing/portfolio/brokerage", "/investing/goals", "/investing/new-private-page",
     "/investing/stocks/AAPL/orders", "/investing/tracker/pelosi/private", "/investing/portfolio/export.csv",
 ]
 
 describe("public Investing research", () => {
+    it("restores private portfolio/watchlist pages when the manual feature is disabled", () => {
+        vi.stubEnv("FINNACALC_REQUIRE_INVESTING_SIGN_IN", "false")
+        const previous = websiteReview.manualPortfolio
+        try {
+            websiteReview.manualPortfolio = false
+            for (const path of ["/investing/portfolio", "/investing/portfolio/analysis", "/investing/watchlist"])
+                expect(visit(path).status).toBe(307)
+        } finally { websiteReview.manualPortfolio = previous }
+    })
     it.each([...research, ...personal])("runs the page gate for %s, including dotted symbols", (url) => {
         expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
     })

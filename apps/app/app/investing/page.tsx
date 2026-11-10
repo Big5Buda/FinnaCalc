@@ -22,6 +22,8 @@ import { finnaLessons } from "@/lib/finna-lessons"
 import { FinnaLessonCard } from "@/components/education/finna-lesson-card"
 import { SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { visibleInvestingNavigation, websiteReview } from "@/lib/website-review"
+import { PublicInvestingResearch } from "@/components/investing/public-research"
 
 /**
  * Investing — the Discover landing, ported from StocksDiscoverView.swift: a
@@ -30,6 +32,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * app's tab lists.
  */
 export default function InvestingPage() {
+    return websiteReview.useTradingView ? <PublicInvestingResearch /> : <AlpacaInvestingPage />
+}
+function AlpacaInvestingPage() {
     const [overview, setOverview] = useState<MarketOverview | null>(null)
     const [indexStats, setIndexStats] = useState<MarketStat[]>([])
     const [news, setNews] = useState<NewsArticle[]>([])
@@ -105,16 +110,7 @@ export default function InvestingPage() {
             <SymbolSearch />
 
             <nav className="flex flex-wrap gap-2">
-                {[
-                    { href: "/investing/portfolio", label: "Portfolio" },
-                    { href: "/investing/watchlist", label: "Watchlist" },
-                    { href: "/investing/goals", label: "Goals" },
-                    { href: "/investing/tracker", label: "Trade Tracker" },
-                    { href: "/investing/screener", label: "Screener" },
-                    { href: "/investing/etfs", label: "ETFs & index funds" },
-                    { href: "/investing/cash-options", label: "Where cash sits" },
-                    { href: "/investing/bonds", label: "Bonds" },
-                ].map((link) => (
+                {visibleInvestingNavigation.map((link) => (
                     <Link
                         key={link.href}
                         href={link.href}
@@ -195,10 +191,10 @@ export default function InvestingPage() {
                 </section>
             )}
 
-            <section className="flex flex-col gap-4">
+            {websiteReview.showInvestingLessons && <section className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-3"><SectionLabel>Investing lessons</SectionLabel><Link href="/education/investing" className="text-sm font-medium text-primary">View all lessons</Link></div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{finnaLessons.filter(l => l.topic === "investing").slice(0,3).map(lesson => <FinnaLessonCard key={lesson.id} lesson={lesson} />)}</div>
-            </section>
+            </section>}
 
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>Categories</SectionLabel>

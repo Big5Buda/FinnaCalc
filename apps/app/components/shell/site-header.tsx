@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useAppearance } from "@/components/providers/appearance-provider"
+import { websiteReview } from "@/lib/website-review"
 
 /**
  * The top header, back.
@@ -73,7 +74,7 @@ export function SiteHeader() {
 
                 <div className="flex items-center gap-2">
                     <AppearanceSelect />
-                    <AccountMenu />
+                    {websiteReview.showAccountNavigation && <AccountMenu />}
                     <button
                         type="button"
                         onClick={() => setMenuOpen((open) => !open)}

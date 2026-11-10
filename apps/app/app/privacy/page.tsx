@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                     </P>
                     <LeadBullets
                         items={[
-                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view"],
+                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view. Public website charts and market widgets are embedded from TradingView, which receives normal connection information such as your IP address and viewed symbols under its own privacy policy; FinnaCalc does not send your manually entered share counts, costs or portfolio values to those widgets"],
                             ["Purchases:", "Payment is handled by whichever processor you subscribe through, Apple for in-app purchases or Stripe on our website. They hold your card details. FinnaCalc stores subscription identifiers, product, status, and purchase or expiry dates linked to your account to verify access. Each Apple subscription belongs to one FinnaCalc account"],
                             ["Legal Requirements:", "When required by law or to protect rights and safety"],
                             ["Business Transfers:", "In connection with a merger, acquisition, or sale of assets"],
@@ -120,6 +120,7 @@ export default function PrivacyPage() {
                 </Section>
 
                 <Section title="On-Device Storage & Preferences">
+                    <P>The website's manual portfolio and watchlist are saved in this browser without an account and are separate from connected brokerage records. They do not sync across browsers or devices; clearing browser data removes them. Anyone using the same browser profile may be able to see them. Embedded TradingView displays may use their own cookies and storage; see <a href="https://www.tradingview.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="underline">TradingView's Privacy Policy</a>.</P>
                     <P>
                         The app stores your working data and preferences locally on your device rather than
                         with tracking cookies. In the iOS app, saved financial records are separated by FinnaCalc

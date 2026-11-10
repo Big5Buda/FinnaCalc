@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/providers/auth-provider'
 import { ChatProvider } from '@/components/providers/chat-provider'
 import { BudgetProvider } from '@/components/providers/budget-provider'
 import { WatchlistProvider } from '@/components/providers/watchlist-provider'
+import { ManualPortfolioProvider } from '@/components/providers/manual-portfolio-provider'
 import { SiteChrome } from '@/components/shell/site-chrome'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
 
@@ -78,10 +79,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     <AuthProvider>
                         <BudgetProvider>
                           <WatchlistProvider>
-                            <ChatProvider>
+                            <ManualPortfolioProvider><ChatProvider>
                                 <SiteChrome>{children}</SiteChrome>
                                 <FinnaBotPanel />
-                            </ChatProvider>
+                            </ChatProvider></ManualPortfolioProvider>
                           </WatchlistProvider>
                         </BudgetProvider>
                     </AuthProvider>

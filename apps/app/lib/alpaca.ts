@@ -7,11 +7,13 @@
  *   ALPACA_API_KEY_ID       — the key id
  *   ALPACA_API_SECRET_KEY   — its secret
  *
- * The free market-data plan serves the IEX feed, which is what these calls ask
- * for. IEX is one venue rather than the consolidated tape, so its volume is a
+ * These calls request the IEX feed. API access does not establish permission
+ * to redistribute data in a website or app: confirm the applicable Alpaca and
+ * exchange agreements separately (docs/web-investing-readiness.md).
+ * IEX is one venue rather than the consolidated tape, so its volume is a
  * share of the market's and its last price can differ slightly from SIP; that
- * is a real limitation of the free plan, not a bug to paper over. Move FEED to
- * "sip" if the keys are ever upgraded.
+ * is a real feed limitation. SIP access and external display rights both need
+ * separate confirmation before changing the feed or releasing distribution.
  */
 
 const KEY_ID = process.env.ALPACA_API_KEY_ID
