@@ -1,3 +1,4 @@
+import { connectionLinkGuard } from "@/lib/connection-activity"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
 import { paidFeatureError } from "@/lib/paid-feature-access"
 import { NextResponse } from "next/server"
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
     const userId = await verifiedAppUserId(req)
     const accessError = await paidFeatureError(userId, product === "investments" ? "investing" : "budgeting")
     if (accessError) return accessError
+
+    const cleanupError = await connectionLinkGuard(userId!)
+    if (cleanupError) return cleanupError
 
     try {
         if (product !== "investments") {

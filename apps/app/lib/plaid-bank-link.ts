@@ -1,3 +1,4 @@
+import { connectionLinkGuard } from "./connection-activity"
 import { getPlaidClient } from "./plaid"
 import { bankConnectionAllowance } from "./bank-allowance"
 import { BankConnectionLimitError, BankConnectionOwnershipError, loadItemOwner, loadItems, saveItem } from "./plaid-items"
@@ -6,6 +7,8 @@ import { BankConnectionLimitError, BankConnectionOwnershipError, loadItemOwner, 
  * the atomic storage admission fails, including a concurrent third login.
  */
 export async function linkBankForUser(userId: string, publicToken: string, institution: string | null) {
+    const cleanup = await connectionLinkGuard(userId)
+    if(cleanup) throw new Error("Connection cleanup is finishing or unavailable. Please try linking again shortly.")
     const existing = await loadItems(userId)
     const allowance = await bankConnectionAllowance(userId)
     if (existing.length >= allowance) throw new BankConnectionLimitError(allowance)

@@ -50,7 +50,7 @@ export default function PrivacyPage() {
                     <Bullets
                         items={[
                             "Bank and brokerage links run through Plaid and SnapTrade. Your bank credentials go to them directly and never touch FinnaCalc's servers",
-                            "Imported transactions and holdings are stored on your device. Optional AI questions can share portfolio holdings and weights with Google. Home FinnaBot can receive a selected budget summary with Budgeting Plus, portfolio context with Investing Plus, or both with Pro, where available and after AI-sharing permission. Financial details included in messages or responses are kept in conversation records",
+                            "Imported transactions and holdings are stored on your device. Optional AI questions can share portfolio holdings and weights with Google. FinnaBot can receive a selected budget summary with Budgeting Plus, portfolio context with Investing Plus, or both with Pro, where available and after AI-sharing permission. Financial details included in messages or responses are kept in conversation records",
                         ]}
                     />
                     <P>
@@ -96,6 +96,7 @@ export default function PrivacyPage() {
                 </Section>
 
                 <Section icon={Shield} tint="text-accent-orange" title="Data Security">
+                    <P>App activity timestamps and confirmed connection-removal records are used to manage inactive connections and show a notice when you return. Free brokerage connections may be disconnected after 45 days of inactivity; connections for active annual subscribers who acknowledge the policy may be disconnected after 60 days. This does not cancel subscriptions. Reconnection remains available with the required active plan. Removal records are account-scoped and removed when the account is deleted.</P>
                     <P>
                         We use sensible technical and organizational safeguards to protect your information
                         from unauthorized access, alteration, disclosure, or loss.
