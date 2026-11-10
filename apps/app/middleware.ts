@@ -2,13 +2,10 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 /**
- * The auth gate, narrowed to Investing.
- *
- * The site was open from the start: anyone could budget, run the tax
- * estimator, read a lesson or use a calculator, and an account was for
- * keeping that work. #114 put the whole app behind sign-in; the owner asked
- * for the old arrangement back, with one exception he named: Investing,
- * which reads a brokerage and market data that need an account behind them.
+ * Public Investing research, with personal Investing pages behind sign-in.
+ * Set FINNACALC_REQUIRE_INVESTING_SIGN_IN=true to restore the original
+ * Investing-wide page gate once the owner wants it back. Public access is
+ * limited to the explicit research routes below; new routes stay gated.
  *
  * The signal is the fc_session hint cookie (lib/session-hint.ts), one bit
  * set on sign-in and cleared on sign-out. It is deliberately NOT the session:
@@ -25,10 +22,29 @@ import type { NextRequest } from "next/server"
 
 const GATED_PAGES = ["/investing"]
 
+const PUBLIC_INVESTING_PAGES = new Set([
+    "/investing",
+    "/investing/screener",
+    "/investing/etfs",
+    "/investing/cash-options",
+    "/investing/bonds",
+    "/investing/tracker",
+])
+
+function isPublicInvestingResearch(pathname: string) {
+    const path = pathname.replace(/\/$/, "")
+    return PUBLIC_INVESTING_PAGES.has(path) ||
+        /^\/investing\/(?:stocks|sectors|tracker)\/[^/]+$/.test(path)
+}
+
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     if (!GATED_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
+        return NextResponse.next()
+    }
+
+    if (process.env.FINNACALC_REQUIRE_INVESTING_SIGN_IN !== "true" && isPublicInvestingResearch(pathname)) {
         return NextResponse.next()
     }
 
@@ -45,5 +61,6 @@ export function middleware(request: NextRequest) {
 export const config = {
     // Everything except: API routes (iOS lifeline — must never redirect),
     // Next internals, and files with an extension (icons, images, fonts).
-    matcher: ["/((?!api|_next|.*\\..*).*)"],
+    // Investing also includes ticker symbols containing dots, such as BRK.B.
+    matcher: ["/investing/:path*", "/((?!api|_next|.*\\..*).*)"],
 }
