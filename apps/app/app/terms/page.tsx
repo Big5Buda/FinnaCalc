@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
     return (
-        <>
+        <div className="mx-auto w-full max-w-4xl">
             <PageBar back={{ href: "/", label: "Home" }} title="Terms of Service" />
-            <PageBody className="flex max-w-3xl flex-col gap-8">
+            <PageBody className="flex flex-col gap-8">
                 <Section icon={FileText} tint="text-primary" title="Terms of Service Agreement">
                     <P>
                         These Terms of Service govern your use of FinnaCalc&rsquo;s website and services. By
@@ -205,7 +205,7 @@ export default function TermsPage() {
                     </div>
                 </Section>
             </PageBody>
-        </>
+        </div>
     )
 }
 
@@ -223,9 +223,9 @@ function Section({
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className={`h-6 w-6 ${tint ?? "text-foreground"}`} />}
-                    <CardTitle>{title}</CardTitle>
+                <div className="flex items-start gap-3">
+                    {Icon && <Icon className={`mt-0.5 h-6 w-6 shrink-0 ${tint ?? "text-foreground"}`} />}
+                    <CardTitle className="min-w-0 text-xl leading-snug sm:text-2xl">{title}</CardTitle>
                 </div>
             </CardHeader>
             <CardContent>
@@ -236,14 +236,14 @@ function Section({
 }
 
 function P({ children }: { children: React.ReactNode }) {
-    return <p className="text-base text-muted-foreground">{children}</p>
+    return <p className="text-base leading-7 text-muted-foreground">{children}</p>
 }
 
 function Bullets({ items }: { items: string[] }) {
     return (
         <ul className="flex list-disc flex-col gap-2 pl-5">
             {items.map((item) => (
-                <li key={item} className="text-base text-muted-foreground">
+                <li key={item} className="text-base leading-7 text-muted-foreground">
                     {item}
                 </li>
             ))}
@@ -266,7 +266,7 @@ function Callout({ children }: { children: React.ReactNode }) {
 
 function Contact({ label, email }: { label: string; email: string }) {
     return (
-        <p className="text-base text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground">
             <strong className="font-bold">{label}</strong>{" "}
             <a href={`mailto:${email}`} className="text-primary">
                 {email}

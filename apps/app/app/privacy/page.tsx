@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
     return (
-        <>
+        <div className="mx-auto w-full max-w-4xl">
             <PageBar back={{ href: "/", label: "Home" }} title="Privacy Policy" />
-            <PageBody className="flex max-w-3xl flex-col gap-8">
+            <PageBody className="flex flex-col gap-8">
                 <Section icon={Eye} tint="text-primary" title="Introduction">
                     <P>
                         Your privacy matters to us. This Privacy Policy explains how we collect, use, share, and
@@ -182,7 +182,7 @@ export default function PrivacyPage() {
                     </div>
                 </Section>
             </PageBody>
-        </>
+        </div>
     )
 }
 
@@ -200,9 +200,9 @@ function Section({
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className={`h-6 w-6 ${tint ?? "text-foreground"}`} />}
-                    <CardTitle>{title}</CardTitle>
+                <div className="flex items-start gap-3">
+                    {Icon && <Icon className={`mt-0.5 h-6 w-6 shrink-0 ${tint ?? "text-foreground"}`} />}
+                    <CardTitle className="min-w-0 text-xl leading-snug sm:text-2xl">{title}</CardTitle>
                 </div>
             </CardHeader>
             <CardContent>
@@ -213,7 +213,7 @@ function Section({
 }
 
 function P({ children }: { children: React.ReactNode }) {
-    return <p className="text-base text-muted-foreground">{children}</p>
+    return <p className="text-base leading-7 text-muted-foreground">{children}</p>
 }
 
 function Sub({ children }: { children: React.ReactNode }) {
@@ -224,7 +224,7 @@ function Bullets({ items }: { items: string[] }) {
     return (
         <ul className="flex list-disc flex-col gap-2 pl-5">
             {items.map((item) => (
-                <li key={item} className="text-base text-muted-foreground">
+                <li key={item} className="text-base leading-7 text-muted-foreground">
                     {item}
                 </li>
             ))}
@@ -236,7 +236,7 @@ function LeadBullets({ items }: { items: [string, string][] }) {
     return (
         <ul className="flex list-disc flex-col gap-3 pl-5">
             {items.map(([lead, rest]) => (
-                <li key={lead} className="text-base text-muted-foreground">
+                <li key={lead} className="text-base leading-7 text-muted-foreground">
                     <strong className="font-bold">{lead}</strong> {rest}
                 </li>
             ))}
@@ -246,7 +246,7 @@ function LeadBullets({ items }: { items: [string, string][] }) {
 
 function Contact({ label, email }: { label: string; email: string }) {
     return (
-        <p className="text-base text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground">
             <strong className="font-bold">{label}</strong>{" "}
             <a href={`mailto:${email}`} className="text-primary">
                 {email}
