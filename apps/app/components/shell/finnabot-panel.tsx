@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+import { FinnaBotMark } from "@/components/shell/finnabot-mark"
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
 import { SendHorizonal, X } from "lucide-react"
 import { useChat, type ChatMessage, WELCOME_ID } from "@/components/providers/chat-provider"
@@ -74,13 +74,7 @@ export function FinnaBotPanel() {
             className="fixed bottom-4 right-4 z-50 flex h-[min(32rem,calc(100svh-5rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         >
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
-                <Image
-                    src="/finnabot-logo.png"
-                    alt=""
-                    width={22}
-                    height={30}
-                    className="h-7 w-5 object-contain"
-                />
+                <FinnaBotMark className="h-9 w-6 shrink-0" />
                 <span className="flex-1 text-base font-bold">
                     <Wordmark className="text-base" />
                     <span className="sr-only">FinnaBot</span>

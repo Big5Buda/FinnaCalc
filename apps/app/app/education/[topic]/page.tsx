@@ -57,7 +57,7 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
                 <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             </header>
 
-            <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <section className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {lessons.map(lesson => <FinnaLessonCard key={lesson.id} lesson={lesson} />)}
             </section>
             {lessons.length === 0 && <p className="text-sm text-muted-foreground">Lessons for this topic are on the way.</p>}
