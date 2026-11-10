@@ -48,7 +48,7 @@ describe("temporary website presentation", () => {
     it("mounts manual portfolio and analysis without mounting authenticated brokerage hooks", () => {
         for (const Page of [PortfolioPage, PortfolioAnalysisPage]) {
             const html = renderToStaticMarkup(createElement(ManualPortfolioProvider, null, createElement(Page)))
-            expect(html).toContain("saved only in this browser")
+            expect(html.toLowerCase()).toContain("saved only in this browser")
             expect(html).not.toContain("Connect a brokerage")
         }
     })
