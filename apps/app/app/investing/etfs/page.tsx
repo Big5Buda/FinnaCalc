@@ -9,6 +9,8 @@ import { CURATED_ETFS } from "@/lib/investing/catalog"
 import { marketStats, type MarketStat } from "@/lib/investing/market"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { PublicEtfs } from "@/components/investing/public-research"
 
 /**
  * Curated ETFs and index funds — an on-ramp, not a catalog of the universe.
@@ -16,6 +18,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * already work for ETF tickers. Ported from ETFListView.swift.
  */
 export default function ETFsPage() {
+    return websiteReview.useTradingView ? <PublicEtfs /> : <OriginalEtfsPage />
+}
+function OriginalEtfsPage() {
     const [stats, setStats] = useState<Record<string, MarketStat>>({})
 
     useEffect(() => {

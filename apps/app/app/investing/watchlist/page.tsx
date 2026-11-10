@@ -10,6 +10,8 @@ import { useWatchlist, DEFAULT_WATCHLIST } from "@/components/providers/watchlis
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { PublicWatchlist } from "@/components/investing/public-research"
 
 /**
  * The watchlist — symbols the user follows, with a live quote and a sparkline
@@ -17,6 +19,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * localStorage under the app's own key, so it stays on the device.
  */
 export default function WatchlistPage() {
+    return websiteReview.useTradingView ? <PublicWatchlist /> : <OriginalWatchlistPage />
+}
+function OriginalWatchlistPage() {
     const watchlist = useWatchlist()
     const [stats, setStats] = useState<Record<string, MarketStat>>({})
     const [series, setSeries] = useState<Record<string, number[]>>({})

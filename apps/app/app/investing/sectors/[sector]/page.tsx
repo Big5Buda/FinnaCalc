@@ -9,6 +9,8 @@ import { sectorById } from "@/lib/investing/catalog"
 import { marketOverview, type MarketOverview } from "@/lib/investing/market"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { PublicSectorResearch } from "@/components/investing/public-research"
 
 /**
  * One sector's page — the market-overview universe filtered to that sector,
@@ -16,7 +18,10 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * average on the tile and the rows here can't disagree.
  */
 export default function SectorPage({ params }: { params: Promise<{ sector: string }> }) {
-    const { sector: sectorId } = use(params)
+    const { sector } = use(params)
+    return websiteReview.useTradingView ? <PublicSectorResearch sector={sector} /> : <OriginalSectorPage sectorId={sector} />
+}
+function OriginalSectorPage({ sectorId }: { sectorId: string }) {
     const meta = sectorById(sectorId)
     const [overview, setOverview] = useState<MarketOverview | null>(null)
     const [failed, setFailed] = useState(false)

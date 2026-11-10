@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Regular income tax (Form 1040 line 16, ordinary-income path).
  *
@@ -10,11 +11,13 @@
  * in Phase 2; this module is the ordinary-income computation.)
  */
 import type { FilingStatus } from "../../types/filing"
-import { ORDINARY_BRACKETS_2024 } from "../constants/brackets2024"
+
 import { dollar } from "../round"
 
 /** Tax from the rate schedule (exact, in cents) on a positive amount. */
-export function bracketTax(amount: number, status: FilingStatus): number {
+export function bracketTax(amount: number, status: FilingStatus, year: TaxYear = 2024): number {
+  const { ORDINARY_BRACKETS_2024 } = taxRules(year)
+
   if (amount <= 0) return 0
   let tax = 0
   for (const b of ORDINARY_BRACKETS_2024[status]) {
@@ -27,7 +30,9 @@ export function bracketTax(amount: number, status: FilingStatus): number {
 }
 
 /** The marginal rate that applies at a given taxable income. */
-export function marginalRate(taxableIncome: number, status: FilingStatus): number {
+export function marginalRate(taxableIncome: number, status: FilingStatus, year: TaxYear = 2024): number {
+  const { ORDINARY_BRACKETS_2024 } = taxRules(year)
+
   let rate = 0
   for (const b of ORDINARY_BRACKETS_2024[status]) {
     if (taxableIncome > b.min) rate = b.rate
@@ -57,16 +62,18 @@ export interface RegularTaxResult {
 /** Compute regular tax on ordinary taxable income (Tax Table vs Computation Worksheet). */
 export function computeRegularTax(
   taxableIncome: number,
-  status: FilingStatus,
+  status: FilingStatus, year: TaxYear = 2024
 ): RegularTaxResult {
+  const { ORDINARY_BRACKETS_2024 } = taxRules(year)
+
   const ti = taxableIncome > 0 ? taxableIncome : 0
-  const mr = marginalRate(ti, status)
+  const mr = marginalRate(ti, status, year)
   if (ti < 100_000) {
     return {
-      tax: dollar(bracketTax(taxTableBasis(ti), status)),
+      tax: dollar(bracketTax(taxTableBasis(ti), status, year)),
       usedTaxTable: true,
       marginalRate: mr,
     }
   }
-  return { tax: dollar(bracketTax(ti, status)), usedTaxTable: false, marginalRate: mr }
+  return { tax: dollar(bracketTax(ti, status, year)), usedTaxTable: false, marginalRate: mr }
 }

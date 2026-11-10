@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
     return (
-        <>
+        <div className="mx-auto w-full max-w-4xl">
             <PageBar back={{ href: "/", label: "Home" }} title="Privacy Policy" />
-            <PageBody className="flex max-w-3xl flex-col gap-8">
+            <PageBody className="flex flex-col gap-8">
                 <Section icon={Eye} tint="text-primary" title="Introduction">
                     <P>
                         Your privacy matters to us. This Privacy Policy explains how we collect, use, share, and
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                     </P>
                     <LeadBullets
                         items={[
-                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view"],
+                            ["Service Providers:", "Supabase (accounts), Plaid and SnapTrade (bank/brokerage links, under their own privacy policies), Google (AI responses for FinnaBot, which receives the message you send plus any budget snapshot or portfolio holdings and weights that conversation carries), and market-data providers that receive the ticker symbols you view. Public website charts and market widgets are embedded from TradingView, which receives normal connection information such as your IP address and viewed symbols under its own privacy policy; FinnaCalc does not send your manually entered share counts, costs or portfolio values to those widgets"],
                             ["Purchases:", "Payment is handled by whichever processor you subscribe through, Apple for in-app purchases or Stripe on our website. They hold your card details. FinnaCalc stores subscription identifiers, product, status, and purchase or expiry dates linked to your account to verify access. Each Apple subscription belongs to one FinnaCalc account"],
                             ["Legal Requirements:", "When required by law or to protect rights and safety"],
                             ["Business Transfers:", "In connection with a merger, acquisition, or sale of assets"],
@@ -120,6 +120,7 @@ export default function PrivacyPage() {
                 </Section>
 
                 <Section title="On-Device Storage & Preferences">
+                    <P>The website's manual portfolio and watchlist are saved in this browser without an account and are separate from connected brokerage records. They do not sync across browsers or devices; clearing browser data removes them. Anyone using the same browser profile may be able to see them. Embedded TradingView displays may use their own cookies and storage; see <a href="https://www.tradingview.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="underline">TradingView's Privacy Policy</a>.</P>
                     <P>
                         The app stores your working data and preferences locally on your device rather than
                         with tracking cookies. In the iOS app, saved financial records are separated by FinnaCalc
@@ -181,7 +182,7 @@ export default function PrivacyPage() {
                     </div>
                 </Section>
             </PageBody>
-        </>
+        </div>
     )
 }
 
@@ -199,9 +200,9 @@ function Section({
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className={`h-6 w-6 ${tint ?? "text-foreground"}`} />}
-                    <CardTitle>{title}</CardTitle>
+                <div className="flex items-start gap-3">
+                    {Icon && <Icon className={`mt-0.5 h-6 w-6 shrink-0 ${tint ?? "text-foreground"}`} />}
+                    <CardTitle className="min-w-0 text-xl leading-snug sm:text-2xl">{title}</CardTitle>
                 </div>
             </CardHeader>
             <CardContent>
@@ -212,7 +213,7 @@ function Section({
 }
 
 function P({ children }: { children: React.ReactNode }) {
-    return <p className="text-base text-muted-foreground">{children}</p>
+    return <p className="text-base leading-7 text-muted-foreground">{children}</p>
 }
 
 function Sub({ children }: { children: React.ReactNode }) {
@@ -223,7 +224,7 @@ function Bullets({ items }: { items: string[] }) {
     return (
         <ul className="flex list-disc flex-col gap-2 pl-5">
             {items.map((item) => (
-                <li key={item} className="text-base text-muted-foreground">
+                <li key={item} className="text-base leading-7 text-muted-foreground">
                     {item}
                 </li>
             ))}
@@ -235,7 +236,7 @@ function LeadBullets({ items }: { items: [string, string][] }) {
     return (
         <ul className="flex list-disc flex-col gap-3 pl-5">
             {items.map(([lead, rest]) => (
-                <li key={lead} className="text-base text-muted-foreground">
+                <li key={lead} className="text-base leading-7 text-muted-foreground">
                     <strong className="font-bold">{lead}</strong> {rest}
                 </li>
             ))}
@@ -245,7 +246,7 @@ function LeadBullets({ items }: { items: [string, string][] }) {
 
 function Contact({ label, email }: { label: string; email: string }) {
     return (
-        <p className="text-base text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground">
             <strong className="font-bold">{label}</strong>{" "}
             <a href={`mailto:${email}`} className="text-primary">
                 {email}

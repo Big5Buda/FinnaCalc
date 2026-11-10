@@ -1,3 +1,7 @@
+import { Fragment } from "react"
+import { fullFinnaLessons as finnaLessons } from "@/lib/finna-lesson-content"
+import { lessonVideo, lessonPoster, type FinnaLesson } from "@/lib/finna-lessons"
+import { LessonVideo } from "@/components/education/lesson-video"
 import type { Metadata } from "next"
 import { PageBar, PageBody } from "@/components/shell/surface"
 import { notFound } from "next/navigation"
@@ -11,9 +15,9 @@ import {
 } from "@/lib/education-content"
 
 export function generateStaticParams() {
-    return EDU_TOPICS.flatMap((topic) =>
+    return [...finnaLessons.map(l => ({ topic: l.topic, lesson: l.id })), ...EDU_TOPICS.flatMap((topic) =>
         (videoLessons[topic.id] ?? []).map((_, index) => ({ topic: topic.id, lesson: String(index) }))
-    )
+    )]
 }
 
 export async function generateMetadata({
@@ -22,7 +26,9 @@ export async function generateMetadata({
     params: Promise<{ topic: string; lesson: string }>
 }): Promise<Metadata> {
     const { topic, lesson } = await params
-    const video = videoLessons[topic]?.[Number(lesson)]
+    const owned = finnaLessons.find(l => l.topic === topic && l.id === lesson)
+    if (owned) return { title: owned.title, description: owned.summary }
+    const video = /^\d+$/.test(lesson) ? videoLessons[topic]?.[Number(lesson)] : undefined
     if (!video) return {}
     return { title: video.title, description: `A ${topicName(topic)} lesson from FinnaCalc.` }
 }
@@ -39,7 +45,9 @@ export default async function EducationLessonPage({
     params: Promise<{ topic: string; lesson: string }>
 }) {
     const { topic, lesson } = await params
-    const video = videoLessons[topic]?.[Number(lesson)]
+    const owned = finnaLessons.find(l => l.topic === topic && l.id === lesson)
+    if (owned) return <OwnedLesson lesson={owned} />
+    const video = /^\d+$/.test(lesson) ? videoLessons[topic]?.[Number(lesson)] : undefined
     if (!video) notFound()
 
     const articles = readingResources[topic] ?? []
@@ -107,4 +115,28 @@ export default async function EducationLessonPage({
             </PageBody>
         </>
     )
+}
+
+function inline(text: string) {
+    return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) => part.startsWith("**") ? <strong key={i}>{part.slice(2,-2)}</strong> : part.startsWith("*") ? <em key={i}>{part.slice(1,-1)}</em> : <Fragment key={i}>{part}</Fragment>)
+}
+function OwnedLesson({ lesson }: { lesson: FinnaLesson }) {
+    return <>
+        <PageBar title={lesson.title} back={{ href: `/education/${lesson.topic}`, label: topicName(lesson.topic) }} />
+        <PageBody className="flex flex-col gap-7">
+            <header className="max-w-3xl"><h2 className="text-2xl font-semibold sm:text-3xl">{lesson.title}</h2><p className="mt-3 text-base leading-relaxed text-muted-foreground">{lesson.summary}</p><p className="mt-3 text-xs text-muted-foreground">FinnaCalc · {lesson.readMinutes} min read</p></header>
+            {lesson.videoFile && <div className="w-full max-w-5xl"><LessonVideo key={lesson.id} src={lessonVideo(lesson)} poster={lessonPoster(lesson)} title={lesson.title} /></div>}
+            <article aria-label="Read the lesson" className="flex max-w-3xl flex-col gap-5 text-base leading-relaxed text-foreground">
+                {lesson.body.map((block, i) => {
+                    if (block.type === "heading") return <h3 key={i} className="pt-3 text-xl font-semibold">{block.text}</h3>
+                    if (block.type === "paragraph") return <p key={i}>{inline(block.text)}</p>
+                    if (block.type === "callout") return <aside key={i} className="rounded-xl border border-border bg-secondary p-5">{inline(block.text)}</aside>
+                    if (block.type === "numbered") return <ol key={i} className="list-decimal space-y-2 pl-6">{block.items.map((item,j) => <li key={j}>{inline(item)}</li>)}</ol>
+                    if (block.type === "bullets") return <ul key={i} className="list-disc space-y-2 pl-6">{block.items.map((item,j) => <li key={j}>{inline(item)}</li>)}</ul>
+                    if (block.type === "takeaways") return <section key={i} className="rounded-card border border-border bg-card p-6"><h3 className="mb-3 text-lg font-semibold">Key takeaways</h3><ul className="list-disc space-y-2 pl-5">{block.items.map((item,j) => <li key={j}>{inline(item)}</li>)}</ul></section>
+                    return null
+                })}
+            </article>
+        </PageBody>
+    </>
 }

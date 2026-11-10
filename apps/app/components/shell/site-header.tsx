@@ -3,10 +3,11 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { Menu, Moon, Sun, X } from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useAppearance } from "@/components/providers/appearance-provider"
+import { websiteReview } from "@/lib/website-review"
 
 /**
  * The top header, back.
@@ -49,7 +50,7 @@ export function SiteHeader() {
                 <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="FinnaCalc home">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/finnacalc-mark.png" alt="" className="h-8 w-auto" />
-                    <span className="text-lg font-bold text-foreground sm:text-xl">
+                    <span className="hidden text-lg font-bold text-foreground sm:inline sm:text-xl">
                         Finna<span className="text-primary">Calc</span>
                     </span>
                 </Link>
@@ -72,7 +73,8 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="flex items-center gap-2">
-                    <AccountMenu />
+                    <AppearanceSelect />
+                    {websiteReview.showAccountNavigation && <AccountMenu />}
                     <button
                         type="button"
                         onClick={() => setMenuOpen((open) => !open)}
@@ -116,7 +118,6 @@ export function SiteHeader() {
  */
 function AccountMenu() {
     const { user, signOut, loading } = useAuth()
-    const { appearance, setAppearance } = useAppearance()
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
@@ -151,7 +152,6 @@ function AccountMenu() {
         )
     }
 
-    const dark = appearance === "dark"
     const rows = [
         { href: "/account", label: "Account" },
         { href: "/plans", label: "Plans" },
@@ -168,7 +168,7 @@ function AccountMenu() {
                 onClick={() => setOpen((value) => !value)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className="inline-flex h-9 max-w-[180px] items-center gap-2 rounded-full border border-border px-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
+                className="inline-flex h-9 max-w-[112px] sm:max-w-[180px] items-center gap-2 rounded-full border border-border px-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
             >
                 <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                     {user.displayName.charAt(0).toUpperCase()}
@@ -199,15 +199,6 @@ function AccountMenu() {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={() => setAppearance(dark ? "light" : "dark")}
-                        className="flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary"
-                    >
-                        {dark ? "Light mode" : "Dark mode"}
-                        {dark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
-                    </button>
-                    <button
-                        type="button"
-                        role="menuitem"
                         onClick={() => {
                             setOpen(false)
                             void signOut().then(() => router.push("/"))
@@ -220,4 +211,19 @@ function AccountMenu() {
             )}
         </div>
     )
+}
+
+/** Available to visitors as well as members; follows the existing stored choice. */
+function AppearanceSelect() {
+    const { appearance, setAppearance } = useAppearance()
+    return <label className="inline-flex items-center">
+        <span className="sr-only">Appearance</span>
+        <select aria-label="Appearance" value={appearance}
+            onChange={(e) => setAppearance(e.target.value as "system" | "light" | "dark")}
+            className="h-9 w-24 rounded-full border border-border bg-card px-2 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-28">
+            <option value="system">System theme</option>
+            <option value="light">Light mode</option>
+            <option value="dark">Dark mode</option>
+        </select>
+    </label>
 }

@@ -153,8 +153,9 @@ export const QUESTION_BANK: Question[] = [
   { id: "q_edu_expenses", sectionId: "credits", text: "Qualified tuition & fees paid", inputType: "dollar", dependsOn: (a) => a.ls_education === true },
   { id: "q_edu_aotc", sectionId: "credits", text: "Is the student in their first 4 years of an undergraduate degree?", inputType: "boolean", dependsOn: (a) => a.ls_education === true, helpText: "If yes, the more generous American Opportunity Credit applies." },
   { id: "q_savers_contrib", sectionId: "credits", text: "Retirement contributions (for the Saver's Credit)", inputType: "dollar", dependsOn: (a) => a.ls_savings === true },
-  { id: "q_clean_energy", sectionId: "credits", text: "Home clean-energy property cost (solar, etc.)", inputType: "dollar", dependsOn: (a) => a.ls_energy === true },
-  { id: "q_ev_credit", sectionId: "credits", text: "Clean vehicle (EV) credit amount", inputType: "dollar", dependsOn: (a) => a.ls_energy === true },
+  { id: "q_energy_carryforward", sectionId: "credits", text: "Unused residential clean-energy credit carried forward", helpText: "Enter the confirmed unused credit, not property cost. New 2026 expenditures do not qualify.", inputType: "dollar", dependsOn: (a) => a.ls_energy === true },
+  { id: "q_ev_deadline", sectionId: "credits", text: "Was the vehicle acquired by September 30, 2025 and otherwise eligible for the credit?", inputType: "boolean", dependsOn: (a) => a.ls_energy === true },
+  { id: "q_ev_credit", sectionId: "credits", text: "Confirmed eligible clean vehicle credit", helpText: "For a vehicle acquired by September 30, 2025 and placed in service in 2026. Exclude credit transferred to the dealer.", inputType: "dollar", dependsOn: (a) => a.ls_energy === true },
 
   // ---- Payments ----
   { id: "q_est_payments", sectionId: "payments", text: "Estimated tax payments made", inputType: "dollar" },

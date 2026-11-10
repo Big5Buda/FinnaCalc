@@ -1,3 +1,5 @@
+import { EITC_INCOME_LIMIT_2026, EITC_INCOME_LIMIT_MFJ_2026 } from "../constants/changes2026"
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Earned Income Tax Credit — Schedule EIC (refundable).
  *
@@ -8,12 +10,24 @@
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
 import type { FilingStatus } from "../../types/filing"
-import { EITC_2024, EITC_INVESTMENT_INCOME_LIMIT_2024, EITC_CHILDLESS_AGE } from "../constants/eitc2024"
+
 import { dollar } from "../round"
 
 /** Credit amount at a given income level for a bracket (piecewise-linear formula). */
-function eitcAtIncome(income: number, bracketIndex: number, status: FilingStatus): number {
+function eitcAtIncome(income: number, bracketIndex: number, status: FilingStatus, year: TaxYear = 2024): number {
+  const { EITC_2024, EITC_INVESTMENT_INCOME_LIMIT_2024, EITC_CHILDLESS_AGE } = taxRules(year)
+
   if (income <= 0) return 0
+  if (year === 2026) {
+    const b = EITC_2024[bracketIndex]
+    const limit = (status === "mfj" ? EITC_INCOME_LIMIT_MFJ_2026 : EITC_INCOME_LIMIT_2026)[bracketIndex]
+    if (income < 1 || income >= limit) return 0
+    const threshold = status === "mfj" ? b.phaseoutThresholdMfj : b.phaseoutThreshold
+    const lower = Math.floor(income/50)*50, upper = Math.min(lower+50,limit)
+    if (upper > b.earnedIncomeAmount && lower < threshold) return b.maxCredit
+    const midpoint = (lower+upper)/2
+    return midpoint <= threshold ? Math.min(b.maxCredit,b.phaseInRate*midpoint) : Math.max(0,b.maxCredit-b.phaseoutRate*(midpoint-threshold))
+  }
   const b = EITC_2024[bracketIndex]
   const threshold = status === "mfj" ? b.phaseoutThresholdMfj : b.phaseoutThreshold
   const phaseIn = Math.min(b.maxCredit, b.phaseInRate * income)
@@ -33,7 +47,10 @@ export function computeEitc(params: {
   agi: number
   investmentIncome: number
   taxpayerAge?: number
+  spouseAge?: number
 }): EitcResult {
+  const { EITC_2024, EITC_INVESTMENT_INCOME_LIMIT_2024, EITC_CHILDLESS_AGE } = taxRules(params.r.meta.taxYear)
+
   const { r, earnedIncome, agi, investmentIncome, taxpayerAge } = params
   const status = r.filingStatus
 
@@ -52,11 +69,17 @@ export function computeEitc(params: {
 
   const qualifyingChildren = r.dependents.filter((d) => d.qualifiesForEITC).length
   const bracketIndex = Math.min(qualifyingChildren, 3)
+  if (r.meta.taxYear === 2026 && bracketIndex === 0) {
+    const ageOK = (a?: number) => a !== undefined && a >= 25 && a < 65
+    if (r.filingStatus === "mfs" || r.taxpayer.claimedAsDependentByAnother || (r.filingStatus === "mfj" && r.spouse?.claimedAsDependentByAnother)) return { credit: 0, eligible: false, disqualReason: "The childless EITC eligibility rules are not met." }
+    if (!ageOK(taxpayerAge) && !(r.filingStatus === "mfj" && ageOK(params.spouseAge))) return { credit: 0, eligible: false, disqualReason: "Enter an eligible filer's age to include childless EITC." }
+  }
+
 
   // Childless filers must be 25–64; only enforced when age is known.
   if (
     bracketIndex === 0 &&
-    taxpayerAge !== undefined &&
+    r.meta.taxYear !== 2026 && taxpayerAge !== undefined &&
     (taxpayerAge < EITC_CHILDLESS_AGE.min || taxpayerAge >= EITC_CHILDLESS_AGE.maxExclusive)
   ) {
     return { credit: 0, eligible: false, disqualReason: "Childless EITC requires age 25–64." }
@@ -66,8 +89,8 @@ export function computeEitc(params: {
     ? EITC_2024[bracketIndex].phaseoutThresholdMfj
     : EITC_2024[bracketIndex].phaseoutThreshold
 
-  const byEarned = eitcAtIncome(earnedIncome, bracketIndex, status)
-  const credit = agi <= threshold ? byEarned : Math.min(byEarned, eitcAtIncome(agi, bracketIndex, status))
+  const byEarned = eitcAtIncome(earnedIncome, bracketIndex, status, r.meta.taxYear)
+  const credit = agi <= threshold ? byEarned : Math.min(byEarned, eitcAtIncome(agi, bracketIndex, status, r.meta.taxYear))
 
   return { credit: dollar(credit), eligible: credit > 0 }
 }

@@ -26,6 +26,7 @@ import {
 } from "@/components/investing/price-chart"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody, SegmentedControl } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
 
 /**
  * What we say when a source didn't answer and gave no reason of its own.
@@ -172,7 +173,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
                             </h1>
                             <p className="text-base font-semibold text-muted-foreground">{ticker}</p>
                         </div>
-                        <button
+                        {websiteReview.showAccountNavigation && <button
                             type="button"
                             onClick={() => watchlist.toggle(ticker)}
                             aria-label={following ? "Remove from watchlist" : "Add to watchlist"}
@@ -183,7 +184,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
                             ) : (
                                 <Bookmark className="h-4 w-4" />
                             )}
-                        </button>
+                        </button>}
                         <button
                             type="button"
                             onClick={() => setShowScales((shown) => !shown)}
@@ -250,9 +251,9 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
                         >
                             {style === "candles" ? "Candles" : "Line"}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => watchlist.toggle(ticker)}>
+                        {websiteReview.showAccountNavigation && <Button size="sm" variant="outline" onClick={() => watchlist.toggle(ticker)}>
                             {following ? "In your watchlist" : "Add to watchlist"}
-                        </Button>
+                        </Button>}
                     </div>
                 </section>
 

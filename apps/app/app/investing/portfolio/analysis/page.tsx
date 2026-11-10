@@ -22,6 +22,8 @@ import {
 import { Donut } from "@/components/budget/charts"
 import { Notice, SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { ManualPortfolio } from "@/components/investing/manual-portfolio"
 
 /**
  * Portfolio analysis — what the money is spread across, how concentrated it is,
@@ -34,6 +36,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * with guesses would be worse than not showing them.
  */
 export default function PortfolioAnalysisPage() {
+    return websiteReview.manualPortfolio ? <ManualPortfolio analysis /> : <BrokeragePortfolioAnalysisPage />
+}
+function BrokeragePortfolioAnalysisPage() {
     const [rows, setRows] = useState<Holding[]>([])
     const [orderRows, setOrderRows] = useState<Order[]>([])
     const [state, setState] = useState<"loading" | "ready" | "empty">("loading")

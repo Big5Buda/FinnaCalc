@@ -58,6 +58,7 @@ export interface StateResult {
 }
 
 export interface TaxCalculationResult {
+  taxYear?: 2024 | 2026
   filingStatus: FilingStatus
 
   // Income & AGI

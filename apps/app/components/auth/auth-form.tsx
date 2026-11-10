@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
+import { safeAuthReturn } from "@/lib/auth-return"
 import { setSessionHint } from "@/lib/session-hint"
 
 /**
@@ -33,7 +34,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
     const [next, setNext] = useState("/")
     useEffect(() => {
         const target = new URLSearchParams(window.location.search).get("next")
-        if (target) setNext(target)
+        setNext(safeAuthReturn(target))
     }, [])
 
     const [name, setName] = useState("")

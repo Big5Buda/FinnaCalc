@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/providers/auth-provider'
 import { ChatProvider } from '@/components/providers/chat-provider'
 import { BudgetProvider } from '@/components/providers/budget-provider'
 import { WatchlistProvider } from '@/components/providers/watchlist-provider'
+import { ManualPortfolioProvider } from '@/components/providers/manual-portfolio-provider'
 import { SiteChrome } from '@/components/shell/site-chrome'
 import { FinnaBotPanel } from '@/components/shell/finnabot-panel'
 
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
         template: '%s — FinnaCalc',
     },
     description:
-        'Free financial calculators, plain-language money lessons, and an AI helper that actually answers. Budgeting, investing, and taxes live in the FinnaCalc iOS app.',
+        'Free financial calculators, plain-language money lessons, and an AI helper that actually answers. Manage budgets, research investments, estimate taxes, and learn with FinnaCalc on the web.',
     openGraph: {
         title: 'FinnaCalc — Your All In One Personal Finance Platform',
         description:
@@ -78,10 +79,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     <AuthProvider>
                         <BudgetProvider>
                           <WatchlistProvider>
-                            <ChatProvider>
+                            <ManualPortfolioProvider><ChatProvider>
                                 <SiteChrome>{children}</SiteChrome>
                                 <FinnaBotPanel />
-                            </ChatProvider>
+                            </ChatProvider></ManualPortfolioProvider>
                           </WatchlistProvider>
                         </BudgetProvider>
                     </AuthProvider>
