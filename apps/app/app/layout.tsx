@@ -36,7 +36,7 @@ export const metadata: Metadata = {
         template: '%s — FinnaCalc',
     },
     description:
-        'Free financial calculators, plain-language money lessons, and an AI helper that actually answers. Budgeting, investing, and taxes live in the FinnaCalc iOS app.',
+        'Free financial calculators, plain-language money lessons, and an AI helper that actually answers. Manage budgets, research investments, estimate taxes, and learn with FinnaCalc on the web.',
     openGraph: {
         title: 'FinnaCalc — Your All In One Personal Finance Platform',
         description:

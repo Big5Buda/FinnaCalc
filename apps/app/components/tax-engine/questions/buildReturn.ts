@@ -11,25 +11,25 @@ const n = (a: Answers, id: string) => (typeof a[id] === "number" ? (a[id] as num
 const b = (a: Answers, id: string) => a[id] === true
 const intOf = (a: Answers, id: string) => Math.max(0, Math.floor(n(a, id)))
 
-/** Convert an age at year-end 2024 into a mid-year DOB the engine can use. */
-function dobFromAge(age: number): string {
+/** Convert an age at year-end into a mid-year DOB the engine can use. */
+function dobFromAge(age: number, year: 2024 | 2026): string {
   if (!age || age <= 0) return ""
-  return `${2024 - age}-06-15`
+  return `${year - age}-06-15`
 }
 
-export function buildReturn(a: Answers): TaxReturn2024 {
-  const r = makeEmptyReturn()
+export function buildReturn(a: Answers, year: 2024 | 2026 = 2026): TaxReturn2024 {
+  const r = makeEmptyReturn(year)
 
   // ---- About you ----
   r.filingStatus = (typeof a.q_filing === "string" ? a.q_filing : "single") as FilingStatus
   r.livedApartFromSpouse = b(a, "q_lived_apart")
-  r.taxpayer.dateOfBirth = dobFromAge(n(a, "q_age"))
+  r.taxpayer.dateOfBirth = dobFromAge(n(a, "q_age"), year)
   r.taxpayer.blind = b(a, "q_blind")
   r.taxpayer.claimedAsDependentByAnother = b(a, "q_claimed_dependent")
-  if (r.filingStatus === "mfj" || r.filingStatus === "qss") {
+  if (r.filingStatus === "mfj" || (year === 2024 && r.filingStatus === "qss")) {
     r.spouse = {
       ...r.taxpayer,
-      dateOfBirth: dobFromAge(n(a, "q_spouse_age")),
+      dateOfBirth: dobFromAge(n(a, "q_spouse_age"), year),
       blind: b(a, "q_spouse_blind"),
     }
   }
@@ -109,6 +109,8 @@ export function buildReturn(a: Answers): TaxReturn2024 {
       isSSTB: b(a, "q_se_sstb"),
     })
   }
+  r.activeQbiConfirmed = b(a,"q_active_qbi")
+  r.newDeductions = { qualifiedTips: n(a,"q_qualified_tips"), qualifiedOvertime: n(a,"q_qualified_overtime"), carLoanInterest: n(a,"q_car_loan_interest") }
   r.adjustments.selfEmployedHealthInsurance = n(a, "q_se_health")
 
   // ---- Investments ----
@@ -237,6 +239,8 @@ export function buildReturn(a: Answers): TaxReturn2024 {
   r.credits.retirementContributions = n(a, "q_savers_contrib")
   r.credits.cleanEnergyCost = n(a, "q_clean_energy")
   r.credits.evCreditAmount = n(a, "q_ev_credit")
+  r.credits.evAcquiredByDeadline = b(a,"q_ev_deadline")
+  r.credits.cleanEnergyCarryforward = n(a,"q_energy_carryforward")
 
   // ---- State residency ----
   if (typeof a.q_state === "string" && a.q_state !== "") {

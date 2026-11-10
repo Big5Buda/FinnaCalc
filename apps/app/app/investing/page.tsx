@@ -18,6 +18,8 @@ import {
 } from "@/lib/investing/market"
 import { MARKET_INDEX_ETFS, SECTORS } from "@/lib/investing/catalog"
 import { CompanyLogo, NewsList } from "@/components/investing/pieces"
+import { finnaLessons } from "@/lib/finna-lessons"
+import { FinnaLessonCard } from "@/components/education/finna-lesson-card"
 import { SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
 
@@ -97,7 +99,7 @@ export default function InvestingPage() {
     return (
         <>
             <PageBar title="Investing" />
-            <PageBody className="flex w-full max-w-6xl flex-col gap-6">
+            <PageBody className="flex w-full flex-col gap-6">
                 <div className="contents">
 
             <SymbolSearch />
@@ -135,11 +137,11 @@ export default function InvestingPage() {
             )}
 
             {cards.length > 0 && (
-                <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {cards.map((card) => (
                         <section
                             key={card.title}
-                            className="paper-card w-[85%] shrink-0 snap-start rounded-card p-[18px] sm:w-[70%]"
+                            className="paper-card min-w-0 rounded-card p-[18px]"
                         >
                             <h2 className="text-xl font-bold text-foreground">{card.title}</h2>
                             <p className="mt-1 text-sm text-muted-foreground">{card.blurb}</p>
@@ -193,9 +195,14 @@ export default function InvestingPage() {
                 </section>
             )}
 
+            <section className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-3"><SectionLabel>Investing lessons</SectionLabel><Link href="/education/investing" className="text-sm font-medium text-primary">View all lessons</Link></div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{finnaLessons.filter(l => l.topic === "investing").slice(0,3).map(lesson => <FinnaLessonCard key={lesson.id} lesson={lesson} />)}</div>
+            </section>
+
             <section className="flex flex-col gap-2.5">
                 <SectionLabel>Categories</SectionLabel>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                     {SECTORS.map((sector) => {
                         const Icon =
                             (Icons as unknown as Record<string, Icons.LucideIcon>)[sector.icon] ?? Icons.Boxes

@@ -41,7 +41,7 @@ const OFFER: { icon: LucideIcon; tint: string; title: string; body: string }[] =
         icon: FileText,
         tint: "text-accent-purple",
         title: "Taxes",
-        body: "Federal tax estimates for the year shown in each tool: 2025 in the iOS estimator and 2024 in the web estimator, plus planning calculators. Check the stated coverage and limitations. These tools do not file returns.",
+        body: "Federal tax estimates for the year shown in each tool, plus planning calculators. Check the stated coverage and limitations. These tools do not file returns.",
     },
     {
         icon: BookOpen,

@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Self-employment tax — Schedule SE.
  *
@@ -7,7 +8,7 @@
  * pay SS tax twice). The 2.9% Medicare portion has no cap. Computed per person.
  * Half of the total SE tax is deductible above the line (Schedule 1 line 15).
  */
-import { SE_TAX_2024 } from "../constants/filingThresholds2024"
+
 
 export interface SeTaxResult {
   seTax: number
@@ -20,8 +21,10 @@ type Owner = "taxpayer" | "spouse"
 
 export function computeSelfEmploymentTax(
   netSeByOwner: Record<Owner, number>,
-  w2SsWagesByOwner: Record<Owner, number>,
+  w2SsWagesByOwner: Record<Owner, number>, year: TaxYear = 2024
 ): SeTaxResult {
+  const { SE_TAX_2024 } = taxRules(year)
+
   let seTax = 0
   let netEarnings = 0
 

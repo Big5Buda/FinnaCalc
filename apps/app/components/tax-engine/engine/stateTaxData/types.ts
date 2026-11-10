@@ -14,6 +14,7 @@ export interface StateBracket {
 }
 
 export interface StateInput {
+  taxYear?: 2024 | 2026
   code: StateCode | ""
   /** Federal AGI from the federal computation. */
   federalAgi: number

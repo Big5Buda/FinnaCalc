@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import { currency, percent } from "@/lib/format"
 import { calculateFederalTax } from "@/components/tax-engine/engine"
+import { SUPPORTED_TAX_YEAR } from "@/components/tax-engine/engine/constants/taxRules"
 import { makeEmptyReturn } from "@/components/tax-engine/types/taxReturn"
 import type { FilingStatus } from "@/components/tax-engine/types/filing"
 import {
@@ -46,10 +47,20 @@ export default function TaxesPage() {
     const [interest, setInterest] = useState(0)
     const [selfEmployment, setSelfEmployment] = useState(0)
     const [dependents, setDependents] = useState(0)
+    const [age, setAge] = useState("")
+    const [charity, setCharity] = useState(0)
+    const [tips, setTips] = useState(0)
+    const [overtime, setOvertime] = useState(0)
+    const [carInterest, setCarInterest] = useState(0)
+    const [activeBusiness, setActiveBusiness] = useState(false)
 
     const result = useMemo(() => {
         const draft = makeEmptyReturn()
         draft.filingStatus = filingStatus
+        draft.taxpayer.dateOfBirth = age && Number(age)>0 ? `${SUPPORTED_TAX_YEAR-Number(age)}-06-15` : ""
+        draft.itemized.charitableCash = charity
+        draft.activeQbiConfirmed = activeBusiness
+        draft.newDeductions = { qualifiedTips: tips, qualifiedOvertime: overtime, carLoanInterest: carInterest }
 
         // One W-2 carrying the wage boxes the engine needs: Social Security and
         // Medicare wages track box 1 for an ordinary employee, and the payroll
@@ -87,35 +98,29 @@ export default function TaxesPage() {
                 {
                     id: "sch-c-1",
                     owner: "taxpayer",
-                    businessName: "Self-employment",
-                    grossReceipts: selfEmployment,
-                    expenses: {},
-                    totalExpenses: 0,
-                } as never,
+                    businessName: "Self-employment", description: "Business",
+                    grossReceipts: selfEmployment, costOfGoodsSold:0,
+                    expenses: {}, homeOfficeDeduction:0, vehicleExpense:0, isSSTB:false,
+                },
             ]
         }
 
         // Dependents young enough for the child tax credit — the common case,
         // and the one that moves the number most.
         draft.dependents = Array.from({ length: dependents }, (_, index) => ({
-            id: `dep-${index}`,
-            firstName: "Dependent",
-            lastName: "",
-            ssn: "",
-            dateOfBirth: "2018-01-01",
-            relationship: "child",
-            monthsLivedWithYou: 12,
-            isStudent: false,
-            isDisabled: false,
-            providedOwnSupport: false,
-        })) as never
+            id: `dep-${index}`, firstName:"Child",lastName:"",ssn:"",dateOfBirth:"2018-01-01",
+            relationshipType:"child",relationship:"child",monthsLivedWithTaxpayer:12,
+            taxpayerProvidedOverHalfSupport:true,qualifiesForCTC:true,qualifiesForODC:false,
+            qualifiesForEITC:true,qualifiesForCareCredit:false,
+        }))
+
 
         try {
             return calculateFederalTax(draft)
         } catch {
             return null
         }
-    }, [filingStatus, wages, withheld, interest, selfEmployment, dependents])
+    }, [filingStatus, wages, withheld, interest, selfEmployment, dependents, age, charity, tips, overtime, carInterest, activeBusiness])
 
     const refund = result?.refundOrOwed ?? 0
     const effectiveRate =
@@ -124,12 +129,12 @@ export default function TaxesPage() {
     return (
         <>
             <PageBar
-                title="Taxes"
+                title={`Taxes · ${SUPPORTED_TAX_YEAR}`}
                 actions={<ActionPill tone="outline" href="/calculators">Calculators</ActionPill>}
             />
-            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
+            <PageBody className="flex w-full flex-col gap-5">
                 <p className="max-w-2xl text-sm text-muted-foreground">
-                    A federal estimate for 2024. The iOS estimator covers 2025 separately.
+                    A federal estimate for tax year {SUPPORTED_TAX_YEAR}.
                     Check this tool’s coverage and limitations before using an estimate; it does not file returns.
                 </p>
 
@@ -154,6 +159,8 @@ export default function TaxesPage() {
                             </select>
                         </label>
 
+                        <label className="flex flex-col gap-1.5"><span className="text-sm font-medium">Your age at year-end (optional)</span><input type="number" min="1" max="120" value={age} onChange={e=>setAge(e.target.value === "" ? "" : String(Math.min(120,Math.max(1,Number(e.target.value)||1))))} className="h-11 rounded-md border border-input bg-card px-3 text-foreground" /><span className="text-xs text-muted-foreground">Used for senior deductions and the childless Earned Income Credit age test.</span></label>
+
                         <MoneyInput label="Wages (W-2 box 1)" value={wages} onChange={setWages} />
                         <MoneyInput
                             label="Federal tax withheld (box 2)"
@@ -166,14 +173,22 @@ export default function TaxesPage() {
                             onChange={setSelfEmployment}
                             hint="Net profit before the SE-tax deduction"
                         />
+                        {selfEmployment > 0 && <label className="flex items-start gap-2 text-sm leading-relaxed"><input type="checkbox" checked={activeBusiness} onChange={e=>setActiveBusiness(e.target.checked)} className="mt-1" />I materially participate in this business. Use this confirmation when checking the minimum QBI deduction.</label>}
                         <MoneyInput label="Interest income" value={interest} onChange={setInterest} />
                         <MoneyInput
                             label="Dependent children"
                             value={dependents}
-                            onChange={(next) => setDependents(Math.max(0, Math.round(next)))}
+                            onChange={(next) => setDependents(Math.min(99, Math.max(0, Math.floor(next))))}
                             money={false}
-                            hint="Under 17, for the child tax credit"
+                            hint="Qualifying children under 17 who meet the child-credit and EITC eligibility rules"
                         />
+                        <details className="border-t border-border pt-4"><summary className="cursor-pointer text-sm font-semibold">Additional 2026 deductions</summary><div className="mt-4 flex flex-col gap-4">
+                            <MoneyInput label="Eligible cash gifts to charity" value={charity} onChange={setCharity} hint="Eligible gifts to qualifying organizations; excludes donor-advised funds. Standard-deduction cash-gift limit applies." />
+                            <MoneyInput label="Qualified tips already included in income" value={tips} onChange={setTips} hint="Only tips that meet the IRS eligibility rules, not all tips or self-employment profit." />
+                            <MoneyInput label="Qualified overtime premium already in wages" value={overtime} onChange={setOvertime} hint="Only the eligible FLSA overtime premium, not total overtime pay." />
+                            <MoneyInput label="Eligible personal vehicle-loan interest" value={carInterest} onChange={setCarInterest} hint="Only qualifying loans and vehicles under the IRS rules; excludes leases and used vehicles." />
+                            <a href="https://www.irs.gov/publications/p505" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary underline underline-offset-4">Check 2026 deduction eligibility with the IRS</a>
+                        </div></details>
                     </Panel>
 
                     <div className="flex flex-col gap-5">
@@ -234,14 +249,15 @@ export default function TaxesPage() {
                             )}
                         </Panel>
 
+                        {result && result.warnings.length > 0 && <Panel className="flex flex-col gap-3"><PanelTitle>Check before relying on this estimate</PanelTitle><ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground">{result.warnings.map(w => <li key={w.code}>{w.message}</li>)}</ul></Panel>}
+
                         <Panel className="flex flex-col gap-3">
                             <PanelTitle>What this estimate leaves out</PanelTitle>
                             <p className="text-sm leading-relaxed text-muted-foreground">
                                 Itemized deductions, retirement and HSA contributions, capital gains,
                                 education and care credits, Social Security income, and state tax.
-                                The engine computes all of those — this screen just doesn&rsquo;t ask
-                                for them yet, so treat the figure as a first pass rather than a
-                                return.
+                                This screen does not collect those inputs. It is a first-pass federal estimate;
+                                2026 state income tax is not included.
                             </p>
                             <p className="text-sm leading-relaxed text-muted-foreground">
                                 It is an estimate for planning, not a filed return. E-filing
@@ -282,7 +298,8 @@ function MoneyInput({
                     value={String(value)}
                     onChange={(event) => {
                         const cleaned = event.target.value.replace(/[^0-9.]/g, "")
-                        onChange(cleaned === "" ? 0 : Number(cleaned))
+                        const parsed = cleaned === "" ? 0 : Number(cleaned)
+                        if (Number.isFinite(parsed)) onChange(Math.max(0, Math.min(parsed, 1_000_000_000)))
                     }}
                     className="figure w-full bg-transparent text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />

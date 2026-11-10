@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Alternative Minimum Tax — Form 6251 (simplified).
  *
@@ -11,7 +12,7 @@
  * are not tracked; this captures the common SALT/standard-deduction driver.
  */
 import type { FilingStatus } from "../../types/filing"
-import { AMT_2024 } from "../constants/amt2024"
+
 import { preferentialStackTax } from "./qualifiedDivCapGain"
 import { dollar } from "../round"
 
@@ -28,9 +29,16 @@ export function computeAmt(params: {
   preferentialIncome: number
   regularTax: number
   status: FilingStatus
+  taxYear?: TaxYear
 }): AmtResult {
+  const { AMT_2024 } = taxRules(params.taxYear ?? 2024)
+
   const { taxableIncome, addBacks, preferentialIncome, regularTax, status } = params
-  const amti = Math.max(0, taxableIncome + addBacks)
+  let amti = Math.max(0, taxableIncome + addBacks)
+  if (params.taxYear === 2026 && status === "mfs") {
+    const start = AMT_2024.exemptionPhaseoutThreshold.mfs + AMT_2024.exemption.mfs / AMT_2024.exemptionPhaseoutRate
+    amti += Math.min(AMT_2024.exemption.mfs, Math.max(0, amti - start) * AMT_2024.exemptionPhaseoutRate)
+  }
 
   const fullExemption = AMT_2024.exemption[status]
   const phaseStart = AMT_2024.exemptionPhaseoutThreshold[status]
@@ -48,7 +56,7 @@ export function computeAmt(params: {
     ordinaryBase <= bk
       ? ordinaryBase * AMT_2024.lowRate
       : bk * AMT_2024.lowRate + (ordinaryBase - bk) * AMT_2024.highRate
-  const prefTmt = preferentialStackTax(ordinaryBase, pref, status).tax
+  const prefTmt = preferentialStackTax(ordinaryBase, pref, status, params.taxYear ?? 2024).tax
 
   const tentativeMinimumTax = dollar(ordinaryTmt + prefTmt)
   return {
