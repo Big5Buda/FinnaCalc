@@ -395,7 +395,7 @@ export async function cashDividends(
     end: Date,
     revalidate = 21600
 ): Promise<AlpacaCashDividend[]> {
-    const wanted = [...new Set(symbols.map((s) => s.toUpperCase().trim()).filter(Boolean))]
+    const wanted = [...new Set(symbols.map((s) => s.toUpperCase().trim()).filter(Boolean))].sort()
     if (wanted.length === 0) return []
 
     const day = (d: Date) => d.toISOString().slice(0, 10)
@@ -417,10 +417,89 @@ export async function cashDividends(
             corporate_actions?: { cash_dividends?: AlpacaCashDividend[] }
             next_page_token?: string | null
         }>(`${DATA_BASE}/v1/corporate-actions?${params.toString()}`, revalidate)
-        if (!json) break
+        if (!json) throw new Error("Dividend provider unavailable.")
+        if (!json.corporate_actions || typeof json.corporate_actions !== "object" || Array.isArray(json.corporate_actions)
+            || (json.corporate_actions.cash_dividends !== undefined && !Array.isArray(json.corporate_actions.cash_dividends)))
+            throw new Error("Malformed dividend provider response.")
         out.push(...(json.corporate_actions?.cash_dividends ?? []))
-        if (!json.next_page_token) break
+        if (!json.next_page_token) return out
+        if (json.next_page_token === pageToken) throw new Error("Incomplete dividend pagination.")
         pageToken = json.next_page_token
     }
-    return out
+    throw new Error("Dividend pagination budget exceeded.")
+}
+
+/** Strict public reader: errors never masquerade as empty provider answers.
+ * Only new viewer routes use this; executable and legacy stock paths unchanged. */
+let publicActive = 0
+const publicWaiters: Array<() => void> = []
+export async function publicMarketGet<T>(url: string): Promise<T> {
+    if (!isAlpacaConfigured) throw new Error("Market data is not configured.")
+    if (publicActive >= 2) await new Promise<void>((resolve,reject) => {
+        if(publicWaiters.length>=16){reject(new Error("Public provider queue busy."));return}
+        const enter=()=>{clearTimeout(timer);resolve()}
+        const timer=setTimeout(()=>{const i=publicWaiters.indexOf(enter);if(i>=0)publicWaiters.splice(i,1);reject(new Error("Public provider queue timeout."))},15000)
+        publicWaiters.push(enter)
+    })
+    else publicActive++
+    try {
+        for (let attempt = 0; ; attempt++) {
+            const response = await fetch(url, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(10000) })
+            if (response.ok) return await response.json() as T
+            if (attempt >= 1 || !(response.status === 429 || response.status >= 500)) throw new Error("Market data unavailable.")
+            const retry = response.headers.get("retry-after")
+            const delay = retry ? (/^\d+(\.\d+)?$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()) : 50
+            if (!Number.isFinite(delay) || delay > 2000) throw new Error("Market data temporarily rate limited.")
+            await new Promise(resolve => setTimeout(resolve, Math.max(0, delay)))
+        }
+    } finally {
+        const next = publicWaiters.shift()
+        if (next) next(); else publicActive--
+    }
+}
+
+/** Paginated multi-symbol history. A page budget is an error, not success. */
+export async function publicBars(symbols: string[], timeframe: BarTimeframe, start: string, end: string,
+    adjustment: BarAdjustment): Promise<Record<string, AlpacaBar[]>> {
+    const crypto = symbols.every(isCryptoSymbol)
+    if (symbols.some(isCryptoSymbol) !== crypto) throw new Error("Mixed provider history chunk.")
+    const pairs = crypto ? symbols.map(toAlpacaCrypto) : symbols
+    const out: Record<string, AlpacaBar[]> = Object.fromEntries(symbols.map(s => [s, []]))
+    const tokens = new Set<string>()
+    const deadline = Date.now() + 20000
+    let token: string | undefined
+    for (let page = 0; page < 100; page++) {
+        if (Date.now() > deadline) throw new Error("History acquisition deadline exceeded.")
+        const params = new URLSearchParams({ symbols: pairs.join(","), timeframe, start, end, limit: "10000", sort: "asc" })
+        if (!crypto) { params.set("feed", FEED); params.set("adjustment", adjustment) }
+        if (token) params.set("page_token", token)
+        const data = await publicMarketGet<{ bars?: Record<string, AlpacaBar[]>; next_page_token?: string | null }>(
+            `${DATA_BASE}/${crypto ? "v1beta3/crypto/us" : "v2/stocks"}/bars?${params}`)
+        if (!data || !data.bars || typeof data.bars !== "object" || Array.isArray(data.bars)) throw new Error("Malformed history.")
+        for (const symbol of symbols) {
+            const rows = data.bars[crypto ? toAlpacaCrypto(symbol) : symbol] ?? []
+            if (!Array.isArray(rows) || rows.some(b => !b || !Number.isFinite(Date.parse(b.t)) || ![b.c,b.o,b.h,b.l].every(Number.isFinite))) throw new Error("Malformed history observations.")
+            out[symbol].push(...rows)
+        }
+        token = data.next_page_token ?? undefined
+        if (!token) {
+            for (const symbol of symbols) out[symbol] = [...new Map(out[symbol].map(b=>[b.t,b])).values()].sort((a,b)=>Date.parse(a.t)-Date.parse(b.t))
+            return out
+        }
+        if (typeof token !== "string" || tokens.has(token)) throw new Error("Incomplete history pagination.")
+        tokens.add(token)
+    }
+    throw new Error("History pagination budget exceeded.")
+}
+
+export async function publicSnapshots(symbols: string[]): Promise<Record<string, AlpacaSnapshot>> {
+    const crypto = symbols.every(isCryptoSymbol)
+    const pairs = crypto ? symbols.map(toAlpacaCrypto) : symbols
+    const url = crypto
+        ? `${DATA_BASE}/v1beta3/crypto/us/snapshots?symbols=${encodeURIComponent(pairs.join(","))}`
+        : `${DATA_BASE}/v2/stocks/snapshots?symbols=${encodeURIComponent(symbols.join(","))}&feed=${FEED}`
+    const data = await publicMarketGet<any>(url)
+    const snapshots = crypto ? data?.snapshots : data
+    if (!snapshots || typeof snapshots !== "object" || Array.isArray(snapshots)) throw new Error("Malformed snapshots.")
+    return Object.fromEntries(symbols.map(s=>[s, snapshots[crypto ? toAlpacaCrypto(s) : s] ?? null]))
 }
