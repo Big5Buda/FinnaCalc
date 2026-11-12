@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { asset, isCryptoSymbol } from "@/lib/alpaca";
-import { activeSymbolSet, fetchQuotes } from "@/lib/quotes";
+import { activeSymbolSet } from "@/lib/quotes";
+import { viewerQuotes } from "@/lib/public-market/quotes";
 
 // Price + day-change for a set of symbols: the Home tab's "Markets today" row,
 // the S&P card, and every holding in a connected portfolio.
@@ -27,7 +28,8 @@ import { activeSymbolSet, fetchQuotes } from "@/lib/quotes";
 // SAYS SO in `truncated` rather than quietly returning a short list that reads
 // like "these symbols have no price".
 
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
+const revalidate = 60;
 export const maxDuration = 30;
 
 // Alpaca's snapshots endpoint takes them all at once, so the only per-symbol
@@ -56,10 +58,21 @@ export async function GET(request: NextRequest) {
     // caller pricing thirty holdings skip thirty requests it has no use for.
     const wantNames = searchParams.get("names") !== "0";
 
-    const [quotes, activeSymbols] = await Promise.all([
-        fetchQuotes(symbols, revalidate),
+    const [acquisition, activeSymbols] = await Promise.all([
+        viewerQuotes([...symbols].sort()),
         activeSymbolSet(900),
     ]);
+
+    const { quotes, unavailable } = acquisition;
+    const metadataBySymbol: Record<string, unknown> = {};
+    for (const symbol of symbols) {
+        const q = quotes[symbol];
+        if (!q) continue;
+        const allowed = isCryptoSymbol(symbol) || !activeSymbols || activeSymbols.has(symbol);
+        if (!allowed) { unavailable[symbol] = { status: "unsupported", reason: "Listing is inactive." }; continue }
+        if (q.isStale) { unavailable[symbol] = { status: "stale", reason: "Quote observation is stale." }; continue }
+        metadataBySymbol[symbol] = { source: isCryptoSymbol(symbol) ? "Alpaca crypto" : "Alpaca IEX", asOf:q.asOf, fetchedAt:q.fetchedAt, expiresAt:q.expiresAt, status:"ok", currency:q.currency, price:q.price, change:q.change, changePct:q.changePct };
+    }
 
     // A symbol whose day move we cannot state is left out of `stats`
     // entirely, rather than included with changePct: null.
@@ -102,5 +115,5 @@ export async function GET(request: NextRequest) {
     // them rather than showing a fabricated figure. Anything cut for being over
     // the ceiling is named separately, because "we did not ask" and "there is no
     // price" are different facts and only one of them is about the market.
-    return NextResponse.json(truncated.length ? { stats, truncated } : { stats });
+    return NextResponse.json({ schemaVersion:1, stats, metadataBySymbol, unavailable, ...(truncated.length ? { truncated } : {}) }, { headers: { "Cache-Control": "no-store" } });
 }
