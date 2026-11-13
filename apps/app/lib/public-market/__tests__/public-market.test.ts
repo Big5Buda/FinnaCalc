@@ -70,6 +70,7 @@ async function fakeFetch(input: string|URL|Request,init:any={}) {
     } else if(url.pathname==="/v2/assets")data=symbols(120).concat(["AAPL","MSFT"]).map(s=>({symbol:s,status:"active"}))
     else if(url.pathname.startsWith("/v2/assets/"))data={name:"Fake name",symbol:url.pathname.split("/").at(-1),status:"active"}
     else if(url.pathname.includes("company_tickers"))data=Object.fromEntries(symbols(120).concat(["AAPL","MSFT"]).map((s,i)=>[i,{ticker:s,cik_str:i+1}]))
+    else if(url.pathname.includes("submissions/CIK0000320193"))data={cik:320193,name:"Apple Inc.",tickers:["AAPL"],sic:"3571",sicDescription:"Electronic Computers"}
     else if(url.pathname.includes("companyfacts"))data=factDoc
     else if(url.pathname.includes("corporate-actions"))data={corporate_actions:{cash_dividends:[]}}
     else throw new Error(`Unhandled fake path ${url.pathname}`)
@@ -100,14 +101,14 @@ describe("public protocol",()=>{
         expect(counts.alpacaData+counts.sec+counts.alpacaTrading).toBe(0)
         const route=await import("@/app/api/history-batch/route");expect((await route.GET(request(`/api/history-batch?symbols=${symbols(121)}`))).status).toBe(400)
     })
-    it("classification is zero provider work, full facts is SEC-only and durable",async()=>{
+    it("classification fetches only SEC issuer metadata, facts remain SEC-only and durable",async()=>{
         const {factsBatch}=await import("../facts")
         const c=await factsBatch(["AAPL","QQQ","UNKNOWN"],"classification")
-        expect(Object.keys(c.results)).toHaveLength(3);expect(counts.sec+counts.alpacaData+counts.alpacaTrading).toBe(0)
+        expect(Object.keys(c.results)).toHaveLength(3);expect(counts.sec).toBe(1);expect(counts.alpacaData+counts.alpacaTrading).toBe(0);expect((c.results.AAPL as any).analysisClassification.status).toBe("classified")
         const f:any=await factsBatch(["AAPL"],"facts");expect(f.results.AAPL.raw.epsTTM).toBe(5.555);expect(f.results.AAPL.raw.dividendsPerShareTTM).toBe(1)
-        expect(counts.alpacaData+counts.alpacaTrading).toBe(0);expect(counts.sec).toBe(2)
+        expect(counts.alpacaData+counts.alpacaTrading).toBe(0);expect(counts.sec).toBe(3)
         const stamp=f.results.AAPL.fetchedAt;vi.setSystemTime(NOW+10000);vi.resetModules()
-        const again:any=await(await import("../facts")).factsBatch(["AAPL"],"facts");expect(again.results.AAPL.fetchedAt).toBe(stamp);expect(counts.sec).toBe(2)
+        const again:any=await(await import("../facts")).factsBatch(["AAPL"],"facts");expect(again.results.AAPL.fetchedAt).toBe(stamp);expect(counts.sec).toBe(3)
     })
     it("keeps legacy stock P/E and yield formulas with currency guards",async()=>{
         const old=baseline()("lib/investing/fundamentals.ts").fundamentalsFrom(factDoc,100)

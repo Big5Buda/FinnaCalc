@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { activitiesMemory } from "./snaptrade-activities-cache"
 import { randomUUID } from "crypto"
 import { activeSnapTradeClientId, getSnapTrade, snapTradeCredentials, type SnapTradeSession } from "./snaptrade"
 
@@ -68,6 +69,7 @@ export async function loadSession(appUserId: string): Promise<SnapTradeSession |
 
 /** Delete only the exact owner/user whose vendor deletion was accepted. */
 export async function deleteSession(appUserId: string, session: Pick<SnapTradeSession, "clientId" | "userId">): Promise<void> {
+    activitiesMemory.invalidate(appUserId)
     snapTradeCredentials(session.clientId)
     const { error } = await adminClient().rpc("delete_snaptrade_session", {
         p_user_id: appUserId, p_client_id: session.clientId, p_st_user_id: session.userId,
