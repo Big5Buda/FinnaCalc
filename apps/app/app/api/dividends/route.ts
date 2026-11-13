@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { dividendEventsV2GET } from "@/lib/public-market/dividend-events-v2";
 import { cashDividends, isAlpacaConfigured } from "@/lib/alpaca";
 
 /**
@@ -57,6 +58,7 @@ const LOOKBACK_DAYS = 400;
 const LOOKAHEAD_DAYS = 120;
 
 export async function GET(request: NextRequest) {
+    if (request.nextUrl.searchParams.get("schemaVersion") === "2") return dividendEventsV2GET(request);
     if (!isAlpacaConfigured) {
         return NextResponse.json({ error: "Market data is not configured." }, { status: 503 });
     }

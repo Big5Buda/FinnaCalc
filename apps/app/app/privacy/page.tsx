@@ -51,6 +51,7 @@ export default function PrivacyPage() {
                         items={[
                             "Bank and brokerage links run through Plaid and SnapTrade. Your bank credentials go to them directly and never touch FinnaCalc's servers",
                             "Imported transactions and holdings are stored on your device. Optional AI questions can share portfolio holdings and weights with Google. FinnaBot can receive a selected budget summary with Budgeting Plus, portfolio context with Investing Plus, or both with Pro, where available and after AI-sharing permission. Financial details included in messages or responses are kept in conversation records",
+                            "We temporarily cache brokerage activity records, including dividends, in server memory to show dividend history and reduce repeat requests. A cached record can be reused for up to two days, including a dated copy during an outage. We check current account access before returning records. These cache records are not written to our database.",
                         ]}
                     />
                     <P>

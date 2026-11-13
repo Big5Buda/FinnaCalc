@@ -1,0 +1,18 @@
+import { beforeEach,describe,it,expect,vi } from 'vitest'
+vi.mock('../public-market/cache',()=>({limitedSEC:async(f:()=>unknown)=>f(),publicMany:async(_s:unknown,_g:unknown,_ttl:unknown,load:()=>Promise<Record<string,unknown>>)=>Object.fromEntries(Object.entries(await load()).map(([k,value])=>[k,{value}]))}))
+import { analysisClassification,classificationFromSubmission,industryForSIC } from '../public-market/classification'
+import { instrumentMetadata } from '../snaptrade-instrument-metadata'
+import taxonomy from '../public-market/data/analysis-taxonomy-v1.json'
+import pins from '../public-market/data/analysis-issuer-pins-v1.json'
+import { SECTORS,SECTOR_UNIVERSE } from '../investing/catalog'
+const pin={cik:'0000320193',name:'Apple Inc.',sourceUrl:'https://data.sec.gov/submissions/CIK0000320193.json'}
+describe('separate public Analysis classification',()=>{
+ beforeEach(()=>vi.unstubAllGlobals())
+ it('keeps exact 34 reviewed rules and100 explicit pins without quarantine',()=>{expect(taxonomy.rules.length).toBe(34);expect(Object.keys(pins).length).toBe(100);for(const s of ['XOM','HES','EA','WBD','PARA'])expect(pins).not.toHaveProperty(s)})
+ it.each([['7372','software-it'],['4813','telecom'],['4832','media'],['6324','insurance'],['3711','autos'],['2834','pharma'],['2086','food'],['5812','restaurants']])('maps raw SIC %s to %s', (sic,id)=>expect(industryForSIC(sic)?.id).toBe(id))
+ it('does not mistake ticker reuse or company name for verified security/currency',()=>{const a=classificationFromSubmission('AAPL',pin,{cik:'320193',name:'Apple Inc.',tickers:['AAPL'],sic:'3571',sicDescription:'Electronic Computers'},1);expect(a.status).toBe('classified');expect(a.securityId).toBeNull();expect(a.assetType).toBe('unknown');expect(a).not.toHaveProperty('issuerCurrency');expect(classificationFromSubmission('AAPL',pin,{cik:320193,name:'Reused Ticker Corp',tickers:['AAPL'],sic:'7372'},1).status).toBe('ambiguous')})
+ it('quarantine/unknown/ETF needs no provider fetch or amount transport',async()=>{const fetch=vi.fn(()=>{throw new Error('network forbidden')});vi.stubGlobal('fetch',fetch);for(const s of ['PARA','XOM','HES','EA','WBD','UNKNOWN','SPY','VOO']){const a=await analysisClassification(s);expect(a.status).not.toBe('classified');expect(a).not.toHaveProperty('accountId');expect(a).not.toHaveProperty('amount')};expect(fetch).not.toHaveBeenCalled()})
+ it('classification fetch is one SEC submissions call, never full stock/quote/history/facts',async()=>{const fetch=vi.fn(async(_url:unknown)=>({ok:true,json:async()=>({cik:320193,name:'Apple Inc.',tickers:['AAPL'],sic:'3571',sicDescription:'Electronic Computers'})}));vi.stubGlobal('fetch',fetch);expect((await analysisClassification('AAPL')).status).toBe('classified');expect(fetch).toHaveBeenCalledTimes(1);expect(fetch.mock.calls[0]?.[0]).toBe(pin.sourceUrl)})
+ it('preserves7 legacy sectors and105 catalog entries',()=>{expect(SECTORS.map(x=>x.name)).toEqual(['Technology','Healthcare','Financials','Consumer','Energy','Communication','Industrials']);expect(SECTOR_UNIVERSE.flatMap(s=>s.stocks).length).toBe(105)})
+ it('instrument unknown stays unknown and bond/crypto metadata never supplies a price multiplier',()=>{expect(instrumentMetadata({kind:'unknown'}).assetType).toBe('unknown');expect(instrumentMetadata({kind:'bond',id:'instrument'})).toEqual({assetType:'bond',instrumentKind:'bond',securityId:'instrument',securityIdSource:'snaptradeInstrument'});expect(instrumentMetadata({kind:'crypto'}).assetType).toBe('crypto');expect(instrumentMetadata({kind:'stock'}).securityId).toBeNull();expect(instrumentMetadata({kind:'stock',id:123,symbol:'AAPL'}).securityIdSource).toBeNull();expect(instrumentMetadata({kind:'stock',id:'',symbol:'AAPL'}).securityIdSource).toBeNull()})
+})

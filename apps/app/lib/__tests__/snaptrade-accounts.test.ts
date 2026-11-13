@@ -108,7 +108,7 @@ it("uses current V2 decimal positions and retains listing currency and basis", a
     mocks.holdings.mockResolvedValue({ data: { results: [{ instrument: { kind: "etf", symbol: "SPY", description: "Fund" },
         units: "1.25", price: "20.50", cost_basis: "18.25", currency: "USD" }] } })
     const body = await (await request()).json()
-    expect(body.positions[0]).toEqual({ accountId: "one", symbol: "SPY", description: "Fund", units: 1.25,
+    expect(body.positions[0]).toEqual({ instrumentKind:"etf",securityId:null,securityIdSource:null,assetType:"etf", accountId: "one", symbol: "SPY", description: "Fund", units: 1.25,
         price: 20.5, marketValue: 25.63, averagePurchasePrice: 18.25, openPnl: null, currency: "USD", cashEquivalent: false, valuationSupported: true })
     expect(mocks.holdings).toHaveBeenCalledWith({ accountId: "one", userId: "broker-user", userSecret: "test-secret" })
 })

@@ -1,0 +1,502 @@
+{
+  "version": "finnacalc-sec-sic-v1-20261113",
+  "sourceUrl": "https://www.sec.gov/search-filings/standard-industrial-classification-sic-code-list",
+  "method": "SEC issuer SIC to FinnaCalc plain-English buckets; ordered first-match inclusive ranges; no proprietary taxonomy claim",
+  "unknownPolicy": "No matching valid SIC => unknown; never guess from name",
+  "rules": [
+    {
+      "id": "restaurants",
+      "label": "Restaurants",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          5810,
+          5813
+        ]
+      ]
+    },
+    {
+      "id": "software-it",
+      "label": "Software and IT services",
+      "sectorId": "technology",
+      "sicRanges": [
+        [
+          7370,
+          7379
+        ]
+      ]
+    },
+    {
+      "id": "telecom",
+      "label": "Telecommunications",
+      "sectorId": "communication",
+      "sicRanges": [
+        [
+          4810,
+          4822
+        ],
+        [
+          4899,
+          4899
+        ]
+      ]
+    },
+    {
+      "id": "media",
+      "label": "Media and entertainment",
+      "sectorId": "communication",
+      "sicRanges": [
+        [
+          2710,
+          2799
+        ],
+        [
+          4830,
+          4841
+        ],
+        [
+          7810,
+          7841
+        ],
+        [
+          7920,
+          7948
+        ]
+      ]
+    },
+    {
+      "id": "insurance",
+      "label": "Insurance",
+      "sectorId": "financials",
+      "sicRanges": [
+        [
+          6310,
+          6399
+        ],
+        [
+          6410,
+          6411
+        ]
+      ]
+    },
+    {
+      "id": "autos",
+      "label": "Automobiles and vehicle parts",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          3710,
+          3716
+        ]
+      ]
+    },
+    {
+      "id": "pharma",
+      "label": "Pharmaceuticals and biotechnology",
+      "sectorId": "healthcare",
+      "sicRanges": [
+        [
+          2830,
+          2836
+        ]
+      ]
+    },
+    {
+      "id": "food",
+      "label": "Food and beverages",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          2000,
+          2099
+        ]
+      ]
+    },
+    {
+      "id": "semiconductors",
+      "label": "Semiconductors and electronic components",
+      "sectorId": "technology",
+      "sicRanges": [
+        [
+          3670,
+          3679
+        ]
+      ]
+    },
+    {
+      "id": "computer-hardware",
+      "label": "Computers and communications equipment",
+      "sectorId": "technology",
+      "sicRanges": [
+        [
+          3570,
+          3579
+        ],
+        [
+          3660,
+          3669
+        ]
+      ]
+    },
+    {
+      "id": "medical-equipment",
+      "label": "Medical equipment and instruments",
+      "sectorId": "healthcare",
+      "sicRanges": [
+        [
+          3840,
+          3851
+        ]
+      ]
+    },
+    {
+      "id": "health-services",
+      "label": "Healthcare services",
+      "sectorId": "healthcare",
+      "sicRanges": [
+        [
+          8000,
+          8099
+        ]
+      ]
+    },
+    {
+      "id": "banks",
+      "label": "Banks and lending",
+      "sectorId": "financials",
+      "sicRanges": [
+        [
+          6000,
+          6199
+        ]
+      ]
+    },
+    {
+      "id": "investments",
+      "label": "Investment and securities services",
+      "sectorId": "financials",
+      "sicRanges": [
+        [
+          6200,
+          6299
+        ],
+        [
+          6700,
+          6799
+        ]
+      ]
+    },
+    {
+      "id": "real-estate",
+      "label": "Real estate",
+      "sectorId": "real-estate",
+      "sicRanges": [
+        [
+          6500,
+          6553
+        ]
+      ]
+    },
+    {
+      "id": "retail",
+      "label": "Retail and distribution",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          5000,
+          5999
+        ]
+      ]
+    },
+    {
+      "id": "apparel",
+      "label": "Apparel and textiles",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          2200,
+          2399
+        ],
+        [
+          3021,
+          3021
+        ],
+        [
+          3140,
+          3149
+        ]
+      ]
+    },
+    {
+      "id": "household",
+      "label": "Household and personal products",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          2840,
+          2844
+        ],
+        [
+          2510,
+          2599
+        ]
+      ]
+    },
+    {
+      "id": "leisure-travel",
+      "label": "Travel and recreation services",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          7000,
+          7099
+        ],
+        [
+          7900,
+          7919
+        ],
+        [
+          7990,
+          7999
+        ]
+      ]
+    },
+    {
+      "id": "oil-gas",
+      "label": "Oil and gas production and refining",
+      "sectorId": "energy",
+      "sicRanges": [
+        [
+          1300,
+          1321
+        ],
+        [
+          2910,
+          2911
+        ]
+      ]
+    },
+    {
+      "id": "energy-services",
+      "label": "Energy equipment and services",
+      "sectorId": "energy",
+      "sicRanges": [
+        [
+          1380,
+          1389
+        ],
+        [
+          3533,
+          3533
+        ]
+      ]
+    },
+    {
+      "id": "utilities",
+      "label": "Utilities",
+      "sectorId": "utilities",
+      "sicRanges": [
+        [
+          4900,
+          4991
+        ]
+      ]
+    },
+    {
+      "id": "transport",
+      "label": "Transportation and logistics",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          4000,
+          4799
+        ]
+      ]
+    },
+    {
+      "id": "aerospace",
+      "label": "Aerospace and defense",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          3720,
+          3728
+        ],
+        [
+          3760,
+          3769
+        ]
+      ]
+    },
+    {
+      "id": "machinery",
+      "label": "Machinery and industrial equipment",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          3510,
+          3569
+        ],
+        [
+          3580,
+          3599
+        ]
+      ]
+    },
+    {
+      "id": "electrical",
+      "label": "Electrical equipment",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          3600,
+          3652
+        ],
+        [
+          3690,
+          3699
+        ]
+      ]
+    },
+    {
+      "id": "measurement",
+      "label": "Measurement and scientific instruments",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          3810,
+          3839
+        ],
+        [
+          3860,
+          3879
+        ]
+      ]
+    },
+    {
+      "id": "chemicals",
+      "label": "Chemicals",
+      "sectorId": "materials",
+      "sicRanges": [
+        [
+          2800,
+          2824
+        ],
+        [
+          2850,
+          2899
+        ]
+      ]
+    },
+    {
+      "id": "metals-mining",
+      "label": "Metals and mining",
+      "sectorId": "materials",
+      "sicRanges": [
+        [
+          1000,
+          1299
+        ],
+        [
+          1400,
+          1499
+        ],
+        [
+          3300,
+          3499
+        ]
+      ]
+    },
+    {
+      "id": "paper-packaging",
+      "label": "Paper and packaging",
+      "sectorId": "materials",
+      "sicRanges": [
+        [
+          2400,
+          2499
+        ],
+        [
+          2600,
+          2699
+        ]
+      ]
+    },
+    {
+      "id": "construction",
+      "label": "Construction and building materials",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          1500,
+          1799
+        ],
+        [
+          2950,
+          2952
+        ],
+        [
+          3200,
+          3299
+        ]
+      ]
+    },
+    {
+      "id": "business-services",
+      "label": "Business and professional services",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          7300,
+          7369
+        ],
+        [
+          7380,
+          7389
+        ],
+        [
+          8100,
+          8999
+        ]
+      ]
+    },
+    {
+      "id": "agriculture",
+      "label": "Agriculture and forestry",
+      "sectorId": "consumer",
+      "sicRanges": [
+        [
+          100,
+          999
+        ]
+      ]
+    },
+    {
+      "id": "other-manufacturing",
+      "label": "Other manufacturing",
+      "sectorId": "industrials",
+      "sicRanges": [
+        [
+          3000,
+          3011
+        ],
+        [
+          3050,
+          3099
+        ],
+        [
+          3730,
+          3751
+        ],
+        [
+          3790,
+          3799
+        ],
+        [
+          3900,
+          3999
+        ]
+      ]
+    }
+  ]
+}

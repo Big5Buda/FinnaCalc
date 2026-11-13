@@ -1,3 +1,4 @@
+import { analysisClassification } from "./classification"
 import { symbolProfile, CURATED_ETFS, MARKET_INDEX_ETFS } from "@/lib/investing/catalog"
 import { fundamentalsFrom, NO_FUNDAMENTALS, reportingCurrency } from "@/lib/investing/fundamentals"
 import { SEC_HEADERS } from "@/lib/sec"
@@ -30,8 +31,9 @@ export async function factsBatch(symbols:string[], mode:string, now=Date.now()/1
     await mapBounded(symbols,2,async symbol=>{
         const label = labels(symbol)
         if (mode === "classification") {
+            const classification=Date.now()<=deadline ? await analysisClassification(symbol,now) : null
             results[symbol] = { ...label, raw:raw(NO_FUNDAMENTALS), issuerCurrency:null, fiscalYear:null, sharesAsOf:null,
-                status:"no-data", source:"curated catalog", asOf:null, fetchedAt:bucket(now,86400), expiresAt:bucket(now,86400)+86400, provenance:{} }
+                analysisClassification:classification, status:"no-data", source:"curated catalog", asOf:null, fetchedAt:bucket(now,86400), expiresAt:bucket(now,86400)+86400, provenance:{} }
             return
         }
         try {
@@ -62,7 +64,7 @@ export async function factsBatch(symbols:string[], mode:string, now=Date.now()/1
                         sharesUnit:"shares", epsUnit:"USD/share", dividendsUnit:"USD/share", marginUnit:"percent" } } }
             },now)
             const entry=value[symbol]
-            results[symbol]={ ...label, ...entry.value, source:"SEC company facts + curated catalog", asOf:null,
+            results[symbol]={ ...label, ...entry.value, analysisClassification:null, source:"SEC company facts + curated catalog", asOf:null,
                 fetchedAt:entry.fetchedAt, expiresAt:entry.expiresAt }
         } catch { unavailable[symbol]={status:"unavailable",reason:"Issuer facts unavailable. Classification can be requested separately."} }
     })
