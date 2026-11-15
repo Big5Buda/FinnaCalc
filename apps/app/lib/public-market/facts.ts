@@ -1,8 +1,9 @@
-import { analysisClassification } from "./classification"
-import { symbolProfile, CURATED_ETFS, MARKET_INDEX_ETFS } from "@/lib/investing/catalog"
+import { analysisClassificationEntry } from "./classification"
+import { resolveSECIssuer } from "./sec-issuer"
+import { symbolProfile, sectorById, CURATED_ETFS, MARKET_INDEX_ETFS } from "@/lib/investing/catalog"
 import { fundamentalsFrom, NO_FUNDAMENTALS, reportingCurrency } from "@/lib/investing/fundamentals"
 import { SEC_HEADERS } from "@/lib/sec"
-import { bucket, limitedSEC, mapBounded, publicMany } from "./cache"
+import { limitedSEC, mapBounded, publicMany } from "./cache"
 import type { Unavailable } from "./protocol"
 
 async function readSEC<T>(url:string):Promise<{status:"ok";data:T}|{status:"no-data"}> {
@@ -31,23 +32,19 @@ export async function factsBatch(symbols:string[], mode:string, now=Date.now()/1
     await mapBounded(symbols,2,async symbol=>{
         const label = labels(symbol)
         if (mode === "classification") {
-            const classification=Date.now()<=deadline ? await analysisClassification(symbol,now) : null
-            results[symbol] = { ...label, raw:raw(NO_FUNDAMENTALS), issuerCurrency:null, fiscalYear:null, sharesAsOf:null,
-                analysisClassification:classification, status:"no-data", source:"curated catalog", asOf:null, fetchedAt:bucket(now,86400), expiresAt:bucket(now,86400)+86400, provenance:{} }
+            const entry=await analysisClassificationEntry(symbol,now,deadline)
+            const classification=entry.value.classification
+            const sector=classification.status==="classified"&&classification.sectorId?sectorById(classification.sectorId)?.name??null:null
+            results[symbol] = { ...label, name:entry.value.issuerName??label.name, sector:sector??label.sector, raw:raw(NO_FUNDAMENTALS), issuerCurrency:null, fiscalYear:null, sharesAsOf:null,
+                analysisClassification:classification, status:"no-data", source:entry.value.issuerName?"SEC submissions + SIC taxonomy":"curated catalog", asOf:null, fetchedAt:entry.fetchedAt, expiresAt:entry.expiresAt, provenance:{} }
             return
         }
         try {
             if(Date.now()>deadline)throw new Error("Facts acquisition deadline exceeded.")
             const value = await publicMany<RawIssuer>([symbol],"SEC raw issuer facts v1",86400,async()=>{
-                const ticker = await publicMany<Record<string,{ticker:string;cik_str:number}>>(["map"],"SEC ticker map v1",604800,async()=>{
-                    const result=await readSEC<Record<string,{ticker:string;cik_str:number}>>("https://www.sec.gov/files/company_tickers.json")
-                    if(result.status!=="ok" || !result.data || typeof result.data!=="object" || Array.isArray(result.data)) throw new Error("SEC ticker map unavailable.")
-                    return {map:result.data}
-                },now)
-                const candidates=[symbol,symbol.replace(/\./g,"-")]
-                const issuer=Object.values(ticker.map.value).find(row=>row && candidates.includes(row.ticker) && Number.isInteger(row.cik_str) && row.cik_str>0)
-                if (!issuer) return { [symbol]: { raw:raw(NO_FUNDAMENTALS), issuerCurrency:null, fiscalYear:null, sharesAsOf:null, status:"no-data", provenance:{} } }
-                const cik = String(issuer.cik_str).padStart(10,"0")
+                const issuer=await resolveSECIssuer(symbol,now,deadline)
+                if (issuer.status!=='found') return { [symbol]: { raw:raw(NO_FUNDAMENTALS), issuerCurrency:null, fiscalYear:null, sharesAsOf:null, status:"no-data", provenance:{} } }
+                const cik = issuer.cik
                 const sourceUrl = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`
                 // Raw documents can exceed Next's2MB entry limit. Cache the SMALL derived result above,
                 // not the multi-MB document. Network failures throw and never poison durable cache.
