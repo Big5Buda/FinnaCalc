@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Qualified Business Income deduction — §199A (Forms 8995 / 8995-A).
  *
@@ -8,7 +9,7 @@
  * high earners rather than silently over-deducting.
  */
 import type { FilingStatus } from "../../types/filing"
-import { QBI_2024 } from "../constants/qbi2024"
+
 
 export interface QbiResult {
   deduction: number
@@ -22,7 +23,11 @@ export function computeQbiDeduction(params: {
   netCapitalGain: number
   isSSTB: boolean
   status: FilingStatus
+  taxYear?: TaxYear
+  activeQbiConfirmed?: boolean
 }): QbiResult {
+  const { QBI_2024 } = taxRules(params.taxYear ?? 2024)
+
   const { qbiIncome, taxableIncomeBeforeQbi, netCapitalGain, isSSTB, status } = params
   if (qbiIncome <= 0) return { deduction: 0, wageLimitMayApply: false }
 
@@ -32,7 +37,7 @@ export function computeQbiDeduction(params: {
 
   // Below threshold: simple 20%, capped by the overall taxable-income limit.
   if (taxableIncomeBeforeQbi <= threshold) {
-    return { deduction: Math.min(QBI_2024.rate * qbiIncome, overallLimit), wageLimitMayApply: false }
+    return { deduction: Math.max(params.taxYear === 2026 && params.activeQbiConfirmed && qbiIncome >= 1000 ? 400 : 0, Math.min(QBI_2024.rate * qbiIncome, overallLimit)), wageLimitMayApply: false }
   }
 
   const over = taxableIncomeBeforeQbi - threshold
@@ -42,7 +47,7 @@ export function computeQbiDeduction(params: {
     if (over >= range) return { deduction: 0, wageLimitMayApply: false }
     const applicablePct = 1 - over / range
     const deduction = Math.min(QBI_2024.rate * qbiIncome * applicablePct, overallLimit)
-    return { deduction, wageLimitMayApply: false }
+    return { deduction, wageLimitMayApply: params.taxYear === 2026 && deduction > 0 }
   }
 
   // Non-SSTB above threshold: the W-2/UBIA limit governs but isn't tracked here.

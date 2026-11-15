@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { websiteReview } from "./lib/website-review"
 
 /**
- * The auth gate, narrowed to Investing.
- *
- * The site was open from the start: anyone could budget, run the tax
- * estimator, read a lesson or use a calculator, and an account was for
- * keeping that work. #114 put the whole app behind sign-in; the owner asked
- * for the old arrangement back, with one exception he named: Investing,
- * which reads a brokerage and market data that need an account behind them.
+ * Public Investing research and browser-local manual trackers. Authenticated
+ * brokerage pages remain preserved in code; brokerage APIs verify identity.
+ * Set FINNACALC_REQUIRE_INVESTING_SIGN_IN=true to restore the original
+ * Investing-wide page gate once the owner wants it back. Public access is
+ * limited to the explicit research routes below; new routes stay gated.
  *
  * The signal is the fc_session hint cookie (lib/session-hint.ts), one bit
  * set on sign-in and cleared on sign-out. It is deliberately NOT the session:
  * Supabase's tokens live in this origin's localStorage, which middleware
  * cannot read. So this gate is a door, not a lock; it decides which page
- * shell is served, and the real session check stays in the client's
- * AuthProvider. Forging the cookie gets an anonymous visitor an empty shell
- * with no data behind it.
+ * shell is served. Private APIs verify Supabase identity on the server;
+ * the client's AuthProvider supplies the browser's signed-in context.
+ * Forging the hint does not grant access to brokerage data.
  *
  * /api is kept out of the matcher entirely: every installed iOS build calls
  * those routes directly and unauthenticated through the www proxy, and
@@ -25,10 +24,31 @@ import type { NextRequest } from "next/server"
 
 const GATED_PAGES = ["/investing"]
 
+const PUBLIC_INVESTING_PAGES = new Set([
+    "/investing",
+    "/investing/screener",
+    "/investing/etfs",
+    "/investing/cash-options",
+    "/investing/bonds",
+    "/investing/tracker",
+    "/investing/research",
+])
+
+function isPublicInvestingResearch(pathname: string) {
+    const path = pathname.replace(/\/$/, "")
+    const manual = websiteReview.manualPortfolio && ["/investing/portfolio", "/investing/portfolio/analysis", "/investing/watchlist"].includes(path)
+    return manual || PUBLIC_INVESTING_PAGES.has(path) ||
+        /^\/investing\/(?:stocks|sectors|tracker)\/[^/]+$/.test(path)
+}
+
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     if (!GATED_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
+        return NextResponse.next()
+    }
+
+    if (process.env.FINNACALC_REQUIRE_INVESTING_SIGN_IN !== "true" && isPublicInvestingResearch(pathname)) {
         return NextResponse.next()
     }
 
@@ -45,5 +65,6 @@ export function middleware(request: NextRequest) {
 export const config = {
     // Everything except: API routes (iOS lifeline — must never redirect),
     // Next internals, and files with an extension (icons, images, fonts).
-    matcher: ["/((?!api|_next|.*\\..*).*)"],
+    // Investing also includes ticker symbols containing dots, such as BRK.B.
+    matcher: ["/investing/:path*", "/((?!api|_next|.*\\..*).*)"],
 }

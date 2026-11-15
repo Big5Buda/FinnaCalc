@@ -8,7 +8,7 @@ import type { EfileBundle } from "./EfileProvider"
 
 export function buildEfileBundle(result: TaxCalculationResult): EfileBundle {
   return {
-    taxYear: 2024,
+    taxYear: result.taxYear ?? 2024,
     filingStatus: result.filingStatus,
     agi: result.agi,
     taxableIncome: result.taxableIncome,

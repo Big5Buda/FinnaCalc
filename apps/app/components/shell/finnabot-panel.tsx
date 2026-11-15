@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+import { FinnaBotMark } from "@/components/shell/finnabot-mark"
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
 import { SendHorizonal, X } from "lucide-react"
 import { useChat, type ChatMessage, WELCOME_ID } from "@/components/providers/chat-provider"
@@ -71,16 +71,10 @@ export function FinnaBotPanel() {
             ref={panelRef}
             role="dialog"
             aria-label="FinnaBot"
-            className="fixed bottom-4 right-4 z-50 flex h-[min(32rem,calc(100svh-5rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
+            className="fixed bottom-4 right-4 z-50 flex h-[min(32rem,calc(100svh-5rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
         >
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
-                <Image
-                    src="/finnabot-logo.png"
-                    alt=""
-                    width={22}
-                    height={30}
-                    className="h-7 w-5 object-contain"
-                />
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-secondary/40 px-4">
+                <FinnaBotMark className="h-9 w-6 shrink-0" />
                 <span className="flex-1 text-base font-bold">
                     <Wordmark className="text-base" />
                     <span className="sr-only">FinnaBot</span>
@@ -108,7 +102,7 @@ export function FinnaBotPanel() {
                 </div>
             </div>
 
-            <form onSubmit={onSubmit} className="flex shrink-0 items-end gap-2 border-t border-border p-3">
+            <form onSubmit={onSubmit} className="flex shrink-0 items-end gap-2 border-t border-border bg-secondary/40 p-3">
                 <textarea
                     ref={inputRef}
                     value={input}
@@ -123,13 +117,13 @@ export function FinnaBotPanel() {
                     placeholder="Ask FinnaBot a question…"
                     aria-label="Message FinnaBot"
                     disabled={isLoading}
-                    className="max-h-28 flex-1 resize-none rounded-2xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                    className="max-h-28 flex-1 resize-none rounded-2xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 />
                 <button
                     type="submit"
                     disabled={isLoading || input.trim() === ""}
                     aria-label="Send"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground transition disabled:opacity-50"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
                 >
                     <SendHorizonal className="h-4 w-4" />
                 </button>
@@ -142,7 +136,7 @@ function Bubble({ message }: { message: ChatMessage }) {
     if (message.role === "user") {
         return (
             <div className="flex justify-end">
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-secondary px-3 py-2 text-sm text-foreground">
+                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl border border-border bg-secondary px-3 py-2 text-sm leading-relaxed text-foreground">
                     {message.content}
                 </p>
             </div>
@@ -150,7 +144,7 @@ function Bubble({ message }: { message: ChatMessage }) {
     }
     return (
         <div className="flex flex-col gap-1">
-            <div className="max-w-[92%] rounded-2xl bg-brand px-3.5 py-2.5 text-sm leading-relaxed text-primary-foreground">
+            <div className="max-w-[92%] rounded-2xl bg-blue-600 px-3.5 py-2.5 text-sm leading-relaxed text-white">
                 {renderMarkdown(message.content)}
             </div>
             {/* Under every answer, not only the ones a cue list guessed were about

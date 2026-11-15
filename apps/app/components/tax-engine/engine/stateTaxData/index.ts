@@ -74,6 +74,7 @@ function computeFromConfig(cfg: StateConfig, input: StateInput): StateResult {
 export function computeStateTax(input: StateInput): StateResult | undefined {
   if (!input.code) return undefined
   const cfg = STATE_CONFIGS[input.code]
+  if (input.taxYear === 2026 && (!cfg || cfg.hasIncomeTax)) return { code: input.code, name: cfg?.name ?? input.code, hasIncomeTax:true, supported:false, stateAgi:0,taxableIncome:0,tax:0,withheld:dollar(input.stateWithholding),refundOrOwed:0,note:"2026 state income tax is not estimated by this federal tool. Use your state tax agency’s current rules." }
   if (!cfg) {
     return {
       code: input.code,

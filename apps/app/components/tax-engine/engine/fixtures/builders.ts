@@ -6,7 +6,7 @@ import { makeEmptyReturn, type TaxReturn2024 } from "../../types/taxReturn"
 import type { FilingStatus } from "../../types/filing"
 
 export function baseReturn(status: FilingStatus): TaxReturn2024 {
-  const r = makeEmptyReturn()
+  const r = makeEmptyReturn(2024)
   r.filingStatus = status
   return r
 }

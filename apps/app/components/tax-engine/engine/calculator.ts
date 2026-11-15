@@ -56,19 +56,24 @@ import {
 import { computePremiumTaxCredit } from "./pipeline/premiumTaxCredit"
 import { computeWithholdingAndPayments } from "./pipeline/payments"
 import { computeStateTax } from "./stateTaxData"
-import { EARLY_WITHDRAWAL_PENALTY_2024, SALT_CAP_2024 } from "./constants/filingThresholds2024"
+import { taxRules, effectiveSaltCap, type TaxYear } from "./constants/taxRules"
+import { computeNewDeductions } from "./pipeline/obbbaDeductions"
+import { computeStandardDeduction } from "./pipeline/deductionCompare"
 
 type Owner = "taxpayer" | "spouse"
 
 /** Age at the end of 2024 (for the childless-EITC age test). Undefined if no DOB. */
-function ageAtEndOf2024(dob: string): number | undefined {
+function ageAtEndOf2024(dob: string, year: TaxYear): number | undefined {
   if (!dob) return undefined
   const d = new Date(dob)
   if (Number.isNaN(d.getTime())) return undefined
-  return 2024 - d.getUTCFullYear()
+  return year - d.getUTCFullYear()
 }
 
-export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
+export function calculateFederalTax(r: TaxReturn2024, preferStandard = false): TaxCalculationResult {
+  const year = r.meta.taxYear
+  if (year !== 2024 && year !== 2026) throw new Error("Unsupported tax year")
+  const { EARLY_WITHDRAWAL_PENALTY_2024, ORDINARY_BRACKETS_2024 } = taxRules(year)
   const warnings: Warning[] = []
   const auditFlags: AuditFlag[] = []
   const trace: LineTrace[] = []
@@ -89,7 +94,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
       (w) => w.box3SsWages,
     ),
   }
-  const se = computeSelfEmploymentTax(schedC.netByOwner, w2SsWagesByOwner)
+  const se = computeSelfEmploymentTax(schedC.netByOwner, w2SsWagesByOwner, year)
   const seTax = dollar(se.seTax)
 
   // ---- 3. Capital gains (Schedule D / 8949) ----
@@ -122,7 +127,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
   const ssBenefits = r.income.flags.hasSocialSecurity
     ? sumBy(r.income.f1099Ssa, (s) => s.box5NetBenefits)
     : 0
-  const age50 = isAge50For2024(r.taxpayer.dateOfBirth)
+  const age50 = isAge50For2024(r.taxpayer.dateOfBirth, year)
   let taxableSS = 0
   let ira = 0
   for (let i = 0; i < 6; i++) {
@@ -144,7 +149,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
       r.filingStatus,
       r.adjustments.coveredByWorkplacePlan,
       r.adjustments.spouseCoveredByWorkplacePlan,
-      age50,
+      age50, year,
     )
     const converged = Math.abs(newSS - taxableSS) < 0.005 && Math.abs(newIra - ira) < 0.005
     taxableSS = newSS
@@ -157,7 +162,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
   const studentLoan = studentLoanInterestDeduction(
     r.adjustments.studentLoanInterest,
     studentLoanMagi,
-    r.filingStatus,
+    r.filingStatus, year,
   )
 
   // ---- 9. Totals → AGI ----
@@ -173,9 +178,10 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
 
   // ---- 11. Deduction: standard vs itemized ----
   const wageEarnedIncome = gross.wageEarnedIncome
-  const seEarnedIncome = nonNeg(schedC.totalNet - se.deduction)
-  const earnedIncome = wageEarnedIncome + seEarnedIncome
+  const seEarnedIncome = year === 2026 ? schedC.totalNet - se.deduction : nonNeg(schedC.totalNet - se.deduction)
+  const earnedIncome = nonNeg(wageEarnedIncome + seEarnedIncome)
   const deduction = computeDeduction(r, agi, earnedIncome)
+  if (preferStandard && !r.forceItemize) { deduction.used = "standard"; deduction.amount = deduction.standard; deduction.itemizedSavings = 0 }
   const deductionAmount = dollar(deduction.amount)
   line(
     "deduction",
@@ -184,11 +190,15 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     deductionAmount,
   )
 
+  const newDeductions = computeNewDeductions(r, agi)
+  for (const [key,label] of [["senior","Additional deduction for seniors"],["tips","Qualified tips deduction"],["overtime","Qualified overtime deduction"],["car","Qualified car loan interest deduction"]] as const) {
+    if (newDeductions[key] > 0) line(key+"Deduction",label,"Schedule 1-A",dollar(newDeductions[key]))
+  }
   // ---- 12. QBI deduction (§199A) ----
   const preferentialLTCG = capGains.preferentialLTCG
   const qualifiedDividends = gross.qualifiedDividends
   const netCapitalGainPreferential = qualifiedDividends + preferentialLTCG
-  const taxableIncomeBeforeQbi = nonNeg(agi - deductionAmount)
+  const taxableIncomeBeforeQbi = nonNeg(agi - deductionAmount - newDeductions.total)
   const qbiIncome = nonNeg(schedC.totalNet - se.deduction - seHealth - sep)
   const isSSTB = r.income.scheduleC.some((c) => c.isSSTB)
   const qbi = computeQbiDeduction({
@@ -197,13 +207,18 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     netCapitalGain: netCapitalGainPreferential,
     isSSTB,
     status: r.filingStatus,
+    taxYear: year, activeQbiConfirmed: r.activeQbiConfirmed,
   })
   const qbiDeduction = dollar(qbi.deduction)
   if (qbiDeduction > 0)
     line("qbi", "Qualified business income deduction", "Form 1040, line 13", qbiDeduction)
 
   // ---- 13. Taxable income ----
-  const taxableIncome = nonNeg(taxableIncomeBeforeQbi - qbiDeduction)
+  const topBracketStart = ORDINARY_BRACKETS_2024[r.filingStatus].at(-1)!.min
+  const itemizedReduction = year === 2026 && deduction.used === "itemized" ? dollar((2/37)*Math.min(deductionAmount, nonNeg(agi-newDeductions.total-qbiDeduction-topBracketStart))) : 0
+  if (itemizedReduction > 0) line("itemizedReduction","Itemized deduction limitation","IRC section 68",itemizedReduction)
+  if (year === 2026 && deduction.used === "itemized" && !r.forceItemize && !preferStandard && deductionAmount-itemizedReduction < deduction.standard) return calculateFederalTax(r,true)
+  const taxableIncome = nonNeg(taxableIncomeBeforeQbi - qbiDeduction + itemizedReduction)
   line("taxableIncome", "Taxable income", "Form 1040, line 15", taxableIncome)
 
   // ---- 14. Regular tax: Qualified Div & Cap Gain Worksheet when preferential income exists ----
@@ -217,13 +232,13 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
       taxableIncome,
       qualifiedDividends,
       preferentialLTCG,
-      r.filingStatus,
+      r.filingStatus, year,
     )
     regularTax = qd.tax
     usedQualDivWorksheet = true
-    marginalRate = computeRegularTax(taxableIncome, r.filingStatus).marginalRate
+    marginalRate = computeRegularTax(taxableIncome, r.filingStatus, year).marginalRate
   } else {
-    const reg = computeRegularTax(taxableIncome, r.filingStatus)
+    const reg = computeRegularTax(taxableIncome, r.filingStatus, year)
     regularTax = reg.tax
     usedTaxTable = reg.usedTaxTable
     marginalRate = reg.marginalRate
@@ -235,15 +250,15 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     r.itemized.stateLocalIncomeOrSalesTax +
     r.itemized.realEstateTaxes +
     r.itemized.personalPropertyTaxes
-  const saltCap = r.filingStatus === "mfs" ? SALT_CAP_2024.mfs : SALT_CAP_2024.standard
+  const saltCap = effectiveSaltCap(r.filingStatus, agi, year)
   const amtAddBacks =
-    deduction.used === "itemized" ? Math.min(saltRaw, saltCap) : deductionAmount
+    (deduction.used === "itemized" ? Math.min(saltRaw, saltCap) - itemizedReduction : year === 2026 ? computeStandardDeduction(r, earnedIncome) : deductionAmount) + newDeductions.total
   const amtResult = computeAmt({
     taxableIncome,
     addBacks: amtAddBacks,
     preferentialIncome: netCapitalGainPreferential,
     regularTax,
-    status: r.filingStatus,
+    status: r.filingStatus, taxYear: year,
   })
   const amt = dollar(amtResult.amt)
   if (amt > 0) line("amt", "Alternative minimum tax", "Schedule 2, line 1", amt)
@@ -328,7 +343,8 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     earnedIncome,
     agi,
     investmentIncome,
-    taxpayerAge: ageAtEndOf2024(r.taxpayer.dateOfBirth),
+    taxpayerAge: ageAtEndOf2024(r.taxpayer.dateOfBirth, year),
+    spouseAge: r.spouse ? ageAtEndOf2024(r.spouse.dateOfBirth, year) : undefined,
   })
   const eitc = eitcResult.credit
   const actc = dollar(ctc.additionalChildTaxCredit)
@@ -364,6 +380,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
   const stateWithholding =
     sumBy(r.income.w2, (w) => w.box17StateWithholding) + (r.residency.stateWithholding || 0)
   const stateResult = computeStateTax({
+    taxYear: year,
     code: r.residency.state,
     federalAgi: agi,
     taxableSocialSecurity: taxableSS,
@@ -371,7 +388,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     filingStatus: r.filingStatus,
     dependents: r.dependents.length,
     stateWithholding,
-    age65: (ageAtEndOf2024(r.taxpayer.dateOfBirth) ?? 0) >= 65,
+    age65: (ageAtEndOf2024(r.taxpayer.dateOfBirth, year) ?? 0) >= 65,
   })
   if (stateResult && stateResult.hasIncomeTax && stateResult.supported)
     line("stateTax", `${stateResult.name} state income tax`, "State return", stateResult.tax)
@@ -388,7 +405,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
     warnings.push({
       code: "PTC_SIMPLIFIED",
       message:
-        "Marketplace (ACA) premium tax credit is reconciled simply here; the income-based cap on repaying excess advance payments isn't modeled.",
+        year === 2026 ? "Marketplace premium tax credit uses your confirmed allowed credit. Excess advance payments are fully repayable for 2026; prior income-based repayment caps no longer apply." : "Marketplace (ACA) premium tax credit is reconciled simply here; the income-based cap on repaying excess advance payments isn't modeled.",
     })
   }
   if (eitcResult.disqualReason) {
@@ -444,6 +461,7 @@ export function calculateFederalTax(r: TaxReturn2024): TaxCalculationResult {
   }
 
   return {
+    taxYear: year,
     filingStatus: r.filingStatus,
     totalIncome,
     totalAdjustments,

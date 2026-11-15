@@ -5,6 +5,13 @@
  */
 
 import { apiGet } from "@/lib/api-client"
+import { websiteReview } from "@/lib/website-review"
+
+/** Do not request shared Alpaca data from the website while display rights are unresolved. */
+async function marketGet<T>(path: string, query: Record<string, string> = {}): Promise<T> {
+    if (websiteReview.useTradingView) throw new Error("Market displays are available through TradingView embeds.")
+    return apiGet<T>(path, query)
+}
 
 export type MarketStat = { symbol: string; name: string | null; price: number; changePct: number }
 
@@ -142,32 +149,32 @@ export type StatementsResponse = SourceReport & {
 }
 
 export const marketStats = (symbols: string[]) =>
-    apiGet<{ stats: MarketStat[] }>("/api/market-stats", { symbols: symbols.join(",") })
+    marketGet<{ stats: MarketStat[] }>("/api/market-stats", { symbols: symbols.join(",") })
 
-export const marketOverview = () => apiGet<MarketOverview>("/api/market-overview")
+export const marketOverview = () => marketGet<MarketOverview>("/api/market-overview")
 
-export const stockDetail = (symbol: string) => apiGet<StockDetail>("/api/stock", { symbol })
+export const stockDetail = (symbol: string) => marketGet<StockDetail>("/api/stock", { symbol })
 
 export const candles = (symbol: string, range: string, interval?: string) =>
-    apiGet<{ symbol: string; range: string; points: CandlePoint[] }>("/api/candles", {
+    marketGet<{ symbol: string; range: string; points: CandlePoint[] }>("/api/candles", {
         symbol,
         range,
         ...(interval ? { interval } : {}),
     })
 
 export const sparklines = (symbols: string[]) =>
-    apiGet<{ sparklines: Record<string, number[]> }>("/api/sparklines", { symbols: symbols.join(",") })
+    marketGet<{ sparklines: Record<string, number[]> }>("/api/sparklines", { symbols: symbols.join(",") })
 
 export const searchSymbols = (keywords: string) =>
-    apiGet<SearchResult[]>("/api/stock-search", { keywords })
+    marketGet<SearchResult[]>("/api/stock-search", { keywords })
 
-export const marketNews = () => apiGet<{ articles: NewsArticle[] }>("/api/market-news")
+export const marketNews = () => marketGet<{ articles: NewsArticle[] }>("/api/market-news")
 
 export const symbolNews = (symbol: string) =>
-    apiGet<{ symbol: string; articles: NewsArticle[] }>("/api/news", { symbol })
+    marketGet<{ symbol: string; articles: NewsArticle[] }>("/api/news", { symbol })
 
 export const screener = (query: Record<string, string> = {}) =>
-    apiGet<{
+    marketGet<{
         rows: ScreenerRow[]
         preset?: ScreenerPreset
         universeSize?: number
@@ -177,12 +184,12 @@ export const screener = (query: Record<string, string> = {}) =>
     }>("/api/screener", query)
 
 export const financials = (symbol: string) =>
-    apiGet<
+    marketGet<
         SourceReport & { symbol: string; annual: FinancialPeriod[]; quarterly: FinancialPeriod[] }
     >("/api/financials", { symbol })
 
 export const statements = (symbol: string) =>
-    apiGet<StatementsResponse>("/api/statements", { symbol })
+    marketGet<StatementsResponse>("/api/statements", { symbol })
 
 /**
  * Company marks come from Brandfetch's ticker CDN — free, commercial use

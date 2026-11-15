@@ -1,0 +1,702 @@
+{
+  "AAPL": {
+    "cik": "0000320193",
+    "name": "Apple Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000320193.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d7c4a3c888fe60da97ceef8f9b80da4c205e82440c1bc3ba9dcc7316a482a6b1"
+  },
+  "MSFT": {
+    "cik": "0000789019",
+    "name": "MICROSOFT CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000789019.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "4d4ff98b1deea7b90123e2b99c059cdac4343de0dccbdfdc9855e788419f893e"
+  },
+  "NVDA": {
+    "cik": "0001045810",
+    "name": "NVIDIA CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001045810.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "7cbfb234acae4a666ed049cd86157c2a7daf5a89dd4083af31a1da6831793096"
+  },
+  "GOOGL": {
+    "cik": "0001652044",
+    "name": "Alphabet Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001652044.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "1f4d73b4ffdc3cd7fd33dc4c31a26c1e67d39ea5d9c03772a15c326d08c3a644"
+  },
+  "META": {
+    "cik": "0001326801",
+    "name": "Meta Platforms, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001326801.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "c6f435b91227397aea548f475753739fa829761573328bc3df1f250931f10c75"
+  },
+  "AMD": {
+    "cik": "0000002488",
+    "name": "ADVANCED MICRO DEVICES INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000002488.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "cf938695b77c630ab33767b8272d0bf9cfd6f8cb3399c5f839dfdbe489793d57"
+  },
+  "AVGO": {
+    "cik": "0001730168",
+    "name": "Broadcom Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001730168.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "41ec85346d2b5ffbd8358ab2d3ef9400598660be94281edacf784da984097866"
+  },
+  "ORCL": {
+    "cik": "0001341439",
+    "name": "ORACLE CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001341439.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "5364c4ec08e6aca1823b81257780b0b69290fe38e98ab9f48ca7268d0b4d14dc"
+  },
+  "CRM": {
+    "cik": "0001108524",
+    "name": "Salesforce, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001108524.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "92897c3ece78bcd7c42b1b94dcff01c701e8017118f491f83267b3baa4aac31b"
+  },
+  "ADBE": {
+    "cik": "0000796343",
+    "name": "ADOBE INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000796343.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "6123f46732dcf4665213439fb2ccfe9faab048df9e901faba05a8fd8372bac5f"
+  },
+  "INTC": {
+    "cik": "0000050863",
+    "name": "INTEL CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000050863.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d756db2711dece646e16a1dbe262a56158e4ff9f8b0524a823e4bfc541a3a096"
+  },
+  "CSCO": {
+    "cik": "0000858877",
+    "name": "CISCO SYSTEMS, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000858877.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "4c5b85db858adb9b986c1a52bee2ad9c8404871d8c4c61baf10af4d3dd4c9a14"
+  },
+  "QCOM": {
+    "cik": "0000804328",
+    "name": "QUALCOMM INC/DE",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000804328.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "b99bd5d1954f7504883efedb4d38dcdfc613f449c867ffd6fecc4567ae4ce7c3"
+  },
+  "TXN": {
+    "cik": "0000097476",
+    "name": "TEXAS INSTRUMENTS INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000097476.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "c9014fc48637b321a0bbe87c4af7557ce3617f8594fb5277c797c67aaeebc392"
+  },
+  "IBM": {
+    "cik": "0000051143",
+    "name": "INTERNATIONAL BUSINESS MACHINES CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000051143.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "bb612c776471f79e36c076dac12e56b34a6d427d124d215b06f85614632dde07"
+  },
+  "UNH": {
+    "cik": "0000731766",
+    "name": "UNITEDHEALTH GROUP INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000731766.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d5a1c763e3f04fbd91cc8df92a6426a600a4fd73926e2d6cfe99eff688f6c7dd"
+  },
+  "JNJ": {
+    "cik": "0000200406",
+    "name": "JOHNSON & JOHNSON",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000200406.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "8c90b98471f3147747f85289af2f3c91a299fc0252824bc004566a913ea7fa1e"
+  },
+  "LLY": {
+    "cik": "0000059478",
+    "name": "ELI LILLY & Co",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000059478.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "76f86d4c50749c64191db75c1b7e762e3fbbae0c794d2576411f07d7f89b36d7"
+  },
+  "ABBV": {
+    "cik": "0001551152",
+    "name": "AbbVie Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001551152.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "449038229fc091e04054f14f46c7c5789e9818b6b015f91037eae8a0303e83b5"
+  },
+  "MRK": {
+    "cik": "0000310158",
+    "name": "Merck & Co., Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000310158.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "c2496b8ea9841647f79e1a1b55d0f5990d7a69b5be1959cd376970b15cd351c7"
+  },
+  "PFE": {
+    "cik": "0000078003",
+    "name": "PFIZER INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000078003.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "61c173d83bba790bf4a49e6c10ed2445141628615c442fcc1919cf94d5b2c8b9"
+  },
+  "TMO": {
+    "cik": "0000097745",
+    "name": "THERMO FISHER SCIENTIFIC INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000097745.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "86785ccd4a73835fd60dc52e6c468d72df34bc4fee8db0170b39983c9f388ea9"
+  },
+  "ABT": {
+    "cik": "0000001800",
+    "name": "ABBOTT LABORATORIES",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000001800.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d66093cab1f26e05b763e32171491584c4b7c2261e7032d357da9b35d1a95964"
+  },
+  "DHR": {
+    "cik": "0000313616",
+    "name": "DANAHER CORP /DE/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000313616.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "a1991117f7f40ff31d1e1d81d13f96ba348337077329f1324ad969623cd80279"
+  },
+  "AMGN": {
+    "cik": "0000318154",
+    "name": "AMGEN INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000318154.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "1b0f748eccf0db7097fdaef9cb3c349a0a401be5db59aa0bc2f05c71b07f7184"
+  },
+  "BMY": {
+    "cik": "0000014272",
+    "name": "BRISTOL MYERS SQUIBB CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000014272.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "876a5351572a2d8b45e6d0fccf0344f44c88d68c9c35ad7e8904bb8fa9f8e341"
+  },
+  "GILD": {
+    "cik": "0000882095",
+    "name": "GILEAD SCIENCES, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000882095.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "737328fb21e326e61c457dfc06457736d1704b9b0ef48e4ece3145e319cd1996"
+  },
+  "ISRG": {
+    "cik": "0001035267",
+    "name": "INTUITIVE SURGICAL INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001035267.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "82d3f8734234784bb70dd025d4799d36692b20f438fb8fbd4e8ed36c3ce01de7"
+  },
+  "CVS": {
+    "cik": "0000064803",
+    "name": "CVS HEALTH Corp",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000064803.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "1c2183350545feacf8d2dcde9870103319ef7481b8ff9d79aed427ef1aa203cf"
+  },
+  "MDT": {
+    "cik": "0001613103",
+    "name": "Medtronic plc",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001613103.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "0b098bf78fcaa4607c2cf0447ec2ee05d1011120f88fc80891613becf9b9086c"
+  },
+  "JPM": {
+    "cik": "0000019617",
+    "name": "JPMORGAN CHASE & CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000019617.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "b0d7f874c7516a94dd4ca6a90afcdf656e5c1c1215a4f9048eb7fccdfa4ef8a7"
+  },
+  "BAC": {
+    "cik": "0000070858",
+    "name": "BANK OF AMERICA CORP /DE/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000070858.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "4911d0b240b9e5fc0e1d7cfac47f9233a5e18822e188dd6454a97739a40a9f7b"
+  },
+  "V": {
+    "cik": "0001403161",
+    "name": "VISA INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001403161.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "fdcbdeb70939bca8cbb50ff7454701fc8a427e8d80ea5857d4e58dde9bd0c888"
+  },
+  "MA": {
+    "cik": "0001141391",
+    "name": "Mastercard Inc",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001141391.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "b07fdc571868ea549026592d241c268089ce48fd0d4a897bf8d03f3f6047b260"
+  },
+  "GS": {
+    "cik": "0000886982",
+    "name": "GOLDMAN SACHS GROUP INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000886982.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "f368d353f38c6b6d047cb3627f48c2765b457c87d4e723e695fa0bd823d63281"
+  },
+  "WFC": {
+    "cik": "0000072971",
+    "name": "WELLS FARGO & COMPANY/MN",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000072971.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d78f0e52c48bce8cc28770f9bb5bf9efbcd43b4b6938692f4702e025c82db693"
+  },
+  "MS": {
+    "cik": "0000895421",
+    "name": "MORGAN STANLEY",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000895421.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "de9a6614189ef0e05549e35acec292f9aaa9f88524851449374b68d8b4d546e4"
+  },
+  "BLK": {
+    "cik": "0002012383",
+    "name": "BlackRock, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0002012383.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "f1442b60834d736ebae2e7985fddb96aca3cf723fbfcd82c0a22c7959386d564"
+  },
+  "C": {
+    "cik": "0000831001",
+    "name": "CITIGROUP INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000831001.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "2db4ced00b61706e823cfbfbf61a51cab36c81cd897d53072bffa0accf5c163e"
+  },
+  "AXP": {
+    "cik": "0000004962",
+    "name": "AMERICAN EXPRESS CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000004962.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "acffa48f209dde90c0393a84169f845f2633be5c8f525bd308e21e149edcba7f"
+  },
+  "SCHW": {
+    "cik": "0000316709",
+    "name": "SCHWAB CHARLES CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000316709.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "e2dfa8a9e63ab24355c2325f458b65d7a1f97da4c7a628285f75aaad38251cd7"
+  },
+  "USB": {
+    "cik": "0000036104",
+    "name": "US BANCORP \\DE\\",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000036104.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "8b4c1311700040f661020ccfb6c7dbc571e1dd7deb2f1662a92922a8ca4c6330"
+  },
+  "PNC": {
+    "cik": "0000713676",
+    "name": "PNC FINANCIAL SERVICES GROUP, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000713676.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "192909febd3830f1cdaf291d86c2594009a8820ef8307111e14f35eda762530c"
+  },
+  "COF": {
+    "cik": "0000927628",
+    "name": "CAPITAL ONE FINANCIAL CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000927628.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "3709c1b8da263853ef28a6d955733074b4e686bf5388c195234a81a35ba08921"
+  },
+  "PYPL": {
+    "cik": "0001633917",
+    "name": "PayPal Holdings, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001633917.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "4915b8e0d36ffea76adc48a79e312b2a07dd9fbd465e0a02978073dbec1d235e"
+  },
+  "AMZN": {
+    "cik": "0001018724",
+    "name": "AMAZON COM INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001018724.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "c2c36f85c91b5d57c0808db46c216d089401d3ad0c5b813ac828b8830481fd80"
+  },
+  "TSLA": {
+    "cik": "0001318605",
+    "name": "Tesla, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001318605.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "f032ecbccff22c2b7e2fd040e920bba5565bdffc373aefe901b426e514a04bdd"
+  },
+  "HD": {
+    "cik": "0000354950",
+    "name": "HOME DEPOT, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000354950.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "672ac7e954322732f26d909249186bfb4fef4157085d1f61634d447b2ccf0fba"
+  },
+  "MCD": {
+    "cik": "0000063908",
+    "name": "MCDONALDS CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000063908.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "2941162be8e24094b0a1d32951e9fd419387d27e6eac8794db2cd4e3840d3963"
+  },
+  "NKE": {
+    "cik": "0000320187",
+    "name": "NIKE, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000320187.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "5dbab95e641a23f6d8ffb9c61de8a541db9fb3517d824f9f251c3c1c61af3448"
+  },
+  "SBUX": {
+    "cik": "0000829224",
+    "name": "STARBUCKS CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000829224.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "46855b988d9e15c4c1fdb0f548106b05775529f377b37711f02569f794c421fc"
+  },
+  "LOW": {
+    "cik": "0000060667",
+    "name": "LOWES COMPANIES INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000060667.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "6d8f7507dbfd555a926d1b59c02c3639001f3f7ca70e445f63333a75157da5ba"
+  },
+  "TGT": {
+    "cik": "0000027419",
+    "name": "TARGET CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000027419.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "419bee5d229df6fb80863739e5a44a8bcd906aab4a6b65b8a7c6a6fef9f94e0f"
+  },
+  "COST": {
+    "cik": "0000909832",
+    "name": "COSTCO WHOLESALE CORP /NEW",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000909832.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "cf877e9c1d6ce723d0e80b0c13e2c4895e977291916227b6eb161daa56f9899a"
+  },
+  "WMT": {
+    "cik": "0000104169",
+    "name": "Walmart Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000104169.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "974a8f4fe73fc5e16ea8bf18ba149f747fe778ce05a749e46e3006e7bc73216b"
+  },
+  "PG": {
+    "cik": "0000080424",
+    "name": "PROCTER & GAMBLE Co",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000080424.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "720db65000afb98a7fc61e2b22082e05185cb9b0ae49139f7ba41581e7f717b5"
+  },
+  "KO": {
+    "cik": "0000021344",
+    "name": "COCA COLA CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000021344.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "ede90e9b67863d77b17bef580f3a266a7572ae88448ed3e8e20ff584b7cfad91"
+  },
+  "PEP": {
+    "cik": "0000077476",
+    "name": "PEPSICO INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000077476.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "32af619dc381b45279e358f8efbe688b2e7ac2a8c8865cd407e8e103f459e28c"
+  },
+  "BKNG": {
+    "cik": "0001075531",
+    "name": "Booking Holdings Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001075531.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "7e107de1bd58c79c031562fc9cecb9be96f1e0ca4d0f54951e93f1075d1c6ca7"
+  },
+  "TJX": {
+    "cik": "0000109198",
+    "name": "TJX COMPANIES INC /DE/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000109198.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "aa444feaa11124f3723ae7144380847e06bd6b2c669bfc9714c3c1985b9cadf4"
+  },
+  "CVX": {
+    "cik": "0000093410",
+    "name": "CHEVRON CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000093410.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "fab4a5786752e6602ebe929a0fa669e18ad0c37d609de6dc708da0c9a6d1d9df"
+  },
+  "COP": {
+    "cik": "0001163165",
+    "name": "CONOCOPHILLIPS",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001163165.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "e3ebdf325f831538b7a1fb115bcc15809e3df14b5bb792d6fba9fa94fa77915a"
+  },
+  "SLB": {
+    "cik": "0000087347",
+    "name": "SLB LIMITED/NV",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000087347.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "1bef8da1a59742ece9c06ad84597c52637f4efc9a163220f44e0f8af7840d6f7"
+  },
+  "OXY": {
+    "cik": "0000797468",
+    "name": "OCCIDENTAL PETROLEUM CORP /DE/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000797468.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "9ad7fc6276fe43413707b1e4e9893f965f07f035ab0ed5ed23102cfe9adf66a2"
+  },
+  "PSX": {
+    "cik": "0001534701",
+    "name": "Phillips 66",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001534701.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "fa0e663c27c055e3efe6462662f8e5e4d849c40f1557ebc29534c649d84c30f8"
+  },
+  "EOG": {
+    "cik": "0000821189",
+    "name": "EOG RESOURCES INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000821189.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d12e7d091e682e2bdf472aea5b15b7164c5143b7024f7f99ece1873e589af30d"
+  },
+  "MPC": {
+    "cik": "0001510295",
+    "name": "Marathon Petroleum Corp",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001510295.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "87dae9d6eb1c1c85d20e640f8c8fe967879fd40b52185cca673ba58933bfbb32"
+  },
+  "VLO": {
+    "cik": "0001035002",
+    "name": "VALERO ENERGY CORP/TX",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001035002.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "9232981ae8672a1f011f5173c6ad9bfa001554ac24f2af9587ae27f02b19e86f"
+  },
+  "KMI": {
+    "cik": "0001506307",
+    "name": "KINDER MORGAN, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001506307.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "52ef2b8737ab47e6b08e6698f56144ae268a3a45950f7e9587cc4c96927dbf22"
+  },
+  "WMB": {
+    "cik": "0000107263",
+    "name": "WILLIAMS COMPANIES, INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000107263.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "17533c4f44b99d2e73130eb7593e9b0b7bca6d87c614b283211beed7ca37b1ae"
+  },
+  "HAL": {
+    "cik": "0000045012",
+    "name": "HALLIBURTON CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000045012.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "38386781e74b274c9189e8a23e0637073450dd0d85c5ee1ff40eb420d620929b"
+  },
+  "DVN": {
+    "cik": "0001090012",
+    "name": "DEVON ENERGY CORP/DE",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001090012.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "633d8fcfcaeb8cafd9219d7460f05218629f68bec1761c9f4e0161fcc8bdce60"
+  },
+  "BKR": {
+    "cik": "0001701605",
+    "name": "Baker Hughes Co",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001701605.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "e1dcec57503751dcd848f99eb3210236d2ccdffc73f7933e30549cc3723baddb"
+  },
+  "NFLX": {
+    "cik": "0001065280",
+    "name": "NETFLIX INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001065280.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "153d817eec1a67ea1a8fa9bdda6fc5dbf75a49bce17194ce71f6a2015a40dd17"
+  },
+  "DIS": {
+    "cik": "0001744489",
+    "name": "Walt Disney Co",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001744489.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "54e372ce7f8365a44f8bab6179ac5c9f3d059b2b59b4bc1f6957c9f3b31eab43"
+  },
+  "T": {
+    "cik": "0000732717",
+    "name": "AT&T INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000732717.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "dccb3eff39667874e1ef83af534ee3e5bfdd88d6e28c7e17f4291380380aad8d"
+  },
+  "VZ": {
+    "cik": "0000732712",
+    "name": "VERIZON COMMUNICATIONS INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000732712.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "8bceecde21fbd66c330e92521292b0ab60a8e95e3409616fb9156d23e57b2b1d"
+  },
+  "CMCSA": {
+    "cik": "0001166691",
+    "name": "COMCAST CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001166691.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "639d71d00789ebdf31192f2190912572f8670cc3139971a7b7944971f24ec520"
+  },
+  "CHTR": {
+    "cik": "0001091667",
+    "name": "CHARTER COMMUNICATIONS, INC. /MO/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001091667.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "43666577051aa5272440687cc1c7499ca4bd9a2ab0c7bcfd527084c3cd607359"
+  },
+  "TMUS": {
+    "cik": "0001283699",
+    "name": "T-Mobile US, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001283699.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "33c8b10208c86a9fa5efb4e45ecc0d44fcddbd1e0971a634d91e67b5bd3da6e0"
+  },
+  "SPOT": {
+    "cik": "0001639920",
+    "name": "Spotify Technology S.A.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001639920.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "cf55f37d9c1fd37766c832396e4363ad5f31a9e4a80c37b6ade651e62c0ddc30"
+  },
+  "TTWO": {
+    "cik": "0000946581",
+    "name": "TAKE TWO INTERACTIVE SOFTWARE INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000946581.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "d04e462f69526b8010ed80e027604c0a8bc0364879a20b411b7e1a41303a88f8"
+  },
+  "RBLX": {
+    "cik": "0001315098",
+    "name": "Roblox Corp",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001315098.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "2b3a9831372a1146dd74f85f6a4a5e2710ed2c85fbb60fdf9e56f08eedadb84f"
+  },
+  "LYV": {
+    "cik": "0001335258",
+    "name": "Live Nation Entertainment, Inc.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001335258.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "ce35b01b0249e2700a1c841e1483978d62f8d4fae2f87139f5676c7d4e934e16"
+  },
+  "OMC": {
+    "cik": "0000029989",
+    "name": "OMNICOM GROUP INC.",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000029989.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "47dca7a9faf74991e846cc90455147ac0b0edbdb94f386d116685c4adcc502e7"
+  },
+  "CAT": {
+    "cik": "0000018230",
+    "name": "CATERPILLAR INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000018230.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "bcb05695563629a55636b17f85a161ff88ee3a4e80f8cdf5e56e2630a5445ec2"
+  },
+  "BA": {
+    "cik": "0000012927",
+    "name": "BOEING CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000012927.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "7aa8763d8998cd6d475f2f963ba59e97577ff28a46429b40c7aaac3e2eabdc64"
+  },
+  "GE": {
+    "cik": "0000040545",
+    "name": "GENERAL ELECTRIC CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000040545.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "c7ef4f1cf0816f28eb46a0a3fb3cb952f0eeda77ef6769ee4997f8146b85b215"
+  },
+  "UPS": {
+    "cik": "0001090727",
+    "name": "UNITED PARCEL SERVICE INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001090727.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "94abc9b57849624c84b220e35e42c6968a1a143447c51fa36a56f97c19811945"
+  },
+  "HON": {
+    "cik": "0000773840",
+    "name": "HONEYWELL INTERNATIONAL INC",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000773840.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "2acd408372c000f19c40cfd646b480c953514c9d4aaf4f9f5b1273db123e6564"
+  },
+  "LMT": {
+    "cik": "0000936468",
+    "name": "LOCKHEED MARTIN CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000936468.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "f4c06c7ac18f76caaa48dccd96898ca7d4f07fc3ef2995c50393ff23b6618e3f"
+  },
+  "RTX": {
+    "cik": "0000101829",
+    "name": "RTX Corp",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000101829.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "f2ed25f876210c1a9a37767d5f7bbe209b98e7bf6dc6731d1e786ec91ef767d9"
+  },
+  "DE": {
+    "cik": "0000315189",
+    "name": "DEERE & CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000315189.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "959d70ab8e039425fe4ec29dfd56ac1bc664d39221264ff1e70e5efeff9e7284"
+  },
+  "UNP": {
+    "cik": "0000100885",
+    "name": "UNION PACIFIC CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000100885.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "00dc80923f04389d7dea50c466b4605d0c765ee5c67f4c5c55aa42e08e3091d0"
+  },
+  "FDX": {
+    "cik": "0001048911",
+    "name": "FEDEX CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001048911.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "32905eb5246d447e0693f5a5f351c538088f51be45831cc0b116071114833e40"
+  },
+  "ETN": {
+    "cik": "0001551182",
+    "name": "Eaton Corp plc",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001551182.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "b356df1dd1bd0f6cc55a20ed534bff0f5b8a520c64998f2b6a36910dce3eb553"
+  },
+  "EMR": {
+    "cik": "0000032604",
+    "name": "EMERSON ELECTRIC CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000032604.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "3be7cb0e62973436e9a9db40b03d476f700110723ad18f385283997ea5c578b3"
+  },
+  "NOC": {
+    "cik": "0001133421",
+    "name": "NORTHROP GRUMMAN CORP /DE/",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0001133421.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "23f36c4484193cee0576bc599c2474d84aee4a610515e018130b33a0c65edcaa"
+  },
+  "GD": {
+    "cik": "0000040533",
+    "name": "GENERAL DYNAMICS CORP",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000040533.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "58c2beef74c5d21c3906d6db6e57e959e5c93dcb76383c8240d5cc58df2bfdbc"
+  },
+  "MMM": {
+    "cik": "0000066740",
+    "name": "3M CO",
+    "sourceUrl": "https://data.sec.gov/submissions/CIK0000066740.json",
+    "researchCheckedAt": "2026-11-13",
+    "sourceSha256": "df7dbb9d7315e98543f50b6d61501aac89b87ef01ef51e7fdf13093be03af1af"
+  }
+}

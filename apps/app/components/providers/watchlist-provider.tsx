@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { holdingSymbol } from "@/lib/manual-portfolio"
 
 /**
  * The symbol watchlist, kept in localStorage under the same key the app uses
@@ -33,7 +34,8 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         try {
             const raw = window.localStorage.getItem(KEY)
-            setSaved(raw ? (JSON.parse(raw) as string[]) : null)
+            const parsed: unknown = raw ? JSON.parse(raw) : null
+            setSaved(Array.isArray(parsed) ? [...new Set(parsed.slice(0, 500).flatMap(value => typeof value === "string" && holdingSymbol(value) ? [holdingSymbol(value)!] : []))] : null)
         } catch {
             setSaved(null)
         }

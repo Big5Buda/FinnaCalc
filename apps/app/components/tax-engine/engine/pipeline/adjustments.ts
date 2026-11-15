@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Above-the-line adjustments (Schedule 1 Part II) → reduce income to AGI.
  *
@@ -9,40 +10,41 @@
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
 import type { FilingStatus } from "../../types/filing"
-import {
-  EDUCATOR_EXPENSE_2024,
-  STUDENT_LOAN_INTEREST_2024,
-} from "../constants/filingThresholds2024"
-import { HSA_2024, IRA_2024 } from "../constants/retirement2024"
+
+
 import { isConsidered65For2024 } from "./deductionCompare"
 
 /** Age 55+ at end of 2024 (HSA catch-up) → born on/before 1969-12-31. */
-function isAge55For2024(dateOfBirth: string): boolean {
+function isAge55For2024(dateOfBirth: string, year: TaxYear = 2024): boolean {
   if (!dateOfBirth) return false
   const dob = new Date(dateOfBirth)
   if (Number.isNaN(dob.getTime())) return false
-  return dob.getTime() <= new Date("1969-12-31T00:00:00Z").getTime()
+  return dob.getTime() <= new Date(`${year - 55}-12-31T00:00:00Z`).getTime()
 }
 
 /** Age 50+ at end of 2024 (IRA catch-up) → born on/before 1974-12-31. */
-function isAge50For2024(dateOfBirth: string): boolean {
+function isAge50For2024(dateOfBirth: string, year: TaxYear = 2024): boolean {
   if (!dateOfBirth) return false
   const dob = new Date(dateOfBirth)
   if (Number.isNaN(dob.getTime())) return false
-  return dob.getTime() <= new Date("1974-12-31T00:00:00Z").getTime()
+  return dob.getTime() <= new Date(`${year - 50}-12-31T00:00:00Z`).getTime()
 }
 
 /** Educator expense — capped at $300 (per-educator); MFJ-both is Phase-later. */
 export function educatorDeduction(r: TaxReturn2024): number {
+  const { EDUCATOR_EXPENSE_2024, STUDENT_LOAN_INTEREST_2024, HSA_2024, IRA_2024 } = taxRules(r.meta.taxYear)
+
   return Math.min(Math.max(0, r.adjustments.educatorExpenses), EDUCATOR_EXPENSE_2024.perEducator)
 }
 
 /** HSA deduction (Form 8889) — capped by the coverage limit plus 55+ catch-up. */
 export function hsaDeduction(r: TaxReturn2024): number {
+  const { EDUCATOR_EXPENSE_2024, STUDENT_LOAN_INTEREST_2024, HSA_2024, IRA_2024 } = taxRules(r.meta.taxYear)
+
   const cov = r.adjustments.hsaCoverage
   if (cov === "none") return 0
   let limit = cov === "family" ? HSA_2024.family : HSA_2024.selfOnly
-  if (isAge55For2024(r.taxpayer.dateOfBirth)) limit += HSA_2024.catchUp
+  if (isAge55For2024(r.taxpayer.dateOfBirth, r.meta.taxYear)) limit += HSA_2024.catchUp
   return Math.min(Math.max(0, r.adjustments.hsaContribution), limit)
 }
 
@@ -68,8 +70,10 @@ export function iraDeduction(
   status: FilingStatus,
   coveredByPlan: boolean,
   spouseCoveredByPlan: boolean,
-  age50: boolean,
+  age50: boolean, year: TaxYear = 2024
 ): number {
+  const { EDUCATOR_EXPENSE_2024, STUDENT_LOAN_INTEREST_2024, HSA_2024, IRA_2024 } = taxRules(year)
+
   const limit = age50 ? IRA_2024.contributionLimitAge50 : IRA_2024.contributionLimit
   const eligible = Math.min(Math.max(0, contribution), limit)
   if (eligible <= 0) return 0
@@ -102,8 +106,10 @@ export function iraDeduction(
 export function studentLoanInterestDeduction(
   paid: number,
   magi: number,
-  status: FilingStatus,
+  status: FilingStatus, year: TaxYear = 2024
 ): number {
+  const { EDUCATOR_EXPENSE_2024, STUDENT_LOAN_INTEREST_2024, HSA_2024, IRA_2024 } = taxRules(year)
+
   if (status === "mfs") return 0
   const eligible = Math.min(Math.max(0, paid), STUDENT_LOAN_INTEREST_2024.maxDeduction)
   if (eligible <= 0) return 0

@@ -41,7 +41,7 @@ const OFFER: { icon: LucideIcon; tint: string; title: string; body: string }[] =
         icon: FileText,
         tint: "text-accent-purple",
         title: "Taxes",
-        body: "Federal tax estimates for the year shown in each tool: 2025 in the iOS estimator and 2024 in the web estimator, plus planning calculators. Check the stated coverage and limitations. These tools do not file returns.",
+        body: "Federal tax estimates for the year shown in each tool, plus planning calculators. Check the stated coverage and limitations. These tools do not file returns.",
     },
     {
         icon: BookOpen,
@@ -111,9 +111,9 @@ const REASONS = [
 
 export default function AboutPage() {
     return (
-        <>
+        <div className="mx-auto w-full max-w-4xl">
             <PageBar back={{ href: "/", label: "Home" }} title="About Us" />
-            <PageBody className="flex max-w-3xl flex-col gap-12">
+            <PageBody className="flex flex-col gap-12">
                 <section className="flex flex-col items-center gap-4 text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-foreground">
                         Empowering Smart Financial Decisions
@@ -181,7 +181,7 @@ export default function AboutPage() {
                         {REASONS.map((reason) => (
                             <div key={reason.title} className="flex flex-col gap-4">
                                 <h3 className="text-xl font-semibold text-foreground">{reason.title}</h3>
-                                <p className="text-base text-muted-foreground">{reason.body}</p>
+                                <p className="text-base leading-7 text-muted-foreground">{reason.body}</p>
                             </div>
                         ))}
                     </div>
@@ -189,7 +189,7 @@ export default function AboutPage() {
 
                 <section className="flex flex-col items-center gap-4 text-center">
                     <h2 className="text-2xl font-bold text-foreground">Get in Touch</h2>
-                    <p className="text-base text-muted-foreground">
+                    <p className="text-base leading-7 text-muted-foreground">
                         Have questions, suggestions, or feedback? We&rsquo;d love to hear from you. Our team is
                         committed to continuously improving FinnaCalc based on user needs and feedback.
                     </p>
@@ -199,7 +199,7 @@ export default function AboutPage() {
                     </div>
                 </section>
             </PageBody>
-        </>
+        </div>
     )
 }
 
@@ -217,13 +217,13 @@ function StatementCard({
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    <Icon className={`h-6 w-6 ${tint}`} />
-                    <CardTitle>{title}</CardTitle>
+                <div className="flex items-start gap-3">
+                    <Icon className={`mt-0.5 h-6 w-6 shrink-0 ${tint}`} />
+                    <CardTitle className="min-w-0 text-xl leading-snug sm:text-2xl">{title}</CardTitle>
                 </div>
             </CardHeader>
             <CardContent>
-                <p className="text-base text-muted-foreground">{body}</p>
+                <p className="text-base leading-7 text-muted-foreground">{body}</p>
             </CardContent>
         </Card>
     )
@@ -231,7 +231,7 @@ function StatementCard({
 
 function ContactLine({ label, email }: { label: string; email: string }) {
     return (
-        <p className="text-base text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground">
             <strong className="font-bold">{label}</strong>{" "}
             <a href={`mailto:${email}`} className="text-primary">
                 {email}

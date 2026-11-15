@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Child Tax Credit, Credit for Other Dependents, and the refundable Additional
  * Child Tax Credit — Schedule 8812 (2024).
@@ -13,7 +14,7 @@
  * Phase 3; the 15% earned-income method governs the common case.
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
-import { CTC_2024, CTC_PHASEOUT_THRESHOLD_2024 } from "../constants/ctc2024"
+
 import { nonNeg } from "../round"
 
 export interface ChildTaxCreditResult {
@@ -33,6 +34,8 @@ export function computeChildTaxCredit(
   taxAvailable: number,
   earnedIncome: number,
 ): ChildTaxCreditResult {
+  const { CTC_2024, CTC_PHASEOUT_THRESHOLD_2024 } = taxRules(r.meta.taxYear)
+
   const qualifyingChildren = r.dependents.filter((d) => d.qualifiesForCTC).length
   const otherDependents = r.dependents.filter((d) => d.qualifiesForODC).length
 

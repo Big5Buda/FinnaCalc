@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import type { Session, User } from "@supabase/supabase-js"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
+import { AUTH_RETURN_KEY, safeAuthReturn } from "@/lib/auth-return"
 import { clearSessionHint, setSessionHint } from "@/lib/session-hint"
 import { revokeGoogleAIConsent, setAIConsentAccount } from "@/lib/ai-consent"
 
@@ -132,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [armSession])
 
     const oauth = useCallback(async (provider: "apple" | "google") => {
+        try { window.sessionStorage.setItem(AUTH_RETURN_KEY, safeAuthReturn(new URLSearchParams(window.location.search).get("next"))) } catch { /* A blocked session store falls back to Home after OAuth. */ }
         const { error } = await getSupabase().auth.signInWithOAuth({
             provider,
             options: { redirectTo: `${window.location.origin}/auth/callback` },

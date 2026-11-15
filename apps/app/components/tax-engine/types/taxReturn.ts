@@ -1,5 +1,5 @@
 /**
- * TaxReturn2024 — the single source of truth that flows through the entire
+ * Tax return — the single source of truth (legacy type name retained for compatibility) that flows through the entire
  * engine: state -> engine -> result -> UI. Every input the calculator reads
  * lives here. The companion `makeEmptyReturn()` produces a clean starting state.
  */
@@ -11,7 +11,7 @@ import type { CreditInputs } from "./credits"
 import type { BankInfo, Payments } from "./payments"
 
 export interface TaxReturn2024 {
-  meta: { taxYear: 2024; lastEdited: string }
+  meta: { taxYear: 2024 | 2026; lastEdited: string }
   taxpayer: TaxpayerInfo
   spouse?: TaxpayerInfo
   address: Address
@@ -25,6 +25,9 @@ export interface TaxReturn2024 {
   itemized: ItemizedDeductions
   /** Force itemizing even when standard is larger (e.g. MFS spouse itemized). */
   forceItemize: boolean
+  /** Schedule 1-A inputs must already meet the stated eligibility rules. */
+  newDeductions?: { qualifiedTips: number; qualifiedOvertime: number; carLoanInterest: number }
+  activeQbiConfirmed?: boolean
   credits: CreditInputs
   payments: Payments
   /** SENSITIVE — never persisted. */
@@ -43,10 +46,10 @@ function emptyTaxpayer(): TaxpayerInfo {
   }
 }
 
-/** Factory for a fresh, empty 2024 return. */
-export function makeEmptyReturn(): TaxReturn2024 {
+/** Factory for a fresh return in the explicitly selected year (2026 by default). */
+export function makeEmptyReturn(taxYear: 2024 | 2026 = 2026): TaxReturn2024 {
   return {
-    meta: { taxYear: 2024, lastEdited: "" },
+    meta: { taxYear, lastEdited: "" },
     taxpayer: emptyTaxpayer(),
     spouse: undefined,
     address: { line1: "", city: "", state: "", zip: "" },

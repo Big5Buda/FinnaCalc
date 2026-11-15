@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Child & Dependent Care Credit — Form 2441 (nonrefundable).
  *
@@ -8,10 +9,12 @@
  * cannot claim it.
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
-import { CARE_CREDIT_2024 } from "../constants/credits2024"
+
 import { dollar } from "../round"
 
 export function computeCareCredit(r: TaxReturn2024, agi: number): number {
+  const { CARE_CREDIT_2024 } = taxRules(r.meta.taxYear)
+
   if (!r.credits.hasCareExpenses) return 0
   if (r.filingStatus === "mfs" && !r.livedApartFromSpouse) return 0
 
@@ -38,7 +41,12 @@ export function computeCareCredit(r: TaxReturn2024, agi: number): number {
     const steps = Math.ceil(
       (agi - CARE_CREDIT_2024.fullRateAgiCeiling) / CARE_CREDIT_2024.rateStepIncome,
     )
-    rate = Math.max(CARE_CREDIT_2024.minRate, CARE_CREDIT_2024.maxRate - steps * CARE_CREDIT_2024.rateStep)
+    rate = Math.max(r.meta.taxYear === 2026 ? 0.35 : CARE_CREDIT_2024.minRate, CARE_CREDIT_2024.maxRate - steps * CARE_CREDIT_2024.rateStep)
+    if (r.meta.taxYear === 2026) {
+      const threshold = r.filingStatus === "mfj" ? 150_000 : 75_000
+      const step = r.filingStatus === "mfj" ? 4_000 : 2_000
+      if (agi > threshold) rate = Math.max(CARE_CREDIT_2024.minRate, 0.35 - Math.ceil((agi - threshold)/step)*CARE_CREDIT_2024.rateStep)
+    }
   }
 
   return dollar(eligible * rate)

@@ -28,6 +28,8 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice, SectionLabel } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { ManualPortfolio } from "@/components/investing/manual-portfolio"
 
 /**
  * Portfolio — connect a brokerage through SnapTrade, then the total value, the
@@ -44,6 +46,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * labelled as such.
  */
 export default function PortfolioPage() {
+    return websiteReview.manualPortfolio ? <ManualPortfolio /> : <BrokeragePortfolioPage />
+}
+function BrokeragePortfolioPage() {
     const { user, loading: authLoading } = useAuth()
     const [data, setData] = useState<AccountsResponse | null>(null)
     const [connections, setConnections] = useState<Connection[]>([])

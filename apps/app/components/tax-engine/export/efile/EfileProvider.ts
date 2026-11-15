@@ -7,7 +7,7 @@ import type { FilingStatus, StateCode } from "../../types/filing"
 
 /** A neutral, serializable payload mapped from a computed return. */
 export interface EfileBundle {
-  taxYear: 2024
+  taxYear: 2024 | 2026
   filingStatus: FilingStatus
   agi: number
   taxableIncome: number

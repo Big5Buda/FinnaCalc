@@ -15,7 +15,7 @@ export interface SummaryGroup {
   lines: SummaryLine[]
 }
 export interface Form1040Summary {
-  taxYear: 2024
+  taxYear: 2024 | 2026
   filingStatusLabel: string
   headline: { label: string; amount: number; owes: boolean }
   groups: SummaryGroup[]
@@ -86,7 +86,7 @@ export function build1040Summary(r: TaxCalculationResult): Form1040Summary {
   groups.push({ title: "Payments", lines: payLines })
 
   return {
-    taxYear: 2024,
+    taxYear: r.taxYear ?? 2024,
     filingStatusLabel: FILING_LABELS[r.filingStatus],
     headline: {
       label: r.owes ? "Estimated balance due" : "Estimated federal refund",

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "credit-01",
+    "readMinutes": 3,
+    "summary": "Your credit score is your financial reputation boiled down to a single number, and it quietly decides how much your life costs.",
+    "title": "What Is a Credit Score?",
+    "topic": "credit",
+    "videoFile": "credit-01-what-is-a-credit-score.mp4",
+    "videoSeconds": 314
+  },
+  {
+    "id": "credit-02",
+    "readMinutes": 3,
+    "summary": "Your credit score is just a summary: the real story lives in your credit report, a document you can read for free, and one that could be hiding costly mistakes.",
+    "title": "How to Read Your Credit Report",
+    "topic": "credit",
+    "videoFile": "credit-02-your-credit-report.mp4",
+    "videoSeconds": 258
+  },
+  {
+    "id": "credit-03",
+    "readMinutes": 3,
+    "summary": "Not all debt is the enemy: some of it quietly builds your wealth, and some of it quietly drains it.",
+    "title": "Good Debt vs. Bad Debt",
+    "topic": "credit",
+    "videoFile": "credit-03-good-debt-vs-bad-debt.mp4",
+    "videoSeconds": 253
+  },
+  {
+    "id": "investing-01",
+    "readMinutes": 2,
+    "summary": "The single biggest advantage in investing isn't being smart or rich, it's being early.",
+    "title": "What Is Investing?",
+    "topic": "investing",
+    "videoFile": "investing-01-what-is-investing.mp4",
+    "videoSeconds": 184
+  },
+  {
+    "id": "investing-02",
+    "readMinutes": 2,
+    "summary": "Three words you will hear constantly in investing, and what each one means.",
+    "title": "Stocks, Bonds, and ETFs",
+    "topic": "investing",
+    "videoFile": "investing-02-stocks-bonds-etfs.mp4",
+    "videoSeconds": 166
+  },
+  {
+    "id": "investing-03",
+    "readMinutes": 2,
+    "summary": "Higher returns always come with a catch, and that catch has a name: risk.",
+    "title": "Risk vs. Return",
+    "topic": "investing",
+    "videoFile": "investing-03-risk-vs-return.mp4",
+    "videoSeconds": 177
+  },
+  {
+    "id": "investing-04",
+    "readMinutes": 3,
+    "summary": "There's one move in investing that can lower your risk without lowering your expected return, and it's called diversification.",
+    "title": "Diversification and Asset Classes",
+    "topic": "investing",
+    "videoFile": "investing-04-diversification-asset-classes.mp4",
+    "videoSeconds": 231
+  },
+  {
+    "id": "investing-05",
+    "readMinutes": 2,
+    "summary": "Everybody gets stuck on the same thing, actually starting. The process is three steps.",
+    "title": "How to Start Investing",
+    "topic": "investing",
+    "videoFile": "investing-05-how-to-get-started.mp4",
+    "videoSeconds": 213
+  },
+  {
+    "id": "budgeting-01",
+    "readMinutes": 1,
+    "summary": "Most people don't fail at budgeting because they're bad with money, they fail because their budget was built to fail.",
+    "title": "Why Budgeting Matters",
+    "topic": "budgeting",
+    "videoFile": "budgeting-01-why-budgeting-matters.mp4",
+    "videoSeconds": 140
+  },
+  {
+    "id": "budgeting-02",
+    "readMinutes": 2,
+    "summary": "One budgeting rule simple enough to fit on a sticky note, plus how to bend it around your real life when your expenses don't fit neatly.",
+    "title": "The 50/30/20 Rule",
+    "topic": "budgeting",
+    "videoFile": "budgeting-02-the-50-30-20-rule.mp4",
+    "videoSeconds": 211
+  },
+  {
+    "id": "budgeting-03",
+    "readMinutes": 2,
+    "summary": "A real, working budget in five simple steps, with a concrete example you can follow along with.",
+    "title": "Build a Budget, Step by Step",
+    "topic": "budgeting",
+    "videoFile": "budgeting-03-build-your-budget-step-by-step.mp4",
+    "videoSeconds": 198
+  },
+  {
+    "id": "retirement-01",
+    "readMinutes": 2,
+    "summary": "The most expensive money mistake young people make is usually not a bad investment. It is waiting, and this is what waiting costs.",
+    "title": "Why Start Saving for Retirement Now",
+    "topic": "retirement",
+    "videoFile": "retirement-01-why-start-saving-now.mp4",
+    "videoSeconds": 155
+  },
+  {
+    "id": "retirement-02",
+    "readMinutes": 2,
+    "summary": "If your employer offers a retirement plan and you're not using it, you could be turning down free money, so here is how the big employer plans work.",
+    "title": "401(k)s, 403(b)s, and Pensions",
+    "topic": "retirement",
+    "videoFile": "retirement-02-401ks-403bs-and-pensions.mp4",
+    "videoSeconds": 222
+  },
+  {
+    "id": "retirement-03",
+    "readMinutes": 2,
+    "summary": "Two accounts, one big question: do you want your tax break now, or later?",
+    "title": "Traditional, Roth, and SIMPLE IRAs",
+    "topic": "retirement",
+    "videoFile": "retirement-03-traditional-roth-and-simple-iras.mp4",
+    "videoSeconds": 199
+  },
+  {
+    "id": "retirement-04",
+    "readMinutes": 2,
+    "summary": "Your 401(k) doesn't disappear when you leave a job, but what you do with it matters a lot.",
+    "title": "Your 401(k) When You Change Jobs",
+    "topic": "retirement",
+    "videoFile": "retirement-04-401k-when-you-change-jobs.mp4",
+    "videoSeconds": 165
+  },
+  {
+    "id": "taxes-01",
+    "readMinutes": 2,
+    "summary": "Where your money goes, the taxes you will actually meet, and how the yearly cycle works.",
+    "title": "How the U.S. Tax System Works",
+    "topic": "taxes",
+    "videoFile": "taxes-01-how-the-tax-system-works.mp4",
+    "videoSeconds": 172
+  },
+  {
+    "id": "taxes-02",
+    "readMinutes": 2,
+    "summary": "Moving into a higher bracket does not mean you take home less. Here is how brackets actually work.",
+    "title": "Tax Brackets Explained",
+    "topic": "taxes",
+    "videoFile": "taxes-02-tax-brackets-explained.mp4",
+    "videoSeconds": 159
+  },
+  {
+    "id": "taxes-03",
+    "readMinutes": 2,
+    "summary": "People mix these up constantly, and a $1,000 credit can be worth far more than a $1,000 deduction.",
+    "title": "Deductions, Credits, and Itemizing",
+    "topic": "taxes",
+    "videoFile": "taxes-03-deductions-vs-credits.mp4",
+    "videoSeconds": 180
+  },
+  {
+    "id": "taxes-04",
+    "readMinutes": 2,
+    "summary": "Each form has one job. Who fills out what, and when.",
+    "title": "Tax Forms: W-2, W-4, W-9, 1099, 1040",
+    "topic": "taxes",
+    "videoFile": "taxes-04-tax-forms-explained.mp4",
+    "videoSeconds": 179
+  },
+  {
+    "id": "business-01",
+    "readMinutes": 4,
+    "summary": "You don't need to be a genius. You need a real problem, a cheap test, and your first dollar.",
+    "title": "How to Start a Business",
+    "topic": "business",
+    "videoFile": "business-01-how-to-start-a-business.mp4",
+    "videoSeconds": 170
+  },
+  {
+    "id": "business-02",
+    "readMinutes": 4,
+    "summary": "Your entity is the legal container your business operates inside. How to pick the right one for your stage, and why the EIN that comes with it is free.",
+    "title": "Sole Proprietorship vs. LLC vs. Corporation",
+    "topic": "business",
+    "videoFile": "business-02-sole-prop-vs-llc-vs-s-corp.mp4",
+    "videoSeconds": 187
+  },
+  {
+    "id": "business-03",
+    "readMinutes": 3,
+    "summary": "A business can look great on paper and still miss payroll. The fix starts with understanding two very different numbers, and one bank account.",
+    "title": "Cash Flow vs. Profit",
+    "topic": "business",
+    "videoFile": "business-03-cash-flow-vs-profit.mp4",
+    "videoSeconds": 175
+  }
+]

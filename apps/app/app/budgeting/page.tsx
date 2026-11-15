@@ -96,7 +96,7 @@ export default function BudgetingPage() {
                     </div>
                 }
             />
-            <PageBody className="flex w-full max-w-4xl flex-col gap-5">
+            <PageBody className="flex w-full flex-col gap-5">
             {clearing && <ClearDataPanel onDone={() => setClearing(false)} otherType={otherType} />}
 
             {/* The four figures sit as dashes until there's something to report,
@@ -138,7 +138,7 @@ export default function BudgetingPage() {
               </section>
             </Panel>
 
-            <div className="flex flex-col gap-3.5">
+            <div className="grid gap-4 md:grid-cols-2">
                 <FeatureCard
                     href="/budgeting/budget"
                     mark={<SampleDonut size={52} />}
@@ -231,12 +231,12 @@ function FeatureCard({
     return (
         <Link
             href={href}
-            className="flex items-center gap-3.5 rounded-card border-[1.5px] border-border bg-card p-4 shadow-sm transition hover:border-border-strong"
+            className={cn("flex items-center gap-3.5 rounded-card border-[1.5px] border-border bg-card p-4 shadow-sm transition hover:border-border-strong", href === "/budgeting/budget" && "md:col-span-2")}
         >
-            {mark}
+            <span className="flex w-[52px] shrink-0 items-center justify-center">{mark}</span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-[19px] font-medium tracking-tight text-foreground">{title}</span>
-                <span className="truncate text-[12.5px] text-muted-foreground">{subtitle}</span>
+                <span className="text-sm leading-relaxed text-muted-foreground">{subtitle}</span>
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-border-strong" strokeWidth={2.5} />
         </Link>

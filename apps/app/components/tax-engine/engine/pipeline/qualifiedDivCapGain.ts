@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Qualified Dividends and Capital Gain Tax Worksheet (Form 1040 line 16).
  *
@@ -11,7 +12,7 @@
  * Worksheet — not yet modeled; the simpler worksheet is exact when those are zero.)
  */
 import type { FilingStatus } from "../../types/filing"
-import { CAP_GAIN_BREAKPOINTS_2024 } from "../constants/brackets2024"
+
 import { computeRegularTax } from "./regularTax"
 import { dollar } from "../round"
 
@@ -31,8 +32,10 @@ export interface QualDivResult {
 export function preferentialStackTax(
   ordinaryBelow: number,
   preferential: number,
-  status: FilingStatus,
+  status: FilingStatus, year: TaxYear = 2024
 ): { tax: number; amountAt0: number; amountAt15: number; amountAt20: number } {
+  const { CAP_GAIN_BREAKPOINTS_2024 } = taxRules(year)
+
   const { zeroRateMax, fifteenRateMax } = CAP_GAIN_BREAKPOINTS_2024[status]
   const top = ordinaryBelow + preferential
   const amountAt0 = Math.max(0, Math.min(top, zeroRateMax) - ordinaryBelow)
@@ -53,8 +56,10 @@ export function computeQualifiedDivCapGainTax(
   taxableIncome: number,
   qualifiedDividends: number,
   netCapitalGain: number,
-  status: FilingStatus,
+  status: FilingStatus, year: TaxYear = 2024
 ): QualDivResult {
+  const { CAP_GAIN_BREAKPOINTS_2024 } = taxRules(year)
+
   const ti = Math.max(0, taxableIncome)
   const preferential = Math.max(0, Math.min(qualifiedDividends + netCapitalGain, ti))
   const ordinary = Math.max(0, ti - preferential)
@@ -62,14 +67,14 @@ export function computeQualifiedDivCapGainTax(
   const { tax: preferentialTax, amountAt0, amountAt15, amountAt20 } = preferentialStackTax(
     ordinary,
     preferential,
-    status,
+    status, year,
   )
 
-  const ordinaryTax = computeRegularTax(ordinary, status).tax
+  const ordinaryTax = computeRegularTax(ordinary, status, year).tax
   const stacked = ordinaryTax + preferentialTax
 
   // Safety floor: never more than taxing everything at ordinary rates.
-  const allOrdinary = computeRegularTax(ti, status).tax
+  const allOrdinary = computeRegularTax(ti, status, year).tax
   const tax = dollar(Math.min(stacked, allOrdinary))
 
   return { tax, preferentialIncome: preferential, amountAt0, amountAt15, amountAt20 }

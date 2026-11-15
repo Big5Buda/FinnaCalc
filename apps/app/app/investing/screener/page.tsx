@@ -9,6 +9,8 @@ import { screener, type ScreenerRow } from "@/lib/investing/market"
 import { CompanyLogo } from "@/components/investing/pieces"
 import { Button, Notice } from "@/components/ui/primitives"
 import { PageBar, PageBody } from "@/components/shell/surface"
+import { websiteReview } from "@/lib/website-review"
+import { PublicScreener } from "@/components/investing/public-research"
 
 /**
  * The screener, ported from DashboardScreenerView.swift and narrowed to what
@@ -21,6 +23,9 @@ import { PageBar, PageBody } from "@/components/shell/surface"
  * quietly do nothing.
  */
 export default function ScreenerPage() {
+    return websiteReview.useTradingView ? <PublicScreener /> : <OriginalScreenerPage />
+}
+function OriginalScreenerPage() {
     const [rows, setRows] = useState<ScreenerRow[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

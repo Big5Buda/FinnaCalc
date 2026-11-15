@@ -42,8 +42,10 @@ export interface CreditInputs {
   isFullTimeStudent: boolean
   /** Residential Clean Energy Credit (Form 5695) — qualified property cost. */
   cleanEnergyCost: number
+  cleanEnergyCarryforward?: number
   /** New clean vehicle / EV credit (Form 8936). */
   evCreditAmount: number
+  evAcquiredByDeadline?: boolean
   /** Foreign tax paid (Form 1116 / direct credit). */
   foreignTaxPaid: number
   /** ACA marketplace: advance Premium Tax Credit reconciliation (Form 8962 / 1095-A). */

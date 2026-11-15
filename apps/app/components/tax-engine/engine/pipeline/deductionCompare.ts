@@ -1,3 +1,4 @@
+import { taxRules, effectiveSaltCap, type TaxYear } from "../constants/taxRules"
 /**
  * Standard vs itemized deduction (Form 1040 line 12; Schedule A).
  *
@@ -8,44 +9,36 @@
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
 import type { FilingStatus } from "../../types/filing"
-import {
-  ADDITIONAL_STD_DEDUCTION_2024,
-  DEPENDENT_STD_DEDUCTION_2024,
-  STANDARD_DEDUCTION_2024,
-  isMarriedStatus,
-} from "../constants/standardDeductions2024"
-import {
-  CHARITABLE_LIMITS_2024,
-  MEDICAL_AGI_FLOOR_2024,
-  MORTGAGE_DEBT_LIMIT_2024,
-  SALT_CAP_2024,
-} from "../constants/filingThresholds2024"
+import {isMarriedStatus} from "../constants/standardDeductions2024"
+
 import { computeRegularTax } from "./regularTax"
 import { nonNeg } from "../round"
 
 /** For TY2024, a person is treated as 65+ if born before January 2, 1960. */
-export function isConsidered65For2024(dateOfBirth: string): boolean {
+export function isConsidered65For2024(dateOfBirth: string, year: TaxYear = 2024): boolean {
   if (!dateOfBirth) return false
   const dob = new Date(dateOfBirth)
   if (Number.isNaN(dob.getTime())) return false
   // Born on or before 1960-01-01 → considered 65 by year-end 2024.
-  return dob.getTime() <= new Date("1960-01-01T00:00:00Z").getTime()
+  return dob.getTime() <= new Date(`${year - 64}-01-01T00:00:00Z`).getTime()
 }
 
 /** Count the age-65/blind "boxes" that drive the additional standard deduction. */
 function countAdditionalBoxes(r: TaxReturn2024): number {
   let boxes = 0
-  if (isConsidered65For2024(r.taxpayer.dateOfBirth)) boxes++
+  if (isConsidered65For2024(r.taxpayer.dateOfBirth, r.meta.taxYear)) boxes++
   if (r.taxpayer.blind) boxes++
   // Spouse's boxes count for MFJ / QSS (and MFS only in narrow cases not modeled here).
-  if ((r.filingStatus === "mfj" || r.filingStatus === "qss") && r.spouse) {
-    if (isConsidered65For2024(r.spouse.dateOfBirth)) boxes++
+  if ((r.filingStatus === "mfj" || (r.meta.taxYear === 2024 && r.filingStatus === "qss")) && r.spouse) {
+    if (isConsidered65For2024(r.spouse.dateOfBirth, r.meta.taxYear)) boxes++
     if (r.spouse.blind) boxes++
   }
   return boxes
 }
 
 export function computeStandardDeduction(r: TaxReturn2024, earnedIncome: number): number {
+  const { ADDITIONAL_STD_DEDUCTION_2024, DEPENDENT_STD_DEDUCTION_2024, STANDARD_DEDUCTION_2024, CHARITABLE_LIMITS_2024, MEDICAL_AGI_FLOOR_2024, MORTGAGE_DEBT_LIMIT_2024, SALT_CAP_2024 } = taxRules(r.meta.taxYear)
+
   const status = r.filingStatus
   const base = STANDARD_DEDUCTION_2024[status]
   const additionalPerBox = isMarriedStatus(status)
@@ -68,6 +61,8 @@ export function computeStandardDeduction(r: TaxReturn2024, earnedIncome: number)
 }
 
 export function computeItemizedDeduction(r: TaxReturn2024, agi: number): number {
+  const { ADDITIONAL_STD_DEDUCTION_2024, DEPENDENT_STD_DEDUCTION_2024, STANDARD_DEDUCTION_2024, CHARITABLE_LIMITS_2024, MEDICAL_AGI_FLOOR_2024, MORTGAGE_DEBT_LIMIT_2024, SALT_CAP_2024 } = taxRules(r.meta.taxYear)
+
   const it = r.itemized
   const status = r.filingStatus
 
@@ -75,7 +70,7 @@ export function computeItemizedDeduction(r: TaxReturn2024, agi: number): number 
 
   const saltRaw =
     it.stateLocalIncomeOrSalesTax + it.realEstateTaxes + it.personalPropertyTaxes
-  const saltCap = status === "mfs" ? SALT_CAP_2024.mfs : SALT_CAP_2024.standard
+  const saltCap = effectiveSaltCap(status, agi, r.meta.taxYear)
   const salt = Math.min(saltRaw, saltCap)
 
   // Mortgage interest: limited to the acquisition-debt cap. When the loan
@@ -101,7 +96,9 @@ export function computeItemizedDeduction(r: TaxReturn2024, agi: number): number 
 
   const casualty = nonNeg(it.casualtyLosses)
 
-  return medical + salt + mortgage + charitableCash + charitableNonCash + casualty
+  const charity = Math.max(0, charitableCash + charitableNonCash - (r.meta.taxYear === 2026 ? Math.max(0, agi) * 0.005 : 0))
+  const educator = r.meta.taxYear === 2026 ? Math.max(0, r.adjustments.educatorExpenses - 350) : 0
+  return medical + salt + mortgage + charity + casualty + educator
 }
 
 export interface DeductionResult {
@@ -119,7 +116,7 @@ export function computeDeduction(
   earnedIncome: number,
 ): DeductionResult {
   const status: FilingStatus = r.filingStatus
-  const standard = computeStandardDeduction(r, earnedIncome)
+  const standard = computeStandardDeduction(r, earnedIncome) + (r.meta.taxYear === 2026 ? Math.min(Math.max(0,r.itemized.charitableCash), r.filingStatus === "mfj" ? 2000 : 1000) : 0)
   const itemized = computeItemizedDeduction(r, agi)
 
   const useItemized = r.forceItemize || itemized > standard
@@ -128,8 +125,8 @@ export function computeDeduction(
 
   // Estimate the tax difference between the two deductions (ignoring QBI /
   // preferential rates, which Phase 1 doesn't apply) for the optimizer display.
-  const taxStandard = computeRegularTax(nonNeg(agi - standard), status).tax
-  const taxItemized = computeRegularTax(nonNeg(agi - itemized), status).tax
+  const taxStandard = computeRegularTax(nonNeg(agi - standard), status, r.meta.taxYear).tax
+  const taxItemized = computeRegularTax(nonNeg(agi - itemized), status, r.meta.taxYear).tax
   const itemizedSavings = nonNeg(taxStandard - taxItemized)
 
   return { standard, itemized, used, amount, itemizedSavings }

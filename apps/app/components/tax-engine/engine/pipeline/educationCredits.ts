@@ -1,3 +1,4 @@
+import { taxRules, type TaxYear } from "../constants/taxRules"
 /**
  * Education credits — Form 8863.
  *
@@ -8,7 +9,7 @@
  * for LLC.
  */
 import type { TaxReturn2024 } from "../../types/taxReturn"
-import { EDUCATION_CREDITS_2024 } from "../constants/credits2024"
+
 import { dollar } from "../round"
 
 export interface EducationResult {
@@ -17,6 +18,8 @@ export interface EducationResult {
 }
 
 export function computeEducationCredits(r: TaxReturn2024, magi: number): EducationResult {
+  const { EDUCATION_CREDITS_2024 } = taxRules(r.meta.taxYear)
+
   if (!r.credits.hasEducationExpenses || r.filingStatus === "mfs") {
     return { nonrefundable: 0, refundable: 0 }
   }

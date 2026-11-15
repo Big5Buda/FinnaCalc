@@ -10,6 +10,8 @@ import {
     topicName,
     videoLessons,
 } from "@/lib/education-content"
+import { finnaLessons } from "@/lib/finna-lessons"
+import { FinnaLessonCard } from "@/components/education/finna-lesson-card"
 import { PageBar, PageBody } from "@/components/shell/surface"
 
 export function generateStaticParams() {
@@ -37,7 +39,7 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
     const meta = EDU_TOPIC_META.find((entry) => entry.id === topic)
     if (!meta) notFound()
 
-    const videos = videoLessons[topic] ?? []
+    const lessons = finnaLessons.filter(lesson => lesson.topic === topic)
     const articleCount = readingResources[topic]?.length ?? 0
     const Icon = (Icons as unknown as Record<string, Icons.LucideIcon>)[meta.icon] ?? Icons.BookOpen
 
@@ -47,7 +49,7 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
                 back={{ href: "/education", label: "Learn" }}
                 title={meta.title}
             />
-            <PageBody className="flex w-full max-w-5xl flex-col gap-5">
+            <PageBody className="flex w-full flex-col gap-6">
             <header className="flex flex-col gap-3">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/14 p-3.5 text-primary">
                     <Icon className="h-6 w-6" strokeWidth={2.2} />
@@ -55,41 +57,10 @@ export default async function EducationTopicPage({ params }: { params: Promise<{
                 <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             </header>
 
-            {videos.length === 0 ? (
-                /* A topic can exist before its lessons do. Say so, rather than
-                   leaving the page as a bare heading that reads broken. */
-                <p className="py-7 text-center text-[13.5px] text-muted-foreground">
-                    Lessons for this topic are on the way.
-                </p>
-            ) : (
-                <section className="flex flex-col gap-2.5">
-                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                        Lessons
-                    </p>
-                    <div className="flex flex-col gap-2.5">
-                        {videos.map((video, index) => (
-                            <Link
-                                key={video.url}
-                                href={`/education/${topic}/${index}`}
-                                className="paper-card-flat flex items-center gap-3.5 rounded-xl p-4 transition hover:border-border-strong"
-                            >
-                                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-negative/12 text-negative">
-                                    <Play className="h-3.5 w-3.5" fill="currentColor" />
-                                </span>
-                                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                    <span className="text-sm font-semibold text-foreground">{video.title}</span>
-                                    <span className="text-[11.5px] text-muted-foreground">
-                                        {articleCount > 0
-                                            ? `Video · ${articleCount} related read${articleCount === 1 ? "" : "s"}`
-                                            : "Video lesson"}
-                                    </span>
-                                </span>
-                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-border-strong" />
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-            )}
+            <section className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {lessons.map(lesson => <FinnaLessonCard key={lesson.id} lesson={lesson} />)}
+            </section>
+            {lessons.length === 0 && <p className="text-sm text-muted-foreground">Lessons for this topic are on the way.</p>}
             </PageBody>
         </>
     )

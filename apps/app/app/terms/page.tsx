@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
     return (
-        <>
+        <div className="mx-auto w-full max-w-4xl">
             <PageBar back={{ href: "/", label: "Home" }} title="Terms of Service" />
-            <PageBody className="flex max-w-3xl flex-col gap-8">
+            <PageBody className="flex flex-col gap-8">
                 <Section icon={FileText} tint="text-primary" title="Terms of Service Agreement">
                     <P>
                         These Terms of Service govern your use of FinnaCalc&rsquo;s website and services. By
@@ -77,7 +77,7 @@ export default function TermsPage() {
                     />
                     <Subsection
                         heading="Market Data Disclaimer"
-                        body="Quotes, charts, statistics, and news are supplied by third-party providers, may be delayed (typically 15 minutes or more), and may contain errors or gaps. Stock and fund prices come from a single exchange feed (IEX, via Alpaca), so figures can differ slightly from official closing prices and from what your brokerage shows, and price history reaches back about five years. A chart labelled as the day shows the most recent regular trading session, so outside market hours it is showing the last session that closed rather than one in progress. Candlestick bars are sized to the window: one minute for a day, five minutes for a week, thirty minutes for a month, daily for a year, and weekly for five years, or daily across five years for a company that listed too recently for weekly bars to say much. A session with too few prints to draw is not drawn at all; the most recent session that can be drawn is shown instead, with its date. Nothing in the app is a recommendation to buy or sell any security. FinnaCalc is not a broker-dealer. Where trading is enabled, FinnaCalc transmits instructions you explicitly review and confirm through SnapTrade to your connected brokerage; the brokerage handles execution under its terms."
+                        body="Quotes, charts, statistics, and news come from third-party providers and may be delayed, incomplete, or unavailable for some symbols. The public website displays TradingView embeds with their branding and exchange-specific data restrictions. These displays are not a data feed for FinnaCalc calculations or order execution. The native app may use a different provider or feed, including IEX via Alpaca; values can differ from consolidated market prices and brokerage figures. Manual website portfolios use the holdings, costs, prices and dates you enter, are stored in your browser, and do not connect to a brokerage or place orders. Their calculations exclude fees, dividends, cash flows and taxes unless expressly stated. FinnaCalc is not a broker-dealer. Where authenticated trading is separately enabled, FinnaCalc transmits instructions you review and confirm through SnapTrade to your connected brokerage, which handles execution under its terms. Nothing here is a recommendation to buy or sell any security."
                     />
                     <Subsection
                         heading="Investing and Trading Risk"
@@ -205,7 +205,7 @@ export default function TermsPage() {
                     </div>
                 </Section>
             </PageBody>
-        </>
+        </div>
     )
 }
 
@@ -223,9 +223,9 @@ function Section({
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className={`h-6 w-6 ${tint ?? "text-foreground"}`} />}
-                    <CardTitle>{title}</CardTitle>
+                <div className="flex items-start gap-3">
+                    {Icon && <Icon className={`mt-0.5 h-6 w-6 shrink-0 ${tint ?? "text-foreground"}`} />}
+                    <CardTitle className="min-w-0 text-xl leading-snug sm:text-2xl">{title}</CardTitle>
                 </div>
             </CardHeader>
             <CardContent>
@@ -236,14 +236,14 @@ function Section({
 }
 
 function P({ children }: { children: React.ReactNode }) {
-    return <p className="text-base text-muted-foreground">{children}</p>
+    return <p className="text-base leading-7 text-muted-foreground">{children}</p>
 }
 
 function Bullets({ items }: { items: string[] }) {
     return (
         <ul className="flex list-disc flex-col gap-2 pl-5">
             {items.map((item) => (
-                <li key={item} className="text-base text-muted-foreground">
+                <li key={item} className="text-base leading-7 text-muted-foreground">
                     {item}
                 </li>
             ))}
@@ -266,7 +266,7 @@ function Callout({ children }: { children: React.ReactNode }) {
 
 function Contact({ label, email }: { label: string; email: string }) {
     return (
-        <p className="text-base text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground">
             <strong className="font-bold">{label}</strong>{" "}
             <a href={`mailto:${email}`} className="text-primary">
                 {email}
