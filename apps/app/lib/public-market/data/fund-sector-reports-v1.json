@@ -1,0 +1,230 @@
+{
+  "VOO": {
+    "ticker": "VOO",
+    "fundSeriesId": "S000002839",
+    "etfClassId": "C000092055",
+    "asOf": "2026-06-30",
+    "filedAt": "2026-08-27",
+    "accession": "0001104659-26-102240",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/36405/000110465926102240/tm2620528d8_ncsrs.htm",
+    "sourceSha256": "8611edf8574375b4c7dbb0592ffa2feee39fc9e0f7b23af67604d92c751e2fe1",
+    "denominator": "sourceReportedFundNetAssets",
+    "schemaVersion": 1,
+    "model": "issuerReportedSectorComposition",
+    "sourceVerifiedOn": "2026-11-13",
+    "reportedPrecision": "0.1 percentage point",
+    "industryExposureAvailable": false,
+    "rows": [
+      {
+        "sourceLabel": "Communication Services",
+        "weight": "0.097",
+        "reportedPercent": "9.7",
+        "rawSectorMember": "nacc2:SectorCommunicationServicesSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorCommunicationServicesSectorMember",
+        "factId": "PctOfNav_C5DC3A29C9124CA6"
+      },
+      {
+        "sourceLabel": "Consumer Discretionary",
+        "weight": "0.093",
+        "reportedPercent": "9.3",
+        "rawSectorMember": "nacc2:SectorConsumerDiscretionarySectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorConsumerDiscretionarySectorMember",
+        "factId": "PctOfNav_2B607758F1C74B8E"
+      },
+      {
+        "sourceLabel": "Consumer Staples",
+        "weight": "0.046",
+        "reportedPercent": "4.6",
+        "rawSectorMember": "nacc2:SectorConsumerStaplesSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorConsumerStaplesSectorMember",
+        "factId": "PctOfNav_7AD2EA01AD1E4080"
+      },
+      {
+        "sourceLabel": "Energy",
+        "weight": "0.030",
+        "reportedPercent": "3.0",
+        "rawSectorMember": "nacc2:SectorEnergySectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorEnergySectorMember",
+        "factId": "PctOfNav_B85E8AB3F3154A46"
+      },
+      {
+        "sourceLabel": "Financials",
+        "weight": "0.116",
+        "reportedPercent": "11.6",
+        "rawSectorMember": "nacc2:SectorFinancialsSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorFinancialsSectorMember",
+        "factId": "PctOfNav_B3ECC8F62FFF4061"
+      },
+      {
+        "sourceLabel": "Health Care",
+        "weight": "0.089",
+        "reportedPercent": "8.9",
+        "rawSectorMember": "nacc2:SectorHealthCareSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorHealthCareSectorMember",
+        "factId": "PctOfNav_62FBE6A69EC24C4D"
+      },
+      {
+        "sourceLabel": "Industrials",
+        "weight": "0.089",
+        "reportedPercent": "8.9",
+        "rawSectorMember": "nacc2:SectorIndustrialsSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorIndustrialsSectorMember",
+        "factId": "PctOfNav_83D984FAF49E4C42"
+      },
+      {
+        "sourceLabel": "Information Technology",
+        "weight": "0.380",
+        "reportedPercent": "38.0",
+        "rawSectorMember": "nacc2:SectorInformationTechnologySectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorInformationTechnologySectorMember",
+        "factId": "PctOfNav_E7732C46DE85473C"
+      },
+      {
+        "sourceLabel": "Materials",
+        "weight": "0.018",
+        "reportedPercent": "1.8",
+        "rawSectorMember": "nacc2:SectorMaterialsSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorMaterialsSectorMember",
+        "factId": "PctOfNav_53A7D7F8BB8B4FEB"
+      },
+      {
+        "sourceLabel": "Real Estate",
+        "weight": "0.018",
+        "reportedPercent": "1.8",
+        "rawSectorMember": "nacc2:SectorRealEstateSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorRealEstateSectorMember",
+        "factId": "PctOfNav_D57A7EADC9234400"
+      },
+      {
+        "sourceLabel": "Utilities",
+        "weight": "0.022",
+        "reportedPercent": "2.2",
+        "rawSectorMember": "nacc2:SectorUtilitiesSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorUtilitiesSectorMember",
+        "factId": "PctOfNav_F71B0FFACC6C4756"
+      },
+      {
+        "sourceLabel": "Other Assets and Liabilities\u2014Net",
+        "weight": "0.002",
+        "reportedPercent": "0.2",
+        "rawSectorMember": "nacc2:SectorOtherNetLineSectorMember",
+        "contextRef": "AsOf2026-06-30_C000092055Member_SectorOtherNetLineSectorMember",
+        "factId": "PctOfNav_71E1F06622CD42FF"
+      }
+    ]
+  },
+  "VTI": {
+    "ticker": "VTI",
+    "fundSeriesId": "S000002848",
+    "etfClassId": "C000007808",
+    "asOf": "2026-06-30",
+    "filedAt": "2026-08-27",
+    "accession": "0001104659-26-102230",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/36405/000110465926102230/tm2620528d1_ncsrs.htm",
+    "sourceSha256": "28897558afc0352afc0eaf1d409a0c4002b231ce516fba80b3162ea5421fc7f6",
+    "denominator": "sourceReportedFundNetAssets",
+    "schemaVersion": 1,
+    "model": "issuerReportedSectorComposition",
+    "sourceVerifiedOn": "2026-11-13",
+    "reportedPrecision": "0.1 percentage point",
+    "industryExposureAvailable": false,
+    "rows": [
+      {
+        "sourceLabel": "Basic Materials",
+        "weight": "0.016",
+        "reportedPercent": "1.6",
+        "rawSectorMember": "vif:BasicMaterialsMember",
+        "contextRef": "TI20260630_C000007808Member_BasicMaterialsMember",
+        "factId": "h_497_f0e8d75f_3fec_41c3_ff7c_52e66968149c"
+      },
+      {
+        "sourceLabel": "Consumer Discretionary",
+        "weight": "0.123",
+        "reportedPercent": "12.3",
+        "rawSectorMember": "oef:ConsumerDiscretionarySectorMember",
+        "contextRef": "TI20260630_C000007808Member_ConsumerDiscretionarySectorMember",
+        "factId": "h_486_8bad6ea1_be7a_4d8c_9054_7d1bbf828326"
+      },
+      {
+        "sourceLabel": "Consumer Staples",
+        "weight": "0.034",
+        "reportedPercent": "3.4",
+        "rawSectorMember": "oef:ConsumerStaplesSectorMember",
+        "contextRef": "TI20260630_C000007808Member_ConsumerStaplesSectorMember",
+        "factId": "h_487_40ce640c_2ffa_46b9_8942_915ee9ed640e"
+      },
+      {
+        "sourceLabel": "Energy",
+        "weight": "0.032",
+        "reportedPercent": "3.2",
+        "rawSectorMember": "us-gaap:EnergySectorMember",
+        "contextRef": "TI20260630_C000007808Member_EnergySectorMember",
+        "factId": "h_488_a06103ee_9e2a_4961_a3ce_a6b6bc2d486f"
+      },
+      {
+        "sourceLabel": "Financials",
+        "weight": "0.099",
+        "reportedPercent": "9.9",
+        "rawSectorMember": "us-gaap:FinancialServicesSectorMember",
+        "contextRef": "TI20260630_C000007808Member_FinancialServicesSectorMember",
+        "factId": "h_489_58cb55d9_6a35_4cd0_b4dd_3c3ec25b86c0"
+      },
+      {
+        "sourceLabel": "Health Care",
+        "weight": "0.091",
+        "reportedPercent": "9.1",
+        "rawSectorMember": "us-gaap:HealthcareSectorMember",
+        "contextRef": "TI20260630_C000007808Member_HealthcareSectorMember",
+        "factId": "h_490_7b6bd16b_373d_4be5_9cfe_79ffc77d8a08"
+      },
+      {
+        "sourceLabel": "Industrials",
+        "weight": "0.125",
+        "reportedPercent": "12.5",
+        "rawSectorMember": "oef:IndustrialSectorMember",
+        "contextRef": "TI20260630_C000007808Member_IndustrialSectorMember",
+        "factId": "h_491_9305ba2b_5f8f_4a1b_84cb_a37c37b75cf8"
+      },
+      {
+        "sourceLabel": "Real Estate",
+        "weight": "0.022",
+        "reportedPercent": "2.2",
+        "rawSectorMember": "us-gaap:RealEstateSectorMember",
+        "contextRef": "TI20260630_C000007808Member_RealEstateSectorMember",
+        "factId": "h_492_180c0a03_4f33_430f_aff9_83754f27fd48"
+      },
+      {
+        "sourceLabel": "Technology",
+        "weight": "0.410",
+        "reportedPercent": "41.0",
+        "rawSectorMember": "us-gaap:TechnologySectorMember",
+        "contextRef": "TI20260630_C000007808Member_TechnologySectorMember",
+        "factId": "h_493_2cca24d4_b20a_460e_820f_a906cd5904d3"
+      },
+      {
+        "sourceLabel": "Telecommunications",
+        "weight": "0.021",
+        "reportedPercent": "2.1",
+        "rawSectorMember": "vif:TelecommunicationsMember",
+        "contextRef": "TI20260630_C000007808Member_TelecommunicationsMember",
+        "factId": "h_494_ea7c0c45_378f_43e8_8b4f_f262cb39f1fe"
+      },
+      {
+        "sourceLabel": "Utilities",
+        "weight": "0.025",
+        "reportedPercent": "2.5",
+        "rawSectorMember": "oef:UtilitiesSectorMember",
+        "contextRef": "TI20260630_C000007808Member_UtilitiesSectorMember",
+        "factId": "h_495_f1afdfe2_1916_4068_9f8e_4692374060ea"
+      },
+      {
+        "sourceLabel": "Other Assets and Liabilities\u2014Net",
+        "weight": "0.002",
+        "reportedPercent": "0.2",
+        "rawSectorMember": "vif:OtherAssetsAndLiabilitiesNetMember",
+        "contextRef": "TI20260630_C000007808Member_OtherAssetsAndLiabilitiesNetMember",
+        "factId": "h_496_30172f45_59a6_4c90_a882_685054919f8a"
+      }
+    ]
+  }
+}
