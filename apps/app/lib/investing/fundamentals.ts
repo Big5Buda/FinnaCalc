@@ -137,7 +137,7 @@ function unitsOf(node: any): Fact[] {
  * its EPS is euros, its price is dollars, and price divided by EPS was
  * printing a P/E wrong by the whole exchange rate.
  */
-function reportingCurrency(facts: Record<string, any>): string {
+export function reportingCurrency(facts: Record<string, any>): string {
     const tally = new Map<string, number>()
     for (const tag of ["Assets", "Revenues", "Liabilities", "StockholdersEquity",
                        "NetIncomeLoss", "ProfitLoss"]) {

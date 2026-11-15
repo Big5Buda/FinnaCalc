@@ -3,6 +3,7 @@ import { clearLegacySnapTradeCookie, getSnapTrade, isSnapTradeConfigured, snapTr
 import { loadSession } from "@/lib/snaptrade-session"
 import { brokerageReadScope, wantsCountedScope } from "@/lib/snaptrade-access"
 import { verifiedAppUserId } from "@/lib/supabase-auth"
+import { instrumentMetadata } from "@/lib/snaptrade-instrument-metadata"
 import { accountPositions, hasUnitPrice, positionNumber } from "@/lib/snaptrade-positions"
 
 export interface BrokerageAccount {
@@ -25,6 +26,10 @@ export interface BrokerageAccount {
 }
 
 export interface BrokeragePosition {
+    instrumentKind: string | null
+    securityId: string | null
+    securityIdSource: string | null
+    assetType: string
     accountId: string
     symbol: string
     description: string
@@ -177,6 +182,7 @@ export async function GET(req: NextRequest) {
                 const basis = valuationSupported ? positionNumber(p.cost_basis) : null
                 return {
                     accountId,
+                    ...instrumentMetadata(p.instrument),
                     symbol:
                         p.instrument.symbol ??
                         p.instrument.raw_symbol ??
