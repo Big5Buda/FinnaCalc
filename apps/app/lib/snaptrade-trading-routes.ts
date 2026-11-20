@@ -7,6 +7,7 @@ import { ackQuantityEvidence, prepareReviewGeneration } from "./snaptrade-reconc
 import { consumeReview, finishReview, loadReview, saveReview } from "./snaptrade-order-reviews"
 import { dollarEligibility, fractionalEligibility, requireFractionalEligibility, orderCapabilities, requireDollarEligibility } from "./snaptrade-order-capabilities"
 import type { Terms } from "./snaptrade-trading"
+import { cashSnapshot, requireSizingV2, sizingCapabilitiesV2 } from "./snaptrade-sizing-v2"
 
 /** Approximate reciprocal for display: shares → dollars, dollars → shares.
  * Basis is the limit price, else ask for BUY / bid for SELL. */
@@ -48,13 +49,18 @@ export async function quote(req: NextRequest) {
         // Reuse quantity-independent validation without letting client account/symbol bypass ownership.
         // Only accountId/symbol are read; client amount/capability fields are ignored.
         const order = terms({ accountId: body?.accountId, symbol: body?.symbol, action: "BUY", units: 1, orderType: "Market", timeInForce: "Day", price: null, stop: null })
+        // sizingVersion 2 is an additive opt-in: V1 callers get the V1 body unchanged.
+        const v2 = body?.sizingVersion === 2
         const context = await ownedTradingAccount(owner, session, order.accountId)
-        const q = await accountQuote(context, order.symbol)
+        const q = await accountQuote(context, order.symbol, v2 ? { sizingVersion: 2 } : {})
         const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
         // Sizing eligibility may be unavailable while whole-share quotes remain valid.
         const dollars = await dollarEligibility(context, session.clientId!, q, { fresh: false })
-        return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency: q.symbol.currency.code,
-            orderCapabilities: orderCapabilities(context, q.symbol.currency.code, dollars, await fractionalEligibility(context, session.clientId!, q, { fresh: false })) },
+        const currency = q.symbol.currency.code
+        return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency,
+            orderCapabilities: orderCapabilities(context, currency, dollars, await fractionalEligibility(context, session.clientId!, q, { fresh: false })),
+            ...(v2 ? { sizingCapabilities: await sizingCapabilitiesV2(context, session.clientId!, q, { fresh: false }),
+                cashSnapshot: await cashSnapshot(context, currency) } : {}) },
             { headers: { "Cache-Control": "private, no-store" } })
     } catch (error) { return errorResponse(error) }
 }
@@ -64,13 +70,17 @@ export async function impact(req: NextRequest) {
         // Durable epoch captured before any account/quote/impact provider reads.
         const generation = await prepareReviewGeneration(owner, session)
         const context = await ownedTradingAccount(owner, session, order.accountId)
-        const q = await accountQuote(context, order.symbol)
+        const v2 = order.sizingVersion === 2
+        const q = await accountQuote(context, order.symbol, v2 ? { sizingVersion: 2 } : {})
         requireExecutionFundingMode(order, context, session)
         const dollars = order.amountMode === "dollars"
         // Sizing policy, cash and instrument eligibility precede the required
         // exact checked preview. No caller capability claims are trusted.
-        if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: false })
-        await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: false })
+        if (v2) await requireSizingV2(context, session.clientId!, q, order, { fresh: false })
+        else {
+            if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: false })
+            await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: false })
+        }
         await validateFunds(context, order, q)
         let impactFacts: import("./snaptrade-trading").ImpactFacts | null = null
         let tradeId: string | null = null, estimate: any = { source: "unavailable", disclosure: unavailableImpact }
@@ -144,13 +154,17 @@ export async function place(req: NextRequest) {
         // Stored V3 share rows omit amountMode; canonicalize the stored terms.
         const order = terms(review.terms), dollars = order.amountMode === "dollars"
         const context = await ownedTradingAccount(owner, session, order.accountId)
-        const q = await accountQuote(context, order.symbol)
+        const v2 = order.sizingVersion === 2
+        const q = await accountQuote(context, order.symbol, v2 ? { sizingVersion: 2 } : {})
         if (q.symbol.id !== review.symbol_id || (Boolean(review.trade_id) !== context.cap.preview)
             || ((dollars || !Number.isInteger(order.units)) && (typeof review.trade_id !== "string" || !review.trade_id.trim())))
             throw new TradingError("order_review_mismatch", "The listing or execution workflow changed. Nothing was submitted by this request.", 409)
         // Confirm re-reads instrument metadata upstream (no TTL reuse).
-        if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: true })
-        await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: true })
+        if (v2) await requireSizingV2(context, session.clientId!, q, order, { fresh: true })
+        else {
+            if (dollars) await requireDollarEligibility(context, session.clientId!, q, { fresh: true })
+            await requireFractionalEligibility(context, session.clientId!, q, order, { fresh: true })
+        }
         await validateFunds(context, order, q, review.impact_facts)
         requireExecutionFundingMode(order, context, session)
         // Revalidation may have exhausted the fixed preview budget. Check

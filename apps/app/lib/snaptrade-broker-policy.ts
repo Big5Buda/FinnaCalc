@@ -10,7 +10,8 @@ export const US_EQUITY_SUPPORT = {
     MOOMOO: { fractional: true, dollars: false, paper: false, gtc: true },
     PUBLIC: { fractional: true, dollars: true, paper: false, gtc: false },
     "ROBINHOOD-AGENTIC": { fractional: true, dollars: true, paper: false, gtc: true },
-    // SCHWAB omitted: production integration is read-only, and preview docs conflict.
+    // SCHWAB omitted: SnapTrade's table marks OrderImpact supported but its
+    // Schwab Trading page says no preview, so the execution mode is unresolved.
     TASTYTRADE: { fractional: true, dollars: true, paper: false, gtc: true },
     TRADESTATION: { fractional: false, dollars: false, paper: false, gtc: true },
     "TRADESTATION-SIM": { fractional: false, dollars: false, paper: true, gtc: true },

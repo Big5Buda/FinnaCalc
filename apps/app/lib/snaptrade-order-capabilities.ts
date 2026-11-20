@@ -2,10 +2,12 @@ import { usEquitySupport, previewOnlyInstruments } from "./snaptrade-broker-poli
 import { brokerageInstrument, previewOnlyInstrumentEligibility } from "./snaptrade-brokerage-instruments"
 import { reviewStorageVersion } from "./snaptrade-order-reviews"
 import { NOTIONAL_BROKERAGES, fractionalPrecision, TradingError, type NotionalCapability, type ownedTradingAccount } from "./snaptrade-trading"
+import { fractionalRegionVerified, routeSupport } from "./snaptrade-route-policy"
+import { productBelow } from "./exact-decimal"
 
 type Context = Awaited<ReturnType<typeof ownedTradingAccount>>
 
-async function sizingInstrument(context: Context, clientId: string, q: any, fresh: boolean): Promise<boolean> {
+export async function sizingInstrument(context: Context, clientId: string, q: any, fresh: boolean): Promise<boolean> {
     const slug = context.connection.brokerage?.slug ?? ""
     const listing = { symbol: q?.symbol?.symbol, mic: q?.symbol?.exchange?.mic_code ?? null, id: q?.symbol?.id }
     if (!listing.symbol || !listing.mic || !listing.id) return false
@@ -14,6 +16,10 @@ async function sizingInstrument(context: Context, clientId: string, q: any, fres
     return facts?.tradeable === true && facts.fractionable === true
 }
 export async function fractionalEligibility(context: Context, clientId: string, q: any, { fresh }: { fresh: boolean }) {
+    // Server-owned region proof only (account details from the provider);
+    // request fields, listing currency, MIC or names never establish it.
+    const route = routeSupport(context.connection.brokerage?.slug ?? "")
+    if (!route || !fractionalRegionVerified(route, context.account)) return null
     if (!context.cap.preview || !context.cap.fractionalOrders || context.account.cash_or_margin !== "cash"
         || context.account.is_paper !== usEquitySupport(context.connection.brokerage?.slug ?? "")?.paper
         || q?.symbol?.currency?.code !== "USD") return null
@@ -28,7 +34,7 @@ export async function requireFractionalEligibility(context: Context, clientId: s
     if (cap.minOrderValue) {
         const price = order.action === "BUY" ? q.ask_price : q.bid_price
         if (!(typeof price === "number" && Number.isFinite(price) && price > 0)
-            || order.units * price < Number(cap.minOrderValue))
+            || productBelow(order.units, price, cap.minOrderValue))
             throw new TradingError("order_invalid", `Fractional orders require at least $${cap.minOrderValue} in estimated value.`)
     }
 }
