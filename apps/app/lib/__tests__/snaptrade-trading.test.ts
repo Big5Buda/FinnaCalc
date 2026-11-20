@@ -213,7 +213,7 @@ it("legacy fractional boolean cannot authorize review without per-order proof", 
     m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", brokerage: { slug: "ALPACA", allows_trading: true, allows_fractional_units: true } }] })
     expect((await impact(req({ ...order, units: 0.5 }))).status).toBe(409)
 })
-it.each(["margin", "unknown", null, undefined])("rejects unsupported provider cash mode at review and confirm: %s", async mode => {
+it.each(["unknown", null, undefined])("rejects unsupported provider cash mode at review and confirm: %s", async mode => {
     const r = await review()
     m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: mode } })
     const response = await submit(r)
@@ -336,10 +336,34 @@ it("cannot use an invalidated old review even after operator resolves the earlie
     expect(fresh.reviewId).toBeTruthy(); expect((await submit(fresh)).status).toBe(200)
     expect(m.force).toHaveBeenCalledTimes(2)
 })
-it.each(["margin", "unknown", undefined])("rejects SELL on unsupported account cash mode: %s", async mode => {
+it.each(["unknown", undefined])("rejects SELL on unsupported account cash mode: %s", async mode => {
     m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: mode } })
     expect(await review({ ...order, action: "SELL" })).toMatchObject({ code: "cash_only_unverified" })
     expect(m.force).not.toHaveBeenCalled()
+})
+it("margin is refused on a route without a cash-funded margin policy, at review and confirm", async () => {
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ TRADIER: { orderTypes: ["Market", "Limit"], timeInForce: ["Day", "GTC"], fractional: false, preview: false, exchanges: ["XNAS"] } }))
+    m.partner.mockResolvedValue({ data: { can_access_trades: true, allowed_brokerages: [{ slug: "TRADIER", allows_trading: true, enabled: true, maintenance_mode: false }] } })
+    m.links.mockResolvedValue({ data: [{ id: "c", type: "trade", disabled: false, brokerage: { slug: "TRADIER", allows_trading: true } }] })
+    const r = await review(); expect(r.reviewId).toBeTruthy()
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: "margin" } })
+    expect(await (await submit(r)).json()).toMatchObject({ code: "cash_only_unverified", submissionStatus: "not_submitted_by_this_request" })
+    for (const action of ["BUY", "SELL"]) expect(await review({ ...order, action })).toMatchObject({ code: "cash_only_unverified" })
+    expect(m.force).not.toHaveBeenCalled()
+})
+it("Alpaca margin (no cash product) is accepted only as cash-funded: reported cash must cover the order", async () => {
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: "margin" } })
+    // Buying power beyond reported cash is never used: 2 × 10 > 15 cash.
+    m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 15 }] })
+    expect(await review()).toMatchObject({ code: "order_funds_insufficient" })
+    m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: -50 }] })
+    expect(await review()).toMatchObject({ code: "order_funds_insufficient" })
+    // SELL stays long-only: held units bound it.
+    expect(await review({ ...order, action: "SELL", units: 4 })).toMatchObject({ code: "order_invalid" })
+    m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 100 }] })
+    const r = await review(); expect(r.reviewId).toBeTruthy()
+    expect((await submit(r)).status).toBe(200)
+    expect(m.force).toHaveBeenCalledTimes(1)
 })
 
 function terminalDetail(changes = {}) {

@@ -35,6 +35,7 @@ vi.mock("@/lib/snaptrade-reconciliation", () => ({ prepareReviewGeneration: asyn
 import { impact, place, quote } from "../snaptrade-trading-routes"
 import { capability, terms, sameTerms } from "../snaptrade-trading"
 import { minimumBound, productBelow, requireSizingV2, sizingCapabilitiesV2 } from "../snaptrade-sizing-v2"
+import { fundingModeEligible, ROUTE_SUPPORT } from "../snaptrade-route-policy"
 
 const OUT = process.env.SIZING_V2_FIXTURE_OUT
 function exportFixture(name: string, value: unknown) {
@@ -202,7 +203,7 @@ it("denials are explicit per mode: storage, account product, instrument", async 
     expect(caps.denials).toEqual([{ amountMode: "dollars", code: "storage_upgrade_required" }])
     expect(caps.rules.some((r: any) => r.amountMode === "dollars")).toBe(false)
     m.storageVersion = 4
-    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } })
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "unknown" } })
     caps = (await json(await quote(req({ accountId: "a", symbol: "AAPL", sizingVersion: 2 })))).body.sizingCapabilities
     expect(caps.denials).toEqual([{ amountMode: "shares", code: "account_product_unverified" }, { amountMode: "dollars", code: "account_product_unverified" }])
     expect(caps.rules.every((r: any) => r.amountMode === "shares" && r.quantityPrecision === 0)).toBe(true)
@@ -320,4 +321,26 @@ it("V2 Wealthsimple CAD dollar review: exact notional preview bound to the accou
     const before = m.rows.size
     expect((await impact(req(body))).status).toBe(502)
     expect(m.rows.size).toBe(before)
+})
+it("one shared funding-mode resolver across every route class (not a per-broker allowlist)", () => {
+    for (const [slug, route] of Object.entries(ROUTE_SUPPORT)) {
+        expect(fundingModeEligible(slug, { cash_or_margin: "cash" })).toBe(true)
+        for (const mode of ["unknown", null, undefined, "MARGIN", ""]) expect(fundingModeEligible(slug, { cash_or_margin: mode })).toBe(false)
+        expect(fundingModeEligible(slug, { cash_or_margin: "margin" })).toBe(route.marginAccounts === "cash_funded")
+        if (route.marginAccounts) expect(route.evidence.some(u => u.startsWith("https://"))).toBe(true)
+    }
+    expect(fundingModeEligible("UNKNOWN-ROUTE", { cash_or_margin: "margin" })).toBe(false)
+    expect(fundingModeEligible("ALPACA", null)).toBe(false)
+})
+it("V2 Alpaca Paper margin account: Dollars + fractional rules, both sides identical; other routes' margin denied", async () => {
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } })
+    const caps = (await json(await quote(req({ accountId: "a", symbol: "AAPL", sizingVersion: 2 })))).body.sizingCapabilities
+    expect(caps.denials).toEqual([])
+    const buy = caps.rules.find((r: any) => r.amountMode === "dollars" && r.action === "BUY")
+    expect({ ...caps.rules.find((r: any) => r.amountMode === "dollars" && r.action === "SELL"), action: "BUY" }).toEqual(buy)
+    expect(caps.rules.find((r: any) => r.amountMode === "shares" && r.orderType === "Market" && r.action === "BUY").quantityPrecision).toBe(4)
+    trading212()
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: false, cash_or_margin: "margin" } })
+    const t212 = (await json(await quote(req({ accountId: "a", symbol: "AAPL", sizingVersion: 2 })))).body.sizingCapabilities
+    expect(t212.denials).toEqual([{ amountMode: "shares", code: "account_product_unverified" }, { amountMode: "dollars", code: "sizing_mode_not_supported" }])
 })

@@ -2,7 +2,7 @@ import { getSnapTrade, isTradingKeyApproved, type SnapTradeSession } from "./sna
 import { usEquityMic, documentedMinimum } from "./snaptrade-broker-policy"
 import { brokerageReadScope } from "./snaptrade-access"
 import { accountPositions, positionNumber } from "./snaptrade-positions"
-import { MINOR_UNITS, ROUTE_SUPPORT, routeListing, routeSupport } from "./snaptrade-route-policy"
+import { fundingModeEligible, MINOR_UNITS, ROUTE_SUPPORT, routeListing, routeSupport } from "./snaptrade-route-policy"
 
 export class TradingError extends Error {
     constructor(public code: string, message: string, public status = 400) { super(message) }
@@ -308,9 +308,9 @@ export const unavailableImpact = "Order impact unavailable. A reliable pre-trade
  * Unknown and margin modes remain unsupported for BUY. Re-read on confirm;
  * cash checks and fee estimates still do not guarantee execution costs. */
 export function requireExecutionFundingMode(order: Terms, context: Awaited<ReturnType<typeof ownedTradingAccount>>, _session: SnapTradeSession) {
-    if (context.account.cash_or_margin !== "cash")
+    if (!fundingModeEligible(context.connection.brokerage?.slug ?? "", context.account))
         throw new TradingError("cash_only_unverified",
-            "Trading requires a brokerage-confirmed cash account. Margin and unknown account modes are not supported.", 409)
+            "Trading requires a brokerage-confirmed cash account, or a margin account at a brokerage where FinnaCalc keeps every order cash-funded. Other margin and unknown account modes are not supported.", 409)
 }
 
 /** V2 instrument IDs and universal-symbol IDs are different namespaces.

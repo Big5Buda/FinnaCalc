@@ -162,14 +162,35 @@ it.each([
     const body = await res.json()
     expect(body.ask).toBe(10); expect(body.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares"])
 })
-it("quote hides dollars on metadata transport failure, storage V3, missing MIC, margin or non-allowlisted broker", async () => {
+it("quote hides dollars on metadata transport failure, storage V3, missing MIC, unknown funding mode or non-allowlisted broker", async () => {
     const modes = async () => (await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()).orderCapabilities.rules.map((r: any) => r.amountMode)
     m.instruments.mockRejectedValue(new Error("timeout")); expect(await modes()).toEqual(["shares"])
     m.instruments.mockResolvedValue({ data: { instruments: [instrument] } })
     m.storageVersion = 3; expect(await modes()).toEqual(["shares"]); m.storageVersion = null; expect(await modes()).toEqual(["shares"]); m.storageVersion = 4
     m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "NASDAQ", mic_code: null } }, ask_price: 10 }] }); expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
     m.quotes.mockResolvedValue({ data: [{ symbol: listing, ask_price: 10 }] })
-    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } }); expect(await modes()).toEqual(["shares"])
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "unknown" } }); expect(await modes()).toEqual(["shares"])
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true } }); expect(await modes()).toEqual(["shares"])
+})
+it("Alpaca Paper margin account (Alpaca has no cash product) gets Dollars and fractional Shares once every other predicate holds", async () => {
+    // Regression anchor for the reported "Shares only" ticket: the cash-only
+    // funding predicate made this route's Dollars/fractional unreachable.
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ "ALPACA-PAPER": { ...alpacaCaps["ALPACA-PAPER"], fractional: true,
+        fractionalOrders: { orderTypes: { Market: ["Day"] }, decimalPlaces: 6 } } }))
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } })
+    const body = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(body.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares", "dollars"])
+    expect(body.orderCapabilities.rules[0]).toMatchObject({ fractionalDecimalPlaces: 6 })
+    expect(body.orderCapabilities.rules[1]).toMatchObject({ minAmount: "1.00", maxAmount: "10000.00", previewRequired: true })
+    // The same account without the env notional/fractional grant stays Shares-only (whole).
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ "ALPACA-PAPER": { ...alpacaCaps["ALPACA-PAPER"], notional: undefined } }))
+    const plain = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(plain.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares"])
+    expect(plain.orderCapabilities.rules[0]).not.toHaveProperty("fractionalOrderTypes")
+    // Dollar review on margin is still bound by reported cash, never buying power.
+    m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 20 }] })
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify(alpacaCaps))
+    expect((await review({ ...dollarBuy, notionalValue: "25.00" })).body.code).toBe("order_funds_insufficient")
 })
 it("ETRADE never offers dollars even with an env notional block and fractionable metadata", async () => {
     vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ETRADE: { ...alpacaCaps["ALPACA-PAPER"] } }))

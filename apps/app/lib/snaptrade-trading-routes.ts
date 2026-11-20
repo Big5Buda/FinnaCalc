@@ -8,6 +8,21 @@ import { consumeReview, finishReview, loadReview, saveReview } from "./snaptrade
 import { dollarEligibility, fractionalEligibility, requireFractionalEligibility, orderCapabilities, requireDollarEligibility } from "./snaptrade-order-capabilities"
 import type { Terms } from "./snaptrade-trading"
 import { cashSnapshot, requireSizingV2, sizingCapabilitiesV2 } from "./snaptrade-sizing-v2"
+import { fundingModeEligible } from "./snaptrade-route-policy"
+
+/** Bounded sizing diagnostics: enums/booleans only — never account, client or
+ * listing IDs, amounts, env payloads or provider bodies. When dollars or
+ * fractional stay hidden while every flag here is true, the remaining causes
+ * are review storage (version !== 4) or the instrument metadata predicate. */
+function logSizingEligibility(context: any, dollarsOffered: boolean, fractionalOffered: boolean, v2: boolean) {
+    const slug = context.connection.brokerage?.slug ?? ""
+    const mode = context.account.cash_or_margin
+    console.info("[snaptrade_sizing_eligibility]", { slug, v2,
+        fundingMode: mode === "cash" || mode === "margin" ? mode : "unknown",
+        fundingEligible: fundingModeEligible(slug, context.account), paper: context.account.is_paper === true,
+        preview: context.cap.preview === true, notionalConfigured: Boolean(context.cap.notional),
+        fractionalConfigured: Boolean(context.cap.fractionalOrders), dollarsOffered, fractionalOffered })
+}
 
 /** Approximate reciprocal for display: shares → dollars, dollars → shares.
  * Basis is the limit price, else ask for BUY / bid for SELL. */
@@ -56,9 +71,11 @@ export async function quote(req: NextRequest) {
         const number = (n: any) => typeof n === "number" && Number.isFinite(n) ? n : null
         // Sizing eligibility may be unavailable while whole-share quotes remain valid.
         const dollars = await dollarEligibility(context, session.clientId!, q, { fresh: false })
+        const fractional = await fractionalEligibility(context, session.clientId!, q, { fresh: false })
         const currency = q.symbol.currency.code
+        logSizingEligibility(context, Boolean(dollars), Boolean(fractional), v2)
         return Response.json({ symbol: order.symbol, bid: number(q.bid_price), ask: number(q.ask_price), last: number(q.last_trade_price), currency,
-            orderCapabilities: orderCapabilities(context, currency, dollars, await fractionalEligibility(context, session.clientId!, q, { fresh: false })),
+            orderCapabilities: orderCapabilities(context, currency, dollars, fractional),
             ...(v2 ? { sizingCapabilities: await sizingCapabilitiesV2(context, session.clientId!, q, { fresh: false }),
                 cashSnapshot: await cashSnapshot(context, currency) } : {}) },
             { headers: { "Cache-Control": "private, no-store" } })

@@ -2,7 +2,7 @@ import { documentedMinimum } from "./snaptrade-broker-policy"
 import { productBelow } from "./exact-decimal"
 import { sizingInstrument } from "./snaptrade-order-capabilities"
 import { reviewStorageVersion } from "./snaptrade-order-reviews"
-import { fractionalRegionVerified, MINIMUM_SOURCES, MINOR_UNITS, routeListing, routeSupport } from "./snaptrade-route-policy"
+import { fractionalRegionVerified, fundingModeEligible, MINIMUM_SOURCES, MINOR_UNITS, routeListing, routeSupport } from "./snaptrade-route-policy"
 import { fractionalPrecision, notionalCents, TradingError, type ownedTradingAccount, type Terms } from "./snaptrade-trading"
 
 type Context = Awaited<ReturnType<typeof ownedTradingAccount>>
@@ -43,7 +43,7 @@ export async function sizingCapabilitiesV2(context: Context, clientId: string, q
 
     const { cap, account } = context
     const denials: SizingCapabilitiesV2["denials"] = []
-    const accountOk = account.cash_or_margin === "cash" && account.is_paper === route.paper
+    const accountOk = fundingModeEligible(slug, account) && account.is_paper === route.paper
     let instrument: boolean | null = null
     const instrumentOk = async (): Promise<boolean> => {
         if (instrument === null) {

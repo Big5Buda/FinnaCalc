@@ -2,7 +2,7 @@ import { usEquitySupport, previewOnlyInstruments } from "./snaptrade-broker-poli
 import { brokerageInstrument, previewOnlyInstrumentEligibility } from "./snaptrade-brokerage-instruments"
 import { reviewStorageVersion } from "./snaptrade-order-reviews"
 import { NOTIONAL_BROKERAGES, fractionalPrecision, TradingError, type NotionalCapability, type ownedTradingAccount } from "./snaptrade-trading"
-import { fractionalRegionVerified, routeSupport } from "./snaptrade-route-policy"
+import { fractionalRegionVerified, fundingModeEligible, routeSupport } from "./snaptrade-route-policy"
 import { productBelow } from "./exact-decimal"
 
 type Context = Awaited<ReturnType<typeof ownedTradingAccount>>
@@ -20,7 +20,7 @@ export async function fractionalEligibility(context: Context, clientId: string, 
     // request fields, listing currency, MIC or names never establish it.
     const route = routeSupport(context.connection.brokerage?.slug ?? "")
     if (!route || !fractionalRegionVerified(route, context.account)) return null
-    if (!context.cap.preview || !context.cap.fractionalOrders || context.account.cash_or_margin !== "cash"
+    if (!context.cap.preview || !context.cap.fractionalOrders || !fundingModeEligible(context.connection.brokerage?.slug ?? "", context.account)
         || context.account.is_paper !== usEquitySupport(context.connection.brokerage?.slug ?? "")?.paper
         || q?.symbol?.currency?.code !== "USD") return null
     return await sizingInstrument(context, clientId, q, fresh) ? context.cap.fractionalOrders : null
@@ -52,7 +52,7 @@ export async function dollarEligibility(context: Context, clientId: string, q: a
         const slug = context.connection.brokerage?.slug ?? ""
         const notional = context.cap.notional
         if (!NOTIONAL_BROKERAGES.includes(slug) || !notional || context.cap.preview !== true
-            || context.account.is_paper !== usEquitySupport(slug)?.paper || context.account.cash_or_margin !== "cash"
+            || context.account.is_paper !== usEquitySupport(slug)?.paper || !fundingModeEligible(slug, context.account)
             || q?.symbol?.currency?.code !== "USD" || typeof q.symbol.id !== "string") return null
         if (await reviewStorageVersion() !== 4) return null
         return await sizingInstrument(context, clientId, q, fresh) ? notional : null

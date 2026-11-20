@@ -26,7 +26,12 @@ export type RouteSupport = { paper: boolean; limit: boolean; gtc: boolean; fract
     /** Fractional units are documented for this account region only. */
     fractionalRegion?: "US"
     /** Dollars need env-granted self-directed account types (raw_type). */
-    selfDirectedRawTypes?: true }
+    selfDirectedRawTypes?: true
+    /** "cash_funded": the institution has no cash-account product, so a
+     * provider `margin` account is accepted ONLY because every FinnaCalc order
+     * is cash-funded anyway (BUY needs reported cash ≥ amount + known fees,
+     * SELL needs held units, no open orders). Requires a documented source. */
+    marginAccounts?: "cash_funded" }
 
 const US_LISTINGS: readonly RouteListing[] = [{ currency: "USD", mics: US_EQUITY_MICS }]
 const SNAPTRADE_BROKERAGES = "https://api.snaptrade.com/api/v1/brokerages"
@@ -34,14 +39,17 @@ const SNAPTRADE_BROKERAGES = "https://api.snaptrade.com/api/v1/brokerages"
  * ReviewSnapshots/watchlist-trading/route-sources-20261120.md. */
 const SNAPTRADE_TABLE = "https://support.snaptrade.com/brokerages"
 const MOOMOO_SOURCE = "https://support.snaptrade.com/Moomoo-e33feaa69a1c836f891381bb17911594?pvs=21"
+/** Alpaca: "all Alpaca accounts are margin accounts" (no cash product). */
+const ALPACA_ACCOUNTS = "https://alpaca.markets/support/alpaca-cash-accounts"
 
 export const ROUTE_SUPPORT: Readonly<Record<string, RouteSupport>> = {
     ...Object.fromEntries(Object.entries(US_EQUITY_SUPPORT).map(([slug, s]) => [slug, {
         paper: s.paper, limit: true, gtc: s.gtc, fractional: s.fractional, dollars: s.dollars,
-        listings: US_LISTINGS, unverified: [], evidence: [SNAPTRADE_BROKERAGES],
+        listings: US_LISTINGS, unverified: [], evidence: [SNAPTRADE_BROKERAGES, ...(slug.startsWith("ALPACA") ? [ALPACA_ACCOUNTS] : [])],
         // Moomoo: US accounts fractional (min 5 USD); CA accounts none. One
         // slug serves both and no typed account field proves the region.
-        ...(slug === "MOOMOO" ? { fractionalRegion: "US" as const } : {}) } satisfies RouteSupport])),
+        ...(slug === "MOOMOO" ? { fractionalRegion: "US" as const } : {}),
+        ...(slug.startsWith("ALPACA") ? { marginAccounts: "cash_funded" as const } : {}) } satisfies RouteSupport])),
     // Wealthsimple: CAD listings on TSX/TSX Venture and USD on US venues.
     // SnapTrade table: Dollar amount + Whole shares; fractional units not
     // supported. Its instrument list has no universal id, so dollar listing
@@ -84,6 +92,15 @@ export const MINOR_UNITS: Readonly<Record<string, number>> = { USD: 2, CAD: 2 }
 export const MINIMUM_SOURCES: Readonly<Record<string, string>> = {
     WEBULL: "https://support.snaptrade.com/Webull-e1afeaa69a1c839ba37c0134f951baa2",
     MOOMOO: MOOMOO_SOURCE,
+}
+
+/** One shared funding-mode rule for every route and both contracts.
+ * `cash` qualifies everywhere; `margin` only on routes whose documented policy
+ * is cash-funded orders; `unknown`/missing never qualifies. */
+export function fundingModeEligible(slug: string, account: { cash_or_margin?: unknown } | null | undefined): boolean {
+    const mode = account?.cash_or_margin
+    if (mode === "cash") return true
+    return mode === "margin" && routeSupport(slug)?.marginAccounts === "cash_funded"
 }
 
 /** SnapTrade's InvestmentAccount (SDK 13.2.3) has no region/country field;
