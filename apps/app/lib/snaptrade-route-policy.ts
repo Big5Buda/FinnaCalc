@@ -28,9 +28,11 @@ export type RouteSupport = { paper: boolean; limit: boolean; gtc: boolean; fract
     /** Dollars need env-granted self-directed account types (raw_type). */
     selfDirectedRawTypes?: true
     /** "cash_funded": the institution has no cash-account product, so a
-     * provider `margin` account is accepted ONLY because every FinnaCalc order
-     * is cash-funded anyway (BUY needs reported cash ≥ amount + known fees,
-     * SELL needs held units, no open orders). Requires a documented source. */
+     * provider `margin` account is accepted under FinnaCalc's existing
+     * cash-sufficiency checks (BUY: reported cash ≥ amount + known reviewed
+     * fees, not buying power; SELL: held units; no open orders). Final fill
+     * price and fees can still differ, so this limits but does not rule out a
+     * margin debit. Requires a documented source. */
     marginAccounts?: "cash_funded" }
 
 const US_LISTINGS: readonly RouteListing[] = [{ currency: "USD", mics: US_EQUITY_MICS }]
@@ -96,7 +98,7 @@ export const MINIMUM_SOURCES: Readonly<Record<string, string>> = {
 
 /** One shared funding-mode rule for every route and both contracts.
  * `cash` qualifies everywhere; `margin` only on routes whose documented policy
- * is cash-funded orders; `unknown`/missing never qualifies. */
+ * is the cash-sufficiency check above; `unknown`/missing never qualifies. */
 export function fundingModeEligible(slug: string, account: { cash_or_margin?: unknown } | null | undefined): boolean {
     const mode = account?.cash_or_margin
     if (mode === "cash") return true

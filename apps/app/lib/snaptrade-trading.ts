@@ -305,8 +305,12 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
 export const unavailableImpact = "Order impact unavailable. A reliable pre-trade impact or fee estimate is not available for this order. The final execution price, transaction amount, commissions, fees, and cash impact may not be known until the order is submitted or executed. Fees may apply. By submitting this order, you agree to proceed without these estimates."
 
 /** Current account details normalize cash versus margin across institutions.
- * Unknown and margin modes remain unsupported for BUY. Re-read on confirm;
- * cash checks and fee estimates still do not guarantee execution costs. */
+ * Funding mode comes from fundingModeEligible: cash everywhere, margin only
+ * on routes whose documented policy is cash-sufficiency (no cash product),
+ * unknown never. Re-read on confirm. validateFunds compares reported cash with
+ * the order amount plus known reviewed fees; the final fill price and fees
+ * can still differ (see unavailableImpact), so this is not a guarantee that a
+ * margin account can never be debited. */
 export function requireExecutionFundingMode(order: Terms, context: Awaited<ReturnType<typeof ownedTradingAccount>>, _session: SnapTradeSession) {
     if (!fundingModeEligible(context.connection.brokerage?.slug ?? "", context.account))
         throw new TradingError("cash_only_unverified",
