@@ -4,7 +4,13 @@ import { NextRequest } from "next/server"
 // Fixtures and no-network SDK doubles only; no live or paper orders.
 const m = vi.hoisted(() => ({ list: vi.fn(), links: vi.fn(), quotes: vi.fn(), orders: vi.fn(), positions: vi.fn(), details: vi.fn(),
     partner: vi.fn(), balances: vi.fn(), preview: vi.fn(), place: vi.fn(), force: vi.fn(), instruments: vi.fn(), orderDetail: vi.fn(),
-    consumeCalls: 0, storageVersion: 4 as number | null, saved: [] as any[], rows: new Map<string, any>(), sequence: 0, generation: 0, client: null as any }))
+    consumeCalls: 0, storageVersion: 4 as number | null, trustedRegion: null as boolean | null, saved: [] as any[], rows: new Map<string, any>(), sequence: 0, generation: 0, client: null as any }))
+// Test seam for the server-owned region predicate (no production source
+// exists): null = real predicate, true = a verified US account.
+vi.mock("../snaptrade-route-policy", async () => {
+    const actual = await vi.importActual<any>("../snaptrade-route-policy")
+    return { ...actual, fractionalRegionVerified: (route: any, account: any) => m.trustedRegion ?? actual.fractionalRegionVerified(route, account) }
+})
 vi.mock("@/lib/snaptrade-session", () => ({ loadSession: async () => ({ clientId: "key", userId: "vendor-user", userSecret: "fixture" }) }))
 vi.mock("@/lib/supabase-auth", () => ({ verifiedAppUserId: async () => "owner" }))
 vi.mock("@/lib/snaptrade-access", () => ({ brokerageReadScope: async () => ({ countedConnectionId: null }) }))
@@ -34,6 +40,7 @@ vi.mock("@/lib/snaptrade-order-reviews", () => ({
 import { impact, place, quote } from "../snaptrade-trading-routes"
 import { capability, notionalCents, sameTerms, terms } from "../snaptrade-trading"
 import { bindInstrument } from "../snaptrade-brokerage-instruments"
+import { productBelow } from "../exact-decimal"
 
 const dollarBuy = { accountId: "a", symbol: "AAPL", action: "BUY", amountMode: "dollars", notionalValue: "25", orderType: "Market", timeInForce: "Day", price: null, stop: null }
 const notionalBlock = { orderTypes: ["Market"], timeInForce: ["Day"], minAmount: "1.00", maxAmount: "10000.00" }
@@ -48,7 +55,7 @@ async function review(body: any = dollarBuy) { const res = await impact(req(body
 const submit = (r: any, extra: any = {}) => place(req({ reviewId: r.reviewId, confirmed: true, terms: r.terms, ...extra }))
 
 beforeEach(() => {
-    vi.resetAllMocks(); m.rows.clear(); m.saved = []; m.sequence = 0; m.generation = 0; m.storageVersion = 4; m.consumeCalls = 0
+    vi.resetAllMocks(); m.rows.clear(); m.saved = []; m.sequence = 0; m.generation = 0; m.storageVersion = 4; m.consumeCalls = 0; m.trustedRegion = null
     // Fresh client object per test isolates the module-level instrument cache.
     m.client = { accountInformation: { listUserAccounts: m.list, getAccountDetails: m.details, getUserAccountOrders: m.orders,
         getAllAccountPositions: m.positions, getUserAccountBalance: m.balances, getUserAccountOrderDetail: m.orderDetail },
@@ -155,14 +162,35 @@ it.each([
     const body = await res.json()
     expect(body.ask).toBe(10); expect(body.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares"])
 })
-it("quote hides dollars on metadata transport failure, storage V3, missing MIC, margin or non-allowlisted broker", async () => {
+it("quote hides dollars on metadata transport failure, storage V3, missing MIC, unknown funding mode or non-allowlisted broker", async () => {
     const modes = async () => (await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()).orderCapabilities.rules.map((r: any) => r.amountMode)
     m.instruments.mockRejectedValue(new Error("timeout")); expect(await modes()).toEqual(["shares"])
     m.instruments.mockResolvedValue({ data: { instruments: [instrument] } })
     m.storageVersion = 3; expect(await modes()).toEqual(["shares"]); m.storageVersion = null; expect(await modes()).toEqual(["shares"]); m.storageVersion = 4
     m.quotes.mockResolvedValue({ data: [{ symbol: { ...listing, exchange: { code: "NASDAQ", mic_code: null } }, ask_price: 10 }] }); expect((await quote(req({ accountId: "a", symbol: "AAPL" }))).status).toBe(422)
     m.quotes.mockResolvedValue({ data: [{ symbol: listing, ask_price: 10 }] })
-    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } }); expect(await modes()).toEqual(["shares"])
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "unknown" } }); expect(await modes()).toEqual(["shares"])
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true } }); expect(await modes()).toEqual(["shares"])
+})
+it("Alpaca Paper margin account (Alpaca has no cash product) gets Dollars and fractional Shares once every other predicate holds", async () => {
+    // Regression anchor for the reported "Shares only" ticket: the cash-only
+    // funding predicate made this route's Dollars/fractional unreachable.
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ "ALPACA-PAPER": { ...alpacaCaps["ALPACA-PAPER"], fractional: true,
+        fractionalOrders: { orderTypes: { Market: ["Day"] }, decimalPlaces: 6 } } }))
+    m.details.mockResolvedValue({ data: { id: "a", connection_id: "c", status: "open", kind: "investment", is_paper: true, cash_or_margin: "margin" } })
+    const body = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(body.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares", "dollars"])
+    expect(body.orderCapabilities.rules[0]).toMatchObject({ fractionalDecimalPlaces: 6 })
+    expect(body.orderCapabilities.rules[1]).toMatchObject({ minAmount: "1.00", maxAmount: "10000.00", previewRequired: true })
+    // The same account without the env notional/fractional grant stays Shares-only (whole).
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ "ALPACA-PAPER": { ...alpacaCaps["ALPACA-PAPER"], notional: undefined } }))
+    const plain = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
+    expect(plain.orderCapabilities.rules.map((r: any) => r.amountMode)).toEqual(["shares"])
+    expect(plain.orderCapabilities.rules[0]).not.toHaveProperty("fractionalOrderTypes")
+    // Dollar review on margin is still bound by reported cash, never buying power.
+    m.balances.mockResolvedValue({ data: [{ currency: { id: "currency-usd", code: "USD" }, cash: 20 }] })
+    vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify(alpacaCaps))
+    expect((await review({ ...dollarBuy, notionalValue: "25.00" })).body.code).toBe("order_funds_insufficient")
 })
 it("ETRADE never offers dollars even with an env notional block and fractionable metadata", async () => {
     vi.stubEnv("SNAPTRADE_TRADING_BROKER_CAPABILITIES", JSON.stringify({ ETRADE: { ...alpacaCaps["ALPACA-PAPER"] } }))
@@ -461,6 +489,7 @@ function fractionalBroker(slug: string, decimalPlaces = 6) {
 }
 it.each(["ALPACA-PAPER", "MOOMOO", "PUBLIC", "TASTYTRADE", "WEBULL"])("%s fractional quote/review/checked placement uses additive V1 proof, never deprecated flag", async slug => {
     fractionalBroker(slug)
+    if (slug === "MOOMOO") m.trustedRegion = true
     if (["MOOMOO", "WEBULL"].includes(slug)) m.instruments.mockResolvedValue({ data: { instruments: [] } })
     const body = await (await quote(req({ accountId: "a", symbol: "AAPL" }))).json()
     expect(body.orderCapabilities.version).toBe(1)
@@ -479,8 +508,51 @@ it.each([{ units: 0.75000001 }, { units: 0.750001 }, { orderType: "Limit", price
 })
 it.each(["MOOMOO", "WEBULL"])("%s enforces documented fractional $5 minimum", async slug => {
     fractionalBroker(slug); m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    if (slug === "MOOMOO") m.trustedRegion = true
     expect((await review({ ...fractionalBuy, units: 0.4 })).status).toBe(400)
     expect(m.preview).not.toHaveBeenCalled()
+})
+it("Moomoo fractional needs server-verified US region: unknown/CA denies fractional at quote and impact; whole shares unaffected; client fields grant nothing", async () => {
+    fractionalBroker("MOOMOO"); m.instruments.mockResolvedValue({ data: { instruments: [] } })
+    for (const region of [null, false]) {
+        m.trustedRegion = region; m.preview.mockClear()
+        const body = await (await quote(req({ accountId: "a", symbol: "AAPL", accountRegion: "US", region: "US" }))).json()
+        expect(body.orderCapabilities.rules[0]).not.toHaveProperty("fractionalOrderTypes")
+        expect(body.orderCapabilities.rules[0]).not.toHaveProperty("fractionalMinOrderValue")
+        const denied = await review({ ...fractionalBuy, accountRegion: "US" })
+        expect(denied).toMatchObject({ status: 409, body: { code: "fractional_orders_unavailable" } })
+        expect(m.preview).not.toHaveBeenCalled()
+    }
+    m.preview.mockResolvedValue(checkedTrade({ units: 2 }))
+    const whole = await review({ ...fractionalBuy, units: 2 })
+    expect(whole.status).toBe(200)
+})
+it("Moomoo fresh place revalidates the region: a lost proof refuses before submission", async () => {
+    fractionalBroker("MOOMOO"); m.instruments.mockResolvedValue({ data: { instruments: [] } }); m.trustedRegion = true
+    const r = await review(fractionalBuy); expect(r.status).toBe(200)
+    m.trustedRegion = false
+    const res = await submit(r.body)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: "fractional_orders_unavailable", submissionStatus: "not_submitted_by_this_request" })
+    expect(m.place).not.toHaveBeenCalled(); expect(m.force).not.toHaveBeenCalled(); expect(m.consumeCalls).toBe(0)
+})
+it("V1 fractional minimum is exact decimal at the boundary, near-below/above, and missing quote", async () => {
+    fractionalBroker("MOOMOO"); m.instruments.mockResolvedValue({ data: { instruments: [] } }); m.trustedRegion = true
+    const at = async (units: number, ask: unknown) => {
+        m.quotes.mockResolvedValue({ data: [{ symbol: listing, ask_price: ask, bid_price: 9.5 }] })
+        m.preview.mockResolvedValue(checkedTrade({ units }))
+        return (await review({ ...fractionalBuy, units })).status
+    }
+    expect(await at(0.5, 10)).toBe(200)        // exactly 5.00
+    expect(await at(0.499999, 10)).toBe(400)   // 4.99999
+    expect(await at(0.500001, 10)).toBe(200)   // 5.00001
+    expect(await at(0.5, null)).toBe(400)      // no ask: minimum unverifiable
+    // Shared helper: 0.29 * 100 === 28.999999999999996 in binary, exactly 29.
+    expect(0.29 * 100 < 29).toBe(true)
+    expect(productBelow(0.29, 100, "29.00")).toBe(false)
+    expect(productBelow(0.289999, 100, "29.00")).toBe(true)
+    expect(productBelow(0.290001, 100, "29.00")).toBe(false)
+    expect(productBelow(Number.NaN, 100, "29.00")).toBe(true)
 })
 it.each([null, {}, { instruments: null }, { instruments: [{ ...instrument, fractionable: false }] }, { instruments: [{ ...instrument, tradeable: false }] }, { instruments: [{ ...instrument, universal_symbol_id: "other" }] }, { instruments: [{ ...instrument, fractionable: null }] }])("preview-only policy never bypasses malformed/negative/conflicting instrument facts %j", async data => {
     fractionalBroker("WEBULL"); m.instruments.mockResolvedValue({ data })

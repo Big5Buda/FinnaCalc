@@ -1,7 +1,8 @@
 import { getSnapTrade, isTradingKeyApproved, type SnapTradeSession } from "./snaptrade"
-import { usEquitySupport, US_EQUITY_SUPPORT, usEquityMic, documentedMinimum } from "./snaptrade-broker-policy"
+import { usEquityMic, documentedMinimum } from "./snaptrade-broker-policy"
 import { brokerageReadScope } from "./snaptrade-access"
 import { accountPositions, positionNumber } from "./snaptrade-positions"
+import { fundingModeEligible, MINOR_UNITS, ROUTE_SUPPORT, routeListing, routeSupport } from "./snaptrade-route-policy"
 
 export class TradingError extends Error {
     constructor(public code: string, message: string, public status = 400) { super(message) }
@@ -12,14 +13,20 @@ export class TradingError extends Error {
 export type AmountMode = "shares" | "dollars"
 export type Terms = { accountId: string; symbol: string; action: "BUY" | "SELL";
     amountMode: AmountMode; units: number | null; notionalValue: string | null;
-    orderType: "Market" | "Limit"; timeInForce: "Day" | "GTC"; price: number | null; stop: null }
+    orderType: "Market" | "Limit"; timeInForce: "Day" | "GTC"; price: number | null; stop: null } & SizingV2Terms
+/** Additive sizing V2 binding. Absent on V1 terms (never serialized as null),
+ * so V1 echoes and stored V3/V4 rows are byte-for-byte unchanged. */
+export type SizingV2Terms = { sizingVersion?: 2; currency?: string; minorUnit?: number }
 export type NotionalCapability = { orderTypes: ["Market"]; timeInForce: ["Day"]; minAmount: string; maxAmount: string }
 export type FractionalCapability = { orderTypes: { Market: ["Day"] }; decimalPlaces: number; minOrderValue?: string }
 export type Capability = { orderTypes: string[]; timeInForce: string[]; fractional: boolean; preview: boolean; exchanges: string[];
-    notional?: NotionalCapability; fractionalOrders?: FractionalCapability }
+    notional?: NotionalCapability; fractionalOrders?: FractionalCapability
+    /** Env-granted account raw_type values reviewed as self-directed, for
+     * routes whose policy requires that proof before Dollars. */
+    selfDirectedRawTypes?: string[] }
 /** Sourced sizing ceiling: configuration is still required, as are live
  * namespace/account/listing checks. Fractional units never imply dollars. */
-export const NOTIONAL_BROKERAGES: readonly string[] = Object.keys(US_EQUITY_SUPPORT).filter(slug => usEquitySupport(slug)?.dollars === true)
+export const NOTIONAL_BROKERAGES: readonly string[] = Object.keys(ROUTE_SUPPORT).filter(slug => routeSupport(slug)?.dollars === true)
 /** Application bounds (root-approved): USD 1.00 – 10,000.00. */
 export const NOTIONAL_MIN_CENTS = 100, NOTIONAL_MAX_CENTS = 1_000_000
 const NOTIONAL_PATTERN = /^(0|[1-9][0-9]{0,6})(?:\.([0-9]{1,2}))?$/
@@ -54,20 +61,31 @@ export function terms(body: any): Terms {
     if (body.orderType === "Market" && (body.price != null || body.timeInForce !== "Day")) return fail()
     if (body.orderType === "Limit" && (!Number.isFinite(body.price) || body.price <= 0 || body.price > 1e9
         || Math.abs(body.price * 1e4 - Math.round(body.price * 1e4)) > 0.0001)) return fail()
+    let v2: SizingV2Terms = {}
+    if (body.sizingVersion !== undefined) {
+        // V2 binds the listing currency and its minor unit into the terms; the
+        // routes verify both against the account's own quote.
+        if (body.sizingVersion !== 2 || typeof body.currency !== "string" || !/^[A-Z]{3}$/.test(body.currency)
+            || !Number.isInteger(body.minorUnit) || MINOR_UNITS[body.currency] !== body.minorUnit) return fail()
+        v2 = { sizingVersion: 2, currency: body.currency, minorUnit: body.minorUnit }
+    } else if (body.currency !== undefined || body.minorUnit !== undefined) return fail()
     const common = { accountId, symbol, action: body.action as Terms["action"], amountMode }
     if (amountMode === "dollars") {
         // Dollar orders are a real notional request: Market/Day only, a JSON
         // string amount (no float/exponent ambiguity), never a share count.
         const cents = notionalCents(body.notionalValue)
+        // V2 requires the exact canonical minor-unit string (no "25" → "25.00").
+        // Stored dollar reviews are 2-place (V4 storage), so V2 dollars are too.
+        if (v2.sizingVersion === 2 && (v2.minorUnit !== 2 || cents == null || centsString(cents) !== body.notionalValue)) return fail()
         if (body.units != null || cents == null || cents < NOTIONAL_MIN_CENTS || cents > NOTIONAL_MAX_CENTS
             || body.orderType !== "Market" || body.timeInForce !== "Day") return fail()
-        return { ...common, units: null, notionalValue: centsString(cents), orderType: "Market", timeInForce: "Day", price: null, stop: null }
+        return { ...common, units: null, notionalValue: centsString(cents), orderType: "Market", timeInForce: "Day", price: null, stop: null, ...v2 }
     }
     if (!Number.isFinite(body.units) || body.units <= 0
         || body.units > 1e9 || !fractionalPrecision(body.units, 6)
         || body.notionalValue != null) return fail()
     return { ...common, units: body.units, notionalValue: null, orderType: body.orderType,
-        timeInForce: body.timeInForce, price: body.orderType === "Limit" ? body.price : null, stop: null }
+        timeInForce: body.timeInForce, price: body.orderType === "Limit" ? body.price : null, stop: null, ...v2 }
 }
 export function sameTerms(a: unknown, b: unknown): boolean { return JSON.stringify(terms(a)) === JSON.stringify(terms(b)) }
 
@@ -83,18 +101,24 @@ export function capability(slug: string): Capability {
         || !value.exchanges.every((v: unknown) => typeof v === "string" && /^[A-Z0-9]{2,12}$/.test(v))
         || typeof value.fractional !== "boolean" || typeof value.preview !== "boolean")
         throw new TradingError("trading_unavailable", "Trading support for this brokerage has not been confirmed.", 503)
-    const support = usEquitySupport(slug)
-    // Unknown or non-US equity integrations require an explicit policy review.
+    const support = routeSupport(slug)
+    // Unknown integrations require an explicit route policy review.
     if (!support) throw new TradingError("trading_unavailable", "US stock and ETF trading support has not been confirmed for this brokerage.", 503)
-    const { notional, ...shares } = value
-    if (shares.fractional && !support.fractional || shares.timeInForce.includes("GTC") && !support.gtc)
+    const { notional, selfDirectedRawTypes, ...shares } = value
+    if (shares.fractional && !support.fractional || shares.timeInForce.includes("GTC") && !support.gtc
+        || shares.orderTypes.includes("Limit") && !support.limit)
         throw new TradingError("trading_unavailable", "Configured brokerage order support exceeds confirmed provider support.", 503)
     const parsed = notionalCapability(slug, notional)
     const fractionalOrders = fractionalCapability(slug, value.fractionalOrders, value.preview)
     if (fractionalOrders && (!shares.orderTypes.includes("Market") || !shares.timeInForce.includes("Day")))
         throw new TradingError("trading_unavailable", "Fractional order support conflicts with the configured order types.", 503)
+    // Malformed self-directed grants are dropped (Dollars then stay denied).
+    const rawTypes = Array.isArray(selfDirectedRawTypes) && selfDirectedRawTypes.length
+        && selfDirectedRawTypes.every((t: unknown) => typeof t === "string" && t.trim() === t && t.length > 0 && t.length <= 64)
+        ? [...selfDirectedRawTypes] as string[] : undefined
     return { orderTypes: shares.orderTypes, timeInForce: shares.timeInForce, fractional: shares.fractional,
-        preview: shares.preview, exchanges: shares.exchanges, ...(parsed ? { notional: parsed } : {}), ...(fractionalOrders ? { fractionalOrders } : {}) }
+        preview: shares.preview, exchanges: shares.exchanges, ...(parsed ? { notional: parsed } : {}), ...(fractionalOrders ? { fractionalOrders } : {}),
+        ...(rawTypes ? { selfDirectedRawTypes: rawTypes } : {}) }
 }
 /** Explicit per-order fractional configuration; no deprecated provider flag.
  * Market/Day is the reviewed conservative subset, app precision <=6.
@@ -102,7 +126,7 @@ export function capability(slug: string): Capability {
 function fractionalCapability(slug: string, value: any, preview: boolean): FractionalCapability | undefined {
     if (value == null) return undefined
     const minimum = documentedMinimum(slug)
-    if (!usEquitySupport(slug)?.fractional || preview !== true || !value || typeof value !== "object"
+    if (!routeSupport(slug)?.fractional || preview !== true || !value || typeof value !== "object"
         || Array.isArray(value) || Object.keys(value).some(k => !["orderTypes", "decimalPlaces", "minOrderValue"].includes(k))
         || JSON.stringify(value.orderTypes) !== '{"Market":["Day"]}'
         || !Number.isInteger(value.decimalPlaces) || value.decimalPlaces < 1 || value.decimalPlaces > 6
@@ -118,7 +142,7 @@ function notionalCapability(slug: string, value: any): NotionalCapability | unde
     const min = notionalCents(value.minAmount), max = notionalCents(value.maxAmount)
     if (Object.keys(value).sort().join() !== "maxAmount,minAmount,orderTypes,timeInForce"
         || JSON.stringify(value.orderTypes) !== '["Market"]' || JSON.stringify(value.timeInForce) !== '["Day"]'
-        || min == null || max == null || min < (slug === "WEBULL" ? 500 : NOTIONAL_MIN_CENTS) || max > NOTIONAL_MAX_CENTS || min > max) return undefined
+        || min == null || max == null || min < (notionalCents(documentedMinimum(slug)) ?? NOTIONAL_MIN_CENTS) || max > NOTIONAL_MAX_CENTS || min > max) return undefined
     return { orderTypes: ["Market"], timeInForce: ["Day"], minAmount: centsString(min), maxAmount: centsString(max) }
 }
 export function configuredTradingBrokerages(): string[] {
@@ -169,22 +193,27 @@ export async function ownedTradingAccount(userId: string, session: SnapTradeSess
     // Current details require a boolean environment marker. For launch brokers
     // also bind that marker to the documented paper/live institution slug.
     if (typeof account.is_paper !== "boolean"
-        || !usEquitySupport(slug) || account.is_paper !== usEquitySupport(slug)?.paper)
+        || !routeSupport(slug) || account.is_paper !== routeSupport(slug)?.paper)
         throw new TradingError("account_environment_unverified", "The brokerage account's paper or live environment could not be confirmed.", 409)
     const cap = capability(connection.brokerage.slug ?? "")
     if (!(await liveTradingBrokerages(session.clientId)).includes(connection.brokerage.slug ?? ""))
         throw new TradingError("broker_trading_unavailable", "Trading availability could not be confirmed for this brokerage.", 503)
     return { st, auth, account, connection, cap }
 }
-export async function accountQuote(context: Awaited<ReturnType<typeof ownedTradingAccount>>, symbol: string) {
-    const { st, auth, account, cap } = context
+export async function accountQuote(context: Awaited<ReturnType<typeof ownedTradingAccount>>, symbol: string,
+    { sizingVersion }: { sizingVersion?: 2 } = {}) {
+    const { st, auth, account } = context
     let quotes: any
     try { quotes = (await st.trading.getUserAccountQuotes({ ...auth, accountId: account.id, symbols: symbol, useTicker: true })).data }
     catch { throw new TradingError("quote_unavailable", "A brokerage quote is unavailable right now.", 502) }
     const q = Array.isArray(quotes) ? quotes.find(q => q.symbol?.symbol?.toUpperCase() === symbol) : null
     if (!q?.symbol?.id) throw new TradingError("quote_unsupported", "This security could not be confirmed for this account.", 422)
-    if (!["cs", "et"].includes(q.symbol.type?.code) || q.symbol.currency?.code !== "USD"
-        || !usEquityMic(q.symbol.exchange?.mic_code))
+    // V1 stays USD on US venues. V2 accepts only the route's reviewed
+    // (currency, MIC) listings, which for US routes is the same set.
+    const listingOk = sizingVersion === 2
+        ? routeListing(context.connection.brokerage?.slug ?? "", q.symbol.currency?.code, q.symbol.exchange?.mic_code)
+        : q.symbol.currency?.code === "USD" && usEquityMic(q.symbol.exchange?.mic_code)
+    if (!["cs", "et"].includes(q.symbol.type?.code) || !listingOk)
         throw new TradingError("quote_unsupported", "Trading support for this listing has not been confirmed.", 422)
     return q
 }
@@ -223,6 +252,8 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
                 || order.orderType !== "Market" || order.timeInForce !== "Day"
                 || !fractionalPrecision(order.units, cap.fractionalOrders.decimalPlaces))))
         throw new TradingError("order_invalid", "These order terms are not enabled for this brokerage.")
+    if (order.sizingVersion === 2 && (order.currency !== q.symbol.currency?.code || MINOR_UNITS[order.currency!] !== order.minorUnit))
+        throw new TradingError("order_invalid", "The order currency no longer matches this listing.", 409)
     const notional = cents == null ? null : cents / 100
     // Exclude simultaneous/open orders rather than guessing reservations or available-to-sell quantities.
     const { data: open } = await st.accountInformation.getUserAccountOrders({ ...auth, accountId: order.accountId, state: "open" })
@@ -274,12 +305,16 @@ export async function validateFunds(context: Awaited<ReturnType<typeof ownedTrad
 export const unavailableImpact = "Order impact unavailable. A reliable pre-trade impact or fee estimate is not available for this order. The final execution price, transaction amount, commissions, fees, and cash impact may not be known until the order is submitted or executed. Fees may apply. By submitting this order, you agree to proceed without these estimates."
 
 /** Current account details normalize cash versus margin across institutions.
- * Unknown and margin modes remain unsupported for BUY. Re-read on confirm;
- * cash checks and fee estimates still do not guarantee execution costs. */
+ * Funding mode comes from fundingModeEligible: cash everywhere, margin only
+ * on routes whose documented policy is cash-sufficiency (no cash product),
+ * unknown never. Re-read on confirm. validateFunds compares reported cash with
+ * the order amount plus known reviewed fees; the final fill price and fees
+ * can still differ (see unavailableImpact), so this is not a guarantee that a
+ * margin account can never be debited. */
 export function requireExecutionFundingMode(order: Terms, context: Awaited<ReturnType<typeof ownedTradingAccount>>, _session: SnapTradeSession) {
-    if (context.account.cash_or_margin !== "cash")
+    if (!fundingModeEligible(context.connection.brokerage?.slug ?? "", context.account))
         throw new TradingError("cash_only_unverified",
-            "Trading requires a brokerage-confirmed cash account. Margin and unknown account modes are not supported.", 409)
+            "Trading requires a brokerage-confirmed cash account, or a margin account at a brokerage where FinnaCalc keeps every order cash-funded. Other margin and unknown account modes are not supported.", 409)
 }
 
 /** V2 instrument IDs and universal-symbol IDs are different namespaces.
